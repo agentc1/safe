@@ -305,3 +305,114 @@ end Get_Reading;
 6. **Editorial Conventions:** Items 6 (example conformance) and 7 (tool independence) present. ✓
 7. **Design Decisions heading:** `## Design Decisions` heading present before D1. ✓
 8. **§03 and §04 drafting instructions:** Symbol-file `Global` effect summaries and cross-package ownership checking requirements present. ✓
+
+---
+
+## Round 3
+
+Changes applied based on a second independent ECMA-track readiness review.
+
+### P0-R3-1. D27 Rule 3 — Division by Integer Literal Is Illegal Under Current Rule
+
+**Problem:** Under wide intermediate arithmetic (Rule 1), integer literals like `2` are lifted to `Wide_Integer` whose range includes zero. Therefore `(A + B) / 2` was illegal under the type-only rule. The D27 `Average` example was nonconforming.
+
+**Before:**
+> **Rule 3: Division by Nonzero Type**
+>
+> The right operand of the operators `/`, `mod`, and `rem` shall be of a type or subtype whose range does not include zero. If the divisor's type range includes zero, the program is rejected at compile time.
+
+**After:**
+> **Rule 3: Division by Provably Nonzero Divisor**
+>
+> The right operand of the operators `/`, `mod`, and `rem` shall be provably nonzero at compile time. A conforming implementation shall accept a divisor expression as provably nonzero if any of the following conditions holds:
+> (a) The divisor expression has a type or subtype whose range excludes zero.
+> (b) The divisor expression is a static expression whose value is nonzero (e.g., a literal `2`, a named number).
+> (c) The divisor expression is an explicit conversion to a nonzero subtype where the conversion is provably valid at that program point.
+
+**Additional locations patched:**
+- D26 four-rule summary item 3 updated to "Division-by-provably-nonzero-divisor"
+- Combined effect table row updated
+- §02 drafting instructions Rule 3 updated
+- §05 drafting instructions updated
+- Two new example blocks added (static literal, named number)
+
+### P1-R3-1. Reserved Words — Ambiguous "Not Associated with Excluded Features"
+
+**Problem:** "Safe retains all Ada 2022 reserved words that are not associated with excluded features" is not a well-defined lexical rule.
+
+**Before:**
+> Safe retains all Ada 2022 reserved words that are not associated with excluded features. Safe adds the following context-sensitive keywords that are reserved in Safe source but not Ada reserved words:
+
+**After:**
+> Safe reserves all ISO/IEC 8652:2023 (Ada 2022) reserved words (8652:2023 §2.9), regardless of whether the corresponding language feature is excluded in Safe. This preserves lexical clarity, simplifies the lexer, and ensures forward compatibility if excluded features are reconsidered in future revisions.
+>
+> Safe also adds the following reserved words that are not Ada reserved words:
+
+### P1-R3-2. `Average_Reading` Quick Reference Example — Return Narrowing Not Provably Safe
+
+**Problem:** `Average_Reading` did `return Reading(Total / Count)` where the result range (0..32760) exceeds `Reading` (0..4095). Interval analysis alone cannot prove the narrowing is safe.
+
+**Before:**
+```ada
+public function Average_Reading (Count : Channel_Count) return Reading is
+begin
+    Total : Integer := 0;
+    for I in Channel_Id.First .. Channel_Id(Count - 1) loop
+        Total := Total + Integer(Get_Reading(I));
+    end loop;
+    return Reading(Total / Count);
+end Average_Reading;
+```
+
+**After:** Replaced with two simpler functions:
+```ada
+public function Average (A, B : Reading) return Reading is
+begin
+    return (A + B) / 2;  -- Rule 1 + Rule 3(b)
+end Average;
+
+public function Scale (R : Reading; Divisor : Channel_Count) return Integer is
+begin
+    return Integer(R) / Integer(Divisor);  -- Rule 3(a)
+end Scale;
+```
+
+**Additional locations patched:**
+- D27 note below Quick Reference updated
+- Emitted Ada example updated (Average, Scale instead of Average_Reading)
+
+### P1-R3-3. §07-annex-b Drafting Instructions Use Normative "shall" Voice
+
+**Problem:** §07-annex-b is informative but used "shall" for several items, creating "shall leakage" that ECMA reviewers would flag.
+
+**Changes:**
+- Added drafting note at top of §07-annex-b: "This annex is informative. Use 'should' rather than 'shall' throughout."
+- "Emitted Ada conventions" → "(informative)", "shall" → "should"
+- "Elaboration and tasking configuration" → "(informative)", "shall" → "should"
+- Deallocation emission "must" → "should"
+- Diagnostic messages "shall" → "should"
+
+### P2-R3-1. ECMA Submission Shaping Constraints
+
+**Change:** Added new section between Conformance Note and Toolchain Baseline with 5 constraints:
+1. UK English drafting language
+2. Per-file normative/informative declarations
+3. Code examples are non-normative
+4. Avoid normative pseudo-code
+5. No normative software mandates
+
+**Additional change:** Added normative/informative status bullet to §00 front matter drafting instructions.
+
+---
+
+## Round 3 Consistency Pass
+
+1. **D27 Rule 3 name:** "Division by Nonzero Type" does not appear as a rule name. All references use "Division by Provably Nonzero Divisor" or equivalent. ✓
+2. **D27 Rule 3 examples:** Conditions (a), (b), and (c) all exemplified. ✓
+3. **D26 summary:** Item 3 updated to "Division-by-provably-nonzero-divisor." ✓
+4. **Reserved words:** "not associated with excluded features" does not appear. ✓
+5. **Quick Reference examples:** `Average_Reading` replaced by `Average` and `Scale`, both conforming. ✓
+6. **Emitted Ada example:** Matches new function signatures with consistent `Global`/`Depends`. ✓
+7. **§07-annex-b voice:** No "shall" in annex-b content (only in the drafting note explaining the convention). ✓
+8. **ECMA shaping section:** Present between Conformance Note and Toolchain Baseline with all 5 constraints. ✓
+9. **§00 front matter:** Includes normative/informative status bullet. ✓

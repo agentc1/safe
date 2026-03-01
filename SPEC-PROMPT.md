@@ -24,6 +24,22 @@ Language conformance in this specification is defined in terms of language prope
 
 ---
 
+## ECMA Submission Shaping Constraints
+
+The Safe specification is intended to be suitable for eventual submission as an Ecma International Standard. The following constraints apply to the generated draft:
+
+1. **Drafting language:** Use consistent English throughout. For ECMA submission, use UK English spelling and conventions (e.g., "behaviour," "colour," "generalisation," "licence" as noun). If the initial draft uses US English, document an explicit conversion step before submission.
+
+2. **Normative/informative declarations:** Each specification file shall declare its status in a header line: "This section is normative" or "This annex is informative." The following files are informative: `07-annex-b-impl-advice.md`. All other files are normative.
+
+3. **Code examples are non-normative:** All code examples (Safe source, emitted Ada, GNATprove output) are non-normative illustrations unless explicitly stated otherwise. The normative content is the prose rules, not the examples. Examples must be conforming (Editorial Convention 6), but they do not define the language.
+
+4. **Avoid normative pseudo-code:** Do not include pseudo-code algorithms as normative requirements. Describe semantics in prose (legality rules, static semantics, dynamic semantics). If an algorithm is included for clarity (e.g., the `Global`/`Depends` accumulation algorithm), label it as informative guidance.
+
+5. **No normative software mandates:** Consistent with ECMA's policy that standards should define requirements and not mandate specific implementations, no normative section shall require the use of specific software, tools, or compilers. This reinforces Editorial Convention 7.
+
+---
+
 ## Toolchain Baseline
 
 This section defines the reference toolchain profile used by the project to validate the language guarantees. It is informative and does not define language conformance. Language conformance is defined solely in §06.
@@ -48,7 +64,9 @@ These are the acceptance criteria used to validate D26's guarantees for the refe
 
 ## Reserved Words
 
-Safe retains all Ada 2022 reserved words that are not associated with excluded features. Safe adds the following context-sensitive keywords that are reserved in Safe source but not Ada reserved words:
+Safe reserves all ISO/IEC 8652:2023 (Ada 2022) reserved words (8652:2023 §2.9), regardless of whether the corresponding language feature is excluded in Safe. This preserves lexical clarity, simplifies the lexer, and ensures forward compatibility if excluded features are reconsidered in future revisions.
+
+Safe also adds the following reserved words that are not Ada reserved words:
 
 - `public` — visibility modifier (D8)
 - `channel` — channel declaration (D28)
@@ -314,7 +332,7 @@ Estimated compiler cost: 500–800 lines (300–500 for analysis during the exis
 
 1. Wide intermediate arithmetic — integer overflow is impossible in expressions.
 2. Strict index typing — array index types must match or be subtypes of the array's index type.
-3. Division-by-nonzero-type — the divisor in `/`, `mod`, and `rem` must be of a type whose range excludes zero.
+3. Division-by-provably-nonzero-divisor — the divisor in `/`, `mod`, and `rem` must be provably nonzero at compile time (by type, static value, or checked conversion).
 4. Not-null dereference — dereference of an access value requires the access subtype to be `not null`.
 
 These rules ensure that every runtime check in a conforming Safe program is provably safe from type information alone. No developer annotations are needed.
@@ -393,11 +411,17 @@ if N in Channel_Id.First .. Channel_Id.Last then
 end if;
 ```
 
-**Rule 3: Division by Nonzero Type**
+**Rule 3: Division by Provably Nonzero Divisor**
 
-The right operand of the operators `/`, `mod`, and `rem` shall be of a type or subtype whose range does not include zero. If the divisor's type range includes zero, the program is rejected at compile time.
+The right operand of the operators `/`, `mod`, and `rem` shall be provably nonzero at compile time. A conforming implementation shall accept a divisor expression as provably nonzero if any of the following conditions holds:
 
-This guarantees that every division-by-zero check is dischargeable by the prover — the divisor value is constrained by its type to be nonzero.
+(a) The divisor expression has a type or subtype whose range excludes zero (the preferred mechanism — e.g., `Positive`, `Channel_Count`).
+(b) The divisor expression is a static expression (8652:2023 §4.9) whose value is nonzero (e.g., a literal `2`, a named number `Divisor : constant := 3;`, a static constant).
+(c) The divisor expression is an explicit conversion to a nonzero subtype where the conversion is provably valid at that program point (e.g., `Positive(B)` inside an `if B > 0` branch).
+
+If none of these conditions holds, the program is rejected at compile time.
+
+This guarantees that every division-by-zero check is dischargeable — the divisor value is constrained to be nonzero either by its type, by its static value, or by a narrowing conversion the implementation can verify.
 
 The language provides standard subtypes that exclude zero:
 
@@ -406,7 +430,29 @@ subtype Positive is Integer range 1 .. Integer.Last;
 subtype Negative is Integer range Integer.First .. -1;
 ```
 
-Example:
+Example (static nonzero literal — condition b):
+
+```ada
+public function Average (A, B : Reading) return Reading is
+begin
+    return (A + B) / 2;  -- divisor 2 is a static nonzero expression: legal
+                          -- wide intermediate: max (4095+4095)/2 = 4095
+                          -- range check at return: provably in 0..4095
+end Average;
+```
+
+Example (named number — condition b):
+
+```ada
+Sample_Count : constant := 4;  -- named number, static, nonzero
+
+public function Quarter_Sum (Total : Integer) return Integer is
+begin
+    return Total / Sample_Count;  -- static nonzero divisor: legal
+end Quarter_Sum;
+```
+
+Example (nonzero type — condition a):
 
 ```ada
 public type Seconds is range 1 .. 3600;
@@ -483,7 +529,7 @@ This is consistent with D27's philosophy throughout: `not null access` is to nul
 | Integer overflow                     | Impossible — wide intermediate arithmetic                             |
 | Range on assignment/return/parameter | Interval analysis on wide intermediates                               |
 | Array index out of bounds            | Index type matches array index type                                   |
-| Division by zero                     | Divisor type excludes zero                                            |
+| Division by zero                     | Divisor is provably nonzero (type, static value, or checked conversion) |
 | Null dereference                     | Access subtype is `not null` at every dereference                     |
 | Discriminant                         | Discriminant type is discrete and static (from D23 retained features) |
 
@@ -753,6 +799,7 @@ spec/
   - `Constant_After_Elaboration` aspect — verify whether GNATprove requires it for concurrency analysis of emitted Ada; generate if needed
   - Abort handler behavior (language-defined or implementation-defined)
   - AST/IR interchange format (if any)
+- **Normative/informative status**: State this file's status (normative). State that §07-annex-b is informative. State that all code examples are non-normative unless explicitly labeled otherwise.
 
 ### 01-base-definition.md
 
@@ -803,7 +850,7 @@ Do this for every exclusion. Be exhaustive. Cross-reference related exclusions.
 
 2. **Strict index typing:** The index expression in an indexed\_component (8652:2023 §4.1.1) shall be of a type or subtype that is the same as, or a subtype of, the array's index type. A conforming implementation shall reject any indexed\_component where this is not statically determinable.
 
-3. **Division by nonzero type:** The right operand of `/`, `mod`, and `rem` (8652:2023 §4.5.5) shall be of a type or subtype whose range does not include zero. A conforming implementation shall reject any division, `mod`, or `rem` operation where the right operand's type range includes zero. Document the language-defined subtypes `Positive` and `Negative` as standard nonzero types.
+3. **Division by provably nonzero divisor:** The right operand of `/`, `mod`, and `rem` (8652:2023 §4.5.5) shall be provably nonzero at compile time. Accepted proofs: (a) divisor type/subtype range excludes zero, (b) divisor is a static expression (8652:2023 §4.9) whose value is nonzero, (c) divisor is an explicit conversion to a nonzero subtype that is provably valid at that program point. A conforming implementation shall reject any division, `mod`, or `rem` operation where none of these conditions holds. Document the language-defined subtypes `Positive` and `Negative` as standard nonzero types.
 
 4. **Not-null dereference:** Dereference of an access value — explicit `.all` or implicit selected component through an access — shall require the access subtype to be `not null` (8652:2023 §3.10). A conforming implementation shall reject any dereference where the access subtype does not exclude null. Document the `not null` subtype pattern: `type T_Ptr is access T; subtype T_Ref is not null T_Ptr;`.
 
@@ -883,7 +930,7 @@ Full specification of the SPARK assurance guarantees. This is the language's def
 - **Silver Guarantee** — specify how D27's four language rules guarantee AoRTE:
   - Wide intermediate arithmetic: explain the mathematical integer evaluation model and how it maps to the emitted Ada (intermediate expressions use a wide type; GNATprove discharges overflow checks trivially)
   - Strict index typing: explain how the index subtype matching rule guarantees all array index checks are dischargeable
-  - Division by nonzero type: explain how the divisor type rule guarantees all division-by-zero checks are dischargeable
+  - Division by provably nonzero divisor: explain how the three-condition rule (nonzero type, static nonzero value, checked conversion) guarantees all division-by-zero checks are dischargeable
   - Not-null dereference: explain how the `not null` access subtype rule guarantees all null dereference checks are dischargeable
   - Range checks at narrowing points: explain how interval arithmetic on wide intermediates makes these provable
   - Provide a complete enumeration of all runtime check categories and how each is discharged
@@ -941,19 +988,21 @@ Walk through 8652:2023 Annex A and for each library unit state: retained, exclud
 
 ### 07-annex-b-impl-advice.md
 
+**Drafting note:** This annex is informative. All requirements stated here apply to the reference implementation and are recommendations for other implementations. Use "should" rather than "shall" throughout this annex. If a requirement is genuinely normative (i.e., a conforming implementation MUST do it), it belongs in §02, §03, §04, or §06 — not here.
+
 Implementation advice covering:
 
-- **Emitted Ada conventions:** The emitted `.ads`/`.adb` files shall be deterministic — the same Safe source, compiled with the same compiler version, shall always produce byte-identical Ada output. Specify naming conventions for generated entities (e.g., channel-backing protected objects, task types, wide integer intermediates). Specify formatting conventions (indentation, line width, declaration ordering) to ensure stable golden tests. The emitted channel-backing protected objects shall use **procedures** (not functions) for non-blocking operations, since SPARK does not permit functions with `out` parameters:
+- **Emitted Ada conventions (informative):** The emitted `.ads`/`.adb` files should be deterministic — the same Safe source, compiled with the same compiler version, should always produce byte-identical Ada output. Specify naming conventions for generated entities (e.g., channel-backing protected objects, task types, wide integer intermediates). Specify formatting conventions (indentation, line width, declaration ordering) to ensure stable golden tests. The emitted channel-backing protected objects should use **procedures** (not functions) for non-blocking operations, since SPARK does not permit functions with `out` parameters:
   ```ada
   procedure Try_Send (Item : in Element_Type; Success : out Boolean);
   procedure Try_Receive (Item : out Element_Type; Success : out Boolean);
   ```
 - **Symbol file format (recommended practice):** The symbol file format is implementation-defined (see §06). As a recommended practice for the reference implementation, the per-package symbol file should be text-based (UTF-8, line-oriented, versioned header) for debuggability and diffability. Specify: exported names, types (including size/alignment for opaque types), subprogram signatures, and dependency fingerprints. Deterministic ordering for stable diffs. This is the single normative home for symbol file format guidance; §06 states only that the format is implementation-defined.
-- **Diagnostic messages:** Format, severity levels, and source location conventions. Error messages shall include the Safe source file, line, and column. Compiler diagnostics should be stable (same input produces same diagnostics) to support automated testing.
+- **Diagnostic messages:** Format, severity levels, and source location conventions. Error messages should include the Safe source file, line, and column. Compiler diagnostics should be stable (same input produces same diagnostics) to support automated testing.
 - **Incremental recompilation:** Rules for when a symbol file change triggers recompilation of dependent units. Specify the fingerprinting strategy.
 - **Emitted Ada quality:** The emitted Ada should be human-readable and suitable for manual inspection, Gold/Platinum annotation, and DO-178C certification review.
-- **Elaboration and tasking configuration:** The emitted Ada shall include `pragma Partition_Elaboration_Policy(Sequential)` in the configuration file. This defers library-level task activation until all library units are elaborated, preventing elaboration-time data races. SPARK requires this pragma for programs using tasks or protected objects under Ravenscar/Jorvik profiles.
-- **Deallocation emission:** The emitted Ada uses `Ada.Unchecked_Deallocation` generic instantiations for automatic deallocation of owned access objects at scope exit. The exclusion of generics (D16) applies to Safe source only, not emitted Ada. The compiler must emit deallocation at every scope exit point: normal scope end, early `return`, loop `exit`, and `goto` that transfers control out of the owning scope. GNATprove's leak checking on the emitted Ada independently verifies completeness of the compiler's deallocation logic.
+- **Elaboration and tasking configuration (informative):** The emitted Ada should include `pragma Partition_Elaboration_Policy(Sequential)` in the configuration file. This defers library-level task activation until all library units are elaborated, preventing elaboration-time data races. SPARK requires this pragma for programs using tasks or protected objects under Ravenscar/Jorvik profiles.
+- **Deallocation emission:** The emitted Ada uses `Ada.Unchecked_Deallocation` generic instantiations for automatic deallocation of owned access objects at scope exit. The exclusion of generics (D16) applies to Safe source only, not emitted Ada. The compiler should emit deallocation at every scope exit point: normal scope end, early `return`, loop `exit`, and `goto` that transfers control out of the owning scope. GNATprove's leak checking on the emitted Ada independently verifies completeness of the compiler's deallocation logic.
 
 ### 08-syntax-summary.md
 
@@ -1104,15 +1153,20 @@ package Sensors is
         return Raw;  -- D27: no narrowing needed, already Reading type
     end Get_Reading;
 
-    public function Average_Reading (Count : Channel_Count) return Reading is
+    public function Average (A, B : Reading) return Reading is
     begin
-        Total : Integer := 0;
-        for I in Channel_Id.First .. Channel_Id(Count - 1) loop
-            Total := Total + Integer(Get_Reading(I));
-        end loop;
-        -- Count is Channel_Count (1..8), excludes zero: division is legal
-        return Reading(Total / Count);
-    end Average_Reading;
+        -- D27 Rule 1: wide intermediate, max (4095+4095)/2 = 4095
+        -- D27 Rule 3(b): literal 2 is a static nonzero expression
+        -- Narrowing at return: provably in 0..4095
+        return (A + B) / 2;
+    end Average;
+
+    public function Scale (R : Reading; Divisor : Channel_Count) return Integer is
+    begin
+        -- D27 Rule 3(a): Channel_Count range 1..8 excludes zero
+        -- Returns Integer, no narrowing needed
+        return Integer(R) / Integer(Divisor);
+    end Scale;
 
     function Read_ADC (Channel : Channel_Id) return Reading is separate;
         -- body in sensors-read_adc.safe
@@ -1131,7 +1185,7 @@ Note the following Safe features visible in this example:
 - `pragma Assert` for runtime checks
 - No contracts, no tick, no qualified expressions
 - Variable initialization at declaration with expressions
-- **D27 in action:** `Channel_Count` excludes zero, making it a legal divisor type; `Channel_Id` used directly as array index (strict index typing); `Average_Reading` uses wide intermediate arithmetic (`Total / Count` computed in `Wide_Integer`, narrowed to `Reading` at `return`)
+- **D27 in action:** `Channel_Count` excludes zero, making it a legal divisor type (Rule 3a); literal `2` is a static nonzero expression, making `/ 2` legal (Rule 3b); `Channel_Id` used directly as array index (Rule 2: strict index typing); `Average` uses wide intermediate arithmetic with provably safe narrowing at return (Rule 1)
 
 ### What the Compiler Emits (Bronze + Silver Annotated)
 
@@ -1156,9 +1210,13 @@ is
         with Global => (Input => Initialized),
              Depends => (Get_Reading'Result => (Channel, Initialized));
 
-    function Average_Reading (Count : Channel_Count) return Reading
-        with Global => (Input => (Initialized, Cal_Table)),
-             Depends => (Average_Reading'Result => (Count, Initialized, Cal_Table));
+    function Average (A, B : Reading) return Reading
+        with Global => null,
+             Depends => (Average'Result => (A, B));
+
+    function Scale (R : Reading; Divisor : Channel_Count) return Integer
+        with Global => null,
+             Depends => (Scale'Result => (R, Divisor));
 
 private
     type Calibration is record
