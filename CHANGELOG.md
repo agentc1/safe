@@ -680,3 +680,114 @@ Technical-correctness and standards-readiness fixes identified by two independen
 12. **§03 Implementation Requirements:** Says "interface information emission" not "symbol file emission." ✓
 13. **§04 task-variable ownership:** Says "dependency interface information" not "dependency symbol files." Says "legality rule" not "checking algorithm." ✓
 14. **"Symbol file" as requirement:** Three remaining occurrences — all are "e.g., symbol files" (example of mechanism) or annex-b stub (informative). Zero normative mandates. ✓
+
+---
+
+## Round 6
+
+Technical-correctness and SPARK 2022 alignment fixes identified by a fifth independent ECMA-track readiness review. Verification of SPARK 21 and SPARK 22 release notes confirmed declare expressions/delta aggregates as SPARK 21 features and confirmed SPARK 22's expanded access type support. This round brings Safe into alignment with the full SPARK 2022 ownership model.
+
+### P0-R6-1. Align Safe's Access Type Model with Full SPARK 2022 Ownership
+
+**Problem:** D17 excluded three access type kinds that SPARK 2022 supports with well-defined ownership semantics: anonymous access types (used for local borrowing/observing and traversal functions), general access types (`access all T`, subject to ownership checking), and named access-to-constant types (exempt from ownership checking). Without these, Safe could not express in-place traversal of linked data structures, local borrower variables, safe read-only sharing, or moving ownership of aliased objects into pointers.
+
+**Changes (9 edits):**
+- D2 rationale: expanded SPARK 2022 description to mention all access type kinds; added "Safe retains the full SPARK 2022 ownership model for access-to-object types"
+- D17 Decision: rewritten to list all retained access-to-object type kinds; access-to-subprogram exclusion rationale now references D18
+- D17 Ownership model table: expanded from 7 rows to 12, adding local borrow, local observe, named access-to-constant, general access-to-variable, and general access move entries
+- D17 Restrictions: heading changed from "Restrictions vs. full SPARK ownership" to "Restrictions vs. full Ada access types"; exclusion list reduced to access-to-subprogram, `Unchecked_Access`, and `Unchecked_Deallocation`; added "Retained SPARK 2022 access type kinds" list
+- D17 Rationale: expanded to mention all extended access type kinds; added drafting constraint referencing SPARK RM/UG §5.9
+- D23 Retained features: access type entry expanded to list all kinds; `'Access` attribute and aliased objects added as retained
+- §02 Restrictions drafting instructions: access-to-object section rewritten to retain all SPARK 2022 kinds; only access-to-subprogram excluded; `'Access` retained; SPARK UG §5.9 referenced
+- §08 Syntax summary: "pool-specific only — `access all` excluded" → "all access-to-object kinds per SPARK 2022 ownership model"; exclusion note updated
+
+### P0-R6-2. Quick Reference `Scale` Function — Nonzero Proof Discarded
+
+**Problem:** `Scale` converted `Divisor` from `Channel_Count` (1..8) to `Integer` before division. The conversion discards the nonzero proof: `Integer` range includes zero, and the conversion result is not a static expression. The divisor was nonconforming under D27 Rule 3.
+
+**Before:**
+```ada
+return Integer(R) / Integer(Divisor);
+```
+
+**After:**
+```ada
+return Integer(R) / Divisor;
+```
+
+`Divisor` stays in `Channel_Count` (range 1..8, excludes zero, satisfying Rule 3(a)). Wide intermediate arithmetic handles the mixed-type operands.
+
+### P1-R6-1. "Interval Analysis" as Mandated Technique in D27
+
+**Problem:** D27 used "interval analysis" as if it were the required analysis method. Standards should state what must be true, not how an implementation proves it.
+
+**Changes (3 edits):**
+- D27 Rule 1, intermediate overflow paragraph: "the implementation's interval analysis determines" → "a conforming implementation cannot establish (by sound static range analysis)"; "discharged via interval analysis" → "discharged via sound static range analysis"; added "Interval analysis is one permitted technique; no specific analysis algorithm is mandated"
+- D27 Combined effect table: "Interval analysis on wide intermediates" → "Sound static range analysis on wide intermediates"
+- §05 AoRTE bullet: "interval arithmetic on wide intermediates makes these provable" → "sound static range analysis on wide intermediates makes these decidable" with non-mandate note
+
+### P1-R6-2. Effect Summaries Must Be Explicitly Interprocedural
+
+**Problem:** §03 Static Semantics said effect summaries provide "the set of package-level variables read and written" without specifying whether this is the direct or interprocedural (transitive) set. D28 requires transitivity for task-variable ownership checking.
+
+**Before:**
+> Effect summaries: for each exported subprogram, the set of package-level variables read and written (needed for callers to compute their own flow information and for task-variable ownership checking across packages)
+
+**After:**
+> Effect summaries: for each exported subprogram, a conservative interprocedural summary (including transitive callees) of the package-level variables read and written. This is needed for callers to compute their own flow information and for task-variable ownership checking across packages. The summary may be conservatively over-approximate; precision may improve over time without affecting conformance.
+
+### P1-R6-3. D26 "Type Information Alone" Needs Precision
+
+**Problem:** D26 said runtime checks are "provably safe from type information alone." The checks are provable from static type information, subtype bounds, and static expressions — not types alone.
+
+**Before:**
+> provably safe from type information alone
+
+**After:**
+> provably safe from static type and range information derivable from the program text (including subtype bounds, static expressions, and checked conversions)
+
+### P2-R6-1. Resolve D23 TBD — Declare Expressions and Delta Aggregates
+
+**Problem:** D23 had two entries marked "retained if confirmed as part of SPARK 2022 (see TBD register)." SPARK 21 release notes (2021) confirm both features.
+
+**Changes (2 edits):**
+- D23 entries: "retained if confirmed as part of SPARK 2022 (see TBD register)" → "retained; confirmed as part of the SPARK subset since SPARK 21" (delta aggregates also noted as replacement for deprecated `'Update`)
+- TBD register: declare expressions/delta aggregates item removed
+
+### P2-R6-2. §03 Implementation Requirements — Incremental Recompilation
+
+**Problem:** §03 Implementation Requirements said "incremental recompilation expectations." ISO Ada does not mandate recompilation strategy.
+
+**Before:**
+> interface information emission (mechanism is implementation-defined), incremental recompilation expectations
+
+**After:**
+> interface information mechanism requirements (implementation-defined). Do not mandate incremental recompilation in normative text; performance/build-system advice belongs in Annex B (informative).
+
+### P2-R6-3. §00 TBD Register — Missing Items
+
+**Change:** Added two items to TBD register:
+- Numeric model: required ranges/representation assumptions for predefined integer types given the 64-bit signed bound in D27 Rule 1
+- Automatic deallocation semantics for owned access objects (ordering at scope exit, interaction with early return/goto, multiple owned objects exiting scope simultaneously)
+
+---
+
+## Round 6 Consistency Pass
+
+1. **D17 access type kinds:** All five access-to-object kinds listed. Access-to-subprogram is the only excluded access type kind. ✓
+2. **D17 ownership table:** Includes local borrow, local observe, named access-to-constant (exempt), general access-to-variable (ownership checked, cannot deallocate). ✓
+3. **D17 restrictions section:** Heading says "Restrictions vs. full Ada access types." Anonymous access, general access, and access-to-constant NOT in exclusion list. "Retained SPARK 2022 access type kinds" list present. ✓
+4. **D2 SPARK alignment:** Says Safe retains "the full SPARK 2022 ownership model for access-to-object types." ✓
+5. **D23 retained features:** Access type entry includes all retained kinds. `'Access` attribute listed as retained. Aliased objects listed as retained. ✓
+6. **§02 restrictions drafting instructions:** Access-to-object types listed as retained (all kinds per SPARK 2022). Only access-to-subprogram excluded. ✓
+7. **§08 syntax summary:** "all access-to-object kinds per SPARK 2022 ownership model." ✓
+8. **Quick Reference `Scale` function:** Divisor is `Divisor` (type `Channel_Count`), not `Integer(Divisor)`. ✓
+9. **D27 "interval analysis" replaced:** Zero occurrences as normative requirement. One informative mention ("one permitted technique") retained. ✓
+10. **§03 effect summaries:** "conservative interprocedural summary (including transitive callees)." ✓
+11. **D26 precision:** "static type and range information derivable from the program text." ✓
+12. **D23 resolved:** Both entries say "retained; confirmed as part of the SPARK subset since SPARK 21." TBD item removed. ✓
+13. **§03 Implementation Requirements:** No normative incremental recompilation mandate. ✓
+14. **§00 TBD register:** New items (numeric model, automatic deallocation semantics) present. Declare expressions/delta aggregates item removed. ✓
+15. **No new GNAT/GNATprove references:** Zero occurrences in normative content. ✓
+16. **`Unchecked_Access` still excluded:** Explicitly excluded in D17 and §02. `'Access` retained separately. ✓
+17. **Access-to-subprogram exclusion rationale:** References D18 (static call resolution), not ownership. ✓

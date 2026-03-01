@@ -72,7 +72,7 @@ This section records every design decision made during the language design proce
 
 **Decision:** The starting feature set is the SPARK 2022 subset of Ada 2022, including SPARK's ownership and borrowing model for access types. We then apply additional restrictions on top of SPARK's (D12–D16, D18–D22). For concurrency, the baseline is a static tasking model surfaced through a channel-based programming model (D28).
 
-**Rationale:** SPARK already removes the features most hostile to compilation simplicity and verification: exceptions, dynamic dispatch, and most of full Ada tasking. Starting from SPARK rather than full Ada means the excluded feature list is shorter and the retained feature set is already coherent. SPARK is a proven, deployed restriction profile used in safety-critical avionics and rail systems. SPARK 2022 reintroduced access types with Rust-style ownership semantics, enabling dynamic data structures while preserving provability — Safe retains this capability. For tasking, Safe provides static tasks and channels through a higher-level channel abstraction designed for determinism and analysability.
+**Rationale:** SPARK already removes the features most hostile to compilation simplicity and verification: exceptions, dynamic dispatch, and most of full Ada tasking. Starting from SPARK rather than full Ada means the excluded feature list is shorter and the retained feature set is already coherent. SPARK is a proven, deployed restriction profile used in safety-critical avionics and rail systems. SPARK 2022 reintroduced access types with Rust-style ownership semantics — including anonymous access for borrowing/observing, general access types with ownership checking, and named access-to-constant types — enabling dynamic data structures while preserving provability. Safe retains the full SPARK 2022 ownership model for access-to-object types. For tasking, Safe provides static tasks and channels through a higher-level channel abstraction designed for determinism and analysability.
 
 ### D6. No Separate Specification and Body Files
 
@@ -157,31 +157,45 @@ This section records every design decision made during the language design proce
 
 ### D17. Access Types with SPARK Ownership and Borrowing
 
-**Decision:** Access types are retained with SPARK 2022's ownership and borrowing rules. Access-to-object types are permitted. Access-to-subprogram types are excluded. The full SPARK ownership model applies: move semantics on assignment, borrowing for temporary mutable access, observing for temporary read-only access. Explicit `Unchecked_Deallocation` is excluded — deallocation occurs automatically when the owning object goes out of scope.
+**Decision:** Access types are retained with the full SPARK 2022 ownership and borrowing model. All access-to-object type kinds supported by SPARK 2022 are permitted: pool-specific access types, anonymous access types (for borrowing and observing), general access types (with ownership checking), and named access-to-constant types (exempt from ownership checking, as in SPARK). Access-to-subprogram types are excluded (they introduce indirect calls, violating the static call resolution property — see D18). The full SPARK ownership model applies: move semantics on assignment, borrowing for temporary mutable access, observing for temporary read-only access. Explicit `Unchecked_Deallocation` is excluded — deallocation occurs automatically when the owning object goes out of scope.
 
 Additionally, dereference of an access value requires the access subtype to be `not null` (see D27 Rule 4).
 
 **Ownership model summary:**
 
-| Safe construct                     | Ownership semantics                                                  |
-| ---------------------------------- | -------------------------------------------------------------------- |
-| `type T_Ptr is access T;`          | Owner — can be moved, borrowed, or observed                          |
-| `subtype T_Ref is not null T_Ptr;` | Non-null owner — legal for dereference                               |
-| `X := new T'(...)`                 | Creates a new owned value; X becomes the owner                       |
-| `Y := X` (access assignment)       | **Move**: X becomes null, Y becomes owner                            |
-| `procedure P (A : in T_Ptr)`       | **Observe**: read-only borrow; caller's ownership frozen during call |
-| `procedure P (A : in out T_Ptr)`   | **Borrow**: mutable borrow; caller's ownership frozen during call    |
-| Scope exit of owning variable      | Automatic deallocation when owner goes out of scope                  |
+| Safe construct                                       | Ownership semantics                                                                   |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `type T_Ptr is access T;`                            | Pool-specific owner — can be moved, borrowed, or observed                             |
+| `subtype T_Ref is not null T_Ptr;`                   | Non-null owner — legal for dereference                                                |
+| `X := new T'(...)`                                   | Creates a new owned value; X becomes the owner                                        |
+| `Y := X` (named access-to-variable assignment)       | **Move**: X becomes null, Y becomes owner                                             |
+| `procedure P (A : in T_Ptr)`                         | **Observe**: read-only access during call; caller's ownership frozen                  |
+| `procedure P (A : in out T_Ptr)`                     | **Borrow**: temporary mutable access during call; caller's ownership frozen           |
+| `Y : access T := X`                                  | **Local borrow**: Y is a local borrower of X; X frozen while Y is in scope            |
+| `Y : access constant T := X'Access`                  | **Local observe**: Y observes X; X frozen while Y is in scope                         |
+| `type C_Ptr is access constant T;`                   | Named access-to-constant — not subject to ownership checking; data is constant        |
+| `type G_Ptr is access all T;`                        | General access — subject to ownership checking to prevent aliasing; cannot deallocate  |
+| `G : G_Ptr := Obj'Access` (general access-to-var)    | **Move**: ownership of aliased local object moves into pointer; original frozen        |
+| Scope exit of owning variable                        | Automatic deallocation (pool-specific access types only)                              |
 
-**Restrictions vs. full SPARK ownership:**
+**Restrictions vs. full Ada access types:**
 
-- General access types (`access all T`) are excluded. A conforming implementation shall reject access type definitions that include the reserved word `all`. Rationale: general access types interact with aliased objects and `'Access` / `'Unchecked_Access` attributes, both of which Safe excludes; pool-specific access types are sufficient for Safe's ownership model.
-- Anonymous access types are excluded (Safe requires named access types for all uses).
-- Access-to-constant types (`access constant T`) are excluded for simplicity; use `in`-mode observe parameters instead.
-- `Unchecked_Access` and `Unchecked_Deallocation` are excluded from Safe source.
+- Access-to-subprogram types are excluded. A conforming implementation shall reject any access-to-subprogram type declaration. Rationale: indirect calls violate static call resolution (D18).
+- `Unchecked_Access` attribute is excluded. `'Access` is retained for uses defined by SPARK's ownership model (borrowing aliased objects, observing, moving into general access types).
+- `Unchecked_Deallocation` is excluded from Safe source. Deallocation is automatic on scope exit for pool-specific owning access objects.
 - All ownership checking is local to the compilation unit — no whole-program analysis. This is compatible with SPARK's ownership model, which is also local.
 
-**Rationale:** Dynamic data structures (linked lists, trees, buffer pools, process tables) are essential for OS construction and systems programming. SPARK 2022 solved the safety problem for access types by adopting Rust-style ownership semantics — each access value has exactly one owner, ownership transfers are explicit via move semantics on assignment, and borrowing/observing provide temporary access without ownership transfer. These rules are enforced at compile time by local analysis (no whole-program reasoning), which is compatible with separate compilation. Excluding access-to-subprogram types eliminates indirect calls, preserving the property that every call resolves statically.
+**Retained SPARK 2022 access type kinds (all subject to SPARK ownership rules):**
+
+- Pool-specific access-to-variable types (`access T`): ownership, move, borrow, observe
+- Anonymous access-to-variable types: local borrowing, traversal functions, reborrowing
+- Anonymous access-to-constant types: local observing
+- Named access-to-constant types (`access constant T`): exempt from ownership checking; data is constant through all dereferences
+- General access-to-variable types (`access all T`): subject to ownership checking to prevent aliasing; cannot be deallocated (may designate stack memory)
+
+**Rationale:** Dynamic data structures (linked lists, trees, buffer pools, process tables) are essential for OS construction and systems programming. SPARK 2022 solved the safety problem for access types by adopting Rust-style ownership semantics — each access value has exactly one owner, ownership transfers are explicit via move semantics on assignment, and borrowing/observing provide temporary access without ownership transfer. These rules are enforced at compile time by local analysis (no whole-program reasoning), which is compatible with separate compilation. Safe retains the full SPARK 2022 ownership model for access-to-object types, including the extended access type kinds added in SPARK 2022 (anonymous access for local borrowing/observing, general access with ownership checking, named access-to-constant exempt from ownership). Excluding access-to-subprogram types eliminates indirect calls, preserving the property that every call resolves statically.
+
+**Drafting constraint:** In the generated LRM, specify all ownership and borrowing legality rules in Safe terms, following the SPARK 2022 ownership model as defined in the SPARK RM and SPARK User's Guide. You may cite SPARK RM/UG as the authoritative design reference for the ownership checking rules. Define borrowing, observing, moving, and reborrowing precisely for each access type kind, consistent with the SPARK 2022 semantics described in SPARK UG §5.9.
 
 ### D18. No Tagged Types or Dynamic Dispatch
 
@@ -229,7 +243,9 @@ Note: `Static_Predicate` and `Dynamic_Predicate` as subtype features (not contra
 - Subtypes with static and dynamic constraints
 - Records including discriminated records (discrete discriminants, static constraints, defaults)
 - Arrays including unconstrained array types
-- Access-to-object types with SPARK 2022 ownership and borrowing rules
+- Access-to-object types with full SPARK 2022 ownership and borrowing rules, including: pool-specific access types, anonymous access types (borrowing/observing), general access types (`access all`, with ownership checking), named access-to-constant types (exempt from ownership checking)
+- `'Access` attribute for borrowing, observing, and moving as defined by SPARK 2022 ownership model
+- Aliased objects (required for `'Access` attribute under SPARK ownership rules)
 - `not null` access subtypes (required for dereference per D27 Rule 4)
 - Allocators (`new`) with automatic deallocation on owner scope exit
 - Static tasks with priority (D28)
@@ -243,8 +259,8 @@ Note: `Static_Predicate` and `Dynamic_Predicate` as subtype features (not contra
 - `goto` statements
 - Child and hierarchical packages
 - `use type` clauses
-- Declare expressions (Ada 2022) — retained if confirmed as part of SPARK 2022 (see TBD register)
-- Delta aggregates (Ada 2022) — retained if confirmed as part of SPARK 2022 (see TBD register)
+- Declare expressions (Ada 2022) — retained; confirmed as part of the SPARK subset since SPARK 21
+- Delta aggregates (Ada 2022) — retained; confirmed as part of the SPARK subset since SPARK 21; standard replacement for deprecated `'Update` attribute
 - All Ada 2022 features in the SPARK 2022 subset not otherwise excluded
 - `pragma Assert`
 - `pragma Inline`
@@ -273,7 +289,7 @@ Note: `Static_Predicate` and `Dynamic_Predicate` as subtype features (not contra
 3. Division-by-provably-nonzero-divisor — the divisor in `/`, `mod`, and `rem` must be provably nonzero at compile time (by type, static value, or checked conversion).
 4. Not-null dereference — dereference of an access value requires the access subtype to be `not null`.
 
-These rules ensure that every runtime check in a conforming Safe program is provably safe from type information alone. No developer annotations are needed.
+These rules ensure that every runtime check in a conforming Safe program is provably safe from static type and range information derivable from the program text (including subtype bounds, static expressions, and checked conversions). No developer annotations are needed.
 
 **Hard rejection rule:** If a conforming implementation cannot establish, from the specification's type rules and D27 legality rules, that a required runtime check will not fail, the program is nonconforming and the implementation shall reject it with a diagnostic. There is no "developer must restructure" advisory — failure to satisfy any Silver-level proof obligation is a compilation error, not a warning.
 
@@ -298,7 +314,7 @@ All integer arithmetic expressions are evaluated in a mathematical integer type 
 
 If the static range of any declared type in the program exceeds 64-bit signed range, the implementation shall reject the program. This is a legality rule, not a silent truncation. In practice, all Safe integer types will fit within 64 bits.
 
-**Intermediate overflow legality rule:** For types whose range fits within 32 bits, intermediate wide arithmetic cannot overflow for single operations. For chained operations or types with larger ranges (e.g., products of two values near the 32-bit boundary), intermediate subexpressions may approach the 64-bit bounds. If the implementation's interval analysis determines that any intermediate subexpression in an expression could overflow 64-bit signed range, the expression shall be rejected with a diagnostic. This ensures the "no intermediate overflow" guarantee holds universally, not just for small-range types. Narrowing checks at assignment, return, and parameter points are discharged via interval analysis on the wide result.
+**Intermediate overflow legality rule:** For types whose range fits within 32 bits, intermediate wide arithmetic cannot overflow for single operations. For chained operations or types with larger ranges (e.g., products of two values near the 32-bit boundary), intermediate subexpressions may approach the 64-bit bounds. If a conforming implementation cannot establish (by sound static range analysis) that every intermediate subexpression stays within 64-bit signed range, the expression shall be rejected with a diagnostic. This ensures the "no intermediate overflow" guarantee holds universally, not just for small-range types. Narrowing checks at assignment, return, and parameter points are discharged via sound static range analysis on the wide result. Interval analysis is one permitted technique; no specific analysis algorithm is mandated.
 
 For example, `A + B` where `A, B : Reading` (0..4095) computes in a wide intermediate type — the intermediate result 8190 does not overflow, and a range check fires only when the result is narrowed to `Reading` at an assignment, return, or parameter point.
 
@@ -463,7 +479,7 @@ This is consistent with D27's philosophy throughout: `not null access` is to nul
 | Check                                | How discharged                                                        |
 | ------------------------------------ | --------------------------------------------------------------------- |
 | Integer overflow                     | Impossible — wide intermediate arithmetic                             |
-| Range on assignment/return/parameter | Interval analysis on wide intermediates                               |
+| Range on assignment/return/parameter | Sound static range analysis on wide intermediates                     |
 | Array index out of bounds            | Index type matches array index type                                   |
 | Division by zero                     | Divisor is provably nonzero (type, static value, or checked conversion) |
 | Null dereference                     | Access subtype is `not null` at every dereference                     |
@@ -664,7 +680,8 @@ spec/
   - Abort handler behavior (language-defined or implementation-defined)
   - AST/IR interchange format (if any)
   - Deadlock freedom: determine whether additional language restrictions (e.g., static communication topology analysis, channel-dependency ordering, prohibition of blocking send) can provide a language-level deadlock-freedom guarantee. Currently, only data-race freedom is guaranteed by construction.
-  - Declare expressions and delta aggregates: confirm whether these Ada 2022 features are part of the SPARK 2022 subset and therefore retained in Safe, or excluded
+  - Numeric model: required ranges/representation assumptions for predefined integer types given the 64-bit signed bound in D27 Rule 1
+  - Automatic deallocation semantics for owned access objects (ordering at scope exit, interaction with early return/goto, multiple owned objects exiting scope simultaneously)
 - **Normative/informative status**: State this file's status (normative). State that §07-annex-b is informative. State that all code examples are non-normative unless explicitly labeled otherwise.
 
 ### 01-base-definition.md
@@ -721,18 +738,17 @@ Do this for every exclusion. Be exhaustive. Cross-reference related exclusions.
 
 **Access types and ownership:** Specify the retained SPARK 2022 ownership model:
 
-- Pool-specific access-to-object types (`access T`) are retained with SPARK ownership rules
-- General access types (`access all T`) are excluded — a conforming implementation shall reject access type definitions that include the reserved word `all`
-- Access-to-subprogram types are excluded
-- Anonymous access types are excluded
-- Access-to-constant types (`access constant T`) are excluded
-- Assignment of an access value is a **move**: the source becomes null, the target receives ownership
-- A parameter of mode `in` with an access type **observes** (temporary read-only, owner frozen)
-- A parameter of mode `in out` with an access type **borrows** (temporary mutable, owner frozen)
-- Deallocation occurs automatically when the owning object goes out of scope
-- Explicit `Unchecked_Deallocation` is excluded
+- All access-to-object type kinds supported by SPARK 2022 are retained with SPARK ownership rules:
+  - Pool-specific access-to-variable types (`access T`)
+  - Anonymous access-to-variable types (for local borrowing and traversal functions)
+  - Anonymous access-to-constant types (for local observing)
+  - Named access-to-constant types (`access constant T`) — exempt from ownership checking
+  - General access-to-variable types (`access all T`) — subject to ownership checking
+- Access-to-subprogram types are excluded — a conforming implementation shall reject any access-to-subprogram type declaration
 - `Unchecked_Access` attribute is excluded
-- Reference the SPARK RM ownership rules and specify how they map to Safe's single-file package model
+- `Unchecked_Deallocation` is excluded
+- `'Access` attribute is retained for uses consistent with SPARK 2022 ownership rules
+- Reference the SPARK RM and SPARK UG §5.9 ownership rules; specify how they apply in Safe's single-file package model
 
 **Contract exclusions:** List every excluded contract aspect with a reference to its 8652:2023 or SPARK RM definition and the rationale "replaced by pragma Assert; Bronze and Silver assurance guaranteed by D26/D27 language rules."
 
@@ -758,11 +774,11 @@ Full specification of the single-file package model. Use Ada RM section conventi
       - Visibility: which declarations are `public`
       - Types: size and alignment for opaque types (clients can declare objects but not access fields)
       - Subprogram signatures: parameter profiles for all exported subprograms
-      - Effect summaries: for each exported subprogram, the set of package-level variables read and written (needed for callers to compute their own flow information and for task-variable ownership checking across packages)
+      - Effect summaries: for each exported subprogram, a conservative interprocedural summary (including transitive callees) of the package-level variables read and written. This is needed for callers to compute their own flow information and for task-variable ownership checking across packages. The summary may be conservatively over-approximate; precision may improve over time without affecting conformance.
       - If required dependency interface information is unavailable, the program shall be rejected
       - The mechanism for conveying this information (e.g., symbol files, compiler databases) is implementation-defined
 - **Dynamic Semantics** — variable initializers evaluated at load time in declaration order; no elaboration-time code
-- **Implementation Requirements** — interface information emission (mechanism is implementation-defined), incremental recompilation expectations
+- **Implementation Requirements** — interface information mechanism requirements (implementation-defined). Do not mandate incremental recompilation in normative text; performance/build-system advice belongs in Annex B (informative).
 - **Examples** — at least four complete packages:
   - A simple package with public types and functions
   - A package with opaque types
@@ -798,7 +814,7 @@ Full specification of the language-level assurance guarantees. This is the langu
   - Strict index typing: explain how the index subtype matching rule guarantees all array index checks are dischargeable
   - Division by provably nonzero divisor: explain how the three-condition rule (nonzero type, static nonzero value, checked conversion) guarantees all division-by-zero checks are dischargeable
   - Not-null dereference: explain how the `not null` access subtype rule guarantees all null dereference checks are dischargeable
-  - Range checks at narrowing points: explain how interval arithmetic on wide intermediates makes these provable
+  - Range checks at narrowing points: explain how sound static range analysis on wide intermediates makes these decidable. Interval analysis is one permitted technique; do not mandate a specific algorithm in normative text.
   - Provide a complete enumeration of all runtime check categories and how each is discharged
   - State the hard rejection rule: if a conforming implementation cannot establish absence of a required runtime check failure from the specification's type rules and D27 legality rules, the program is nonconforming and the implementation shall reject it with a diagnostic
 - **`Depends` over-approximation note:** Implementation-derived `Depends` information may be conservatively over-approximate (listing more dependencies than actually exist). An implementation may refine precision over time without affecting conformance.
@@ -854,8 +870,8 @@ Complete consolidated BNF grammar for Safe. Target: approximately 140–160 prod
 - Channel declarations with capacity
 - `send`, `receive`, `try_send`, `try_receive` statements
 - `select` statement with channel receive arms and delay arm
-- Access type declarations (pool-specific only — `access all` excluded), `not null` subtypes, allocators
-- All exclusions from 02-restrictions.md (including `access all`, anonymous access, access-to-constant, access-to-subprogram)
+- Access type declarations (all access-to-object kinds per SPARK 2022 ownership model), `not null` subtypes, allocators
+- All exclusions from 02-restrictions.md (access-to-subprogram excluded; all access-to-object kinds retained)
 
 ---
 
@@ -1000,8 +1016,9 @@ package Sensors is
     public function Scale (R : Reading; Divisor : Channel_Count) return Integer is
     begin
         -- D27 Rule 3(a): Channel_Count range 1..8 excludes zero
+        -- Wide intermediate arithmetic handles mixed-type operands
         -- Returns Integer, no narrowing needed
-        return Integer(R) / Integer(Divisor);
+        return Integer(R) / Divisor;
     end Scale;
 
     function Read_ADC (Channel : Channel_Id) return Reading is separate;
