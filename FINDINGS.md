@@ -44,101 +44,80 @@
 
 ---
 
-## F5. `Convention` Pragma Listed in Both Retained and Excluded
+## F5. `Convention` Pragma Listed in Both Retained and Excluded — RESOLVED
 
 **Location:** §02 Pragma Inventory generation
 
-**Issue:** SPEC-PROMPT.md §D24 excludes all foreign language interface including `pragma Convention`. However, `Convention` could be argued as retained for the `Convention(Ada, ...)` case, which is the default. The spec-analysis.md from a prior generation noted similar confusion. The generated spec lists it as excluded (under paragraph 84, Annex B exclusion), but its presence in the retained pragmas table (§2.6.1 paragraph 121) with a cross-reference "Excluded — see paragraph 84" could be confusing.
+**Issue:** SPEC-PROMPT.md §D24 excludes all foreign language interface including `pragma Convention`. However, `Convention` could be argued as retained for the `Convention(Ada, ...)` case, which is the default. The generated spec listed it as excluded (under paragraph 84, Annex B exclusion), but it also appeared in the retained pragmas table (§2.6.1 paragraph 121) with a cross-reference "Excluded — see paragraph 84," which was confusing.
 
-**Recommendation:** Clarify in SPEC-PROMPT.md whether `pragma Convention(Ada, ...)` is retained (since it is the default convention and doesn't introduce foreign interfaces) or excluded along with all Annex B features. If retained, state so explicitly. If excluded, remove it from the retained table.
+**Resolution:** Removed `Convention` and `Linker_Options` from the retained pragma table (§2.6.1) and added them to the excluded pragma table (§2.6.2) with rationale "Requires foreign language interface." `Convention(Ada, ...)` is the default convention and never needs explicit statement — Ada types have Ada convention automatically. There is no use case for the pragma in Safe source. Each pragma now appears in exactly one table.
 
 ---
 
-## F6. `Normalize_Scalars` Ambiguity
+## F6. `Normalize_Scalars` Ambiguity — RESOLVED (no spec change)
 
 **Location:** Pragma inventory
 
 **Issue:** The prior spec-analysis.md noted that `Normalize_Scalars` appeared in both retained and excluded categories in a previous generation. SPEC-PROMPT.md does not explicitly classify it. Annex H is mostly excluded (§02 paragraph 90), but `Normalize_Scalars` is a standalone pragma (§H.1) that could be useful for initialisation safety.
 
-**Decision taken:** Excluded in the generated spec (§02 paragraph 122) with rationale: "may mask uninitialised reads." This is a judgement call.
-
-**Recommendation:** Add `Normalize_Scalars` to SPEC-PROMPT.md's explicit exclusion list with rationale, or explicitly retain it with justification.
+**Resolution:** The generated spec correctly excludes `Normalize_Scalars` in §02 §2.6.2 (paragraph 122) with rationale: "Implementation concern; may mask uninitialised reads." This is the right call — `Normalize_Scalars` silently initialises variables to out-of-range trap values, which masks the uninitialised-read bugs that Safe's Silver guarantee is designed to catch statically. The pragma appears in exactly one table (excluded). SPEC-PROMPT.md should add this to its explicit exclusion list for clarity, but no spec changes are required.
 
 ---
 
-## F7. `from` as Reserved Word
+## F7. `from` as Reserved Word — RESOLVED
 
 **Location:** D28 grammar additions, Reserved Words section
 
-**Issue:** SPEC-PROMPT.md's reserved words section lists `public`, `channel`, `send`, `receive`, `try_send`, `try_receive`, `capacity` as new reserved words. However, the D28 grammar for `channel_arm` uses `from` as a keyword: `'when' identifier ':' type_mark 'from' channel_name`. The reserved words section does not list `from` as a new reserved word.
+**Issue:** SPEC-PROMPT.md's reserved words section lists `public`, `channel`, `send`, `receive`, `try_send`, `try_receive`, `capacity` as new reserved words. However, the D28 grammar for `channel_arm` uses `from` as a keyword: `'when' identifier ':' type_mark 'from' channel_name`. The reserved words section does not list `from` as a new reserved word. `from` is not an Ada 2022 reserved word either (it does not appear in 8652:2023 §2.9).
 
-`from` is not an Ada 2022 reserved word either (it does not appear in 8652:2023 §2.9).
-
-**Recommendation:** Add `from` to the Safe additional reserved words list in SPEC-PROMPT.md, or redesign the select arm syntax to use only existing reserved words (e.g., replace `from` with `of` or restructure the grammar).
+**Resolution:** Added `from` to the Safe additional reserved words list in both §02 paragraph 3 and §08 §8.15. The list now reads: `public`, `channel`, `send`, `receive`, `try_send`, `try_receive`, `capacity`, `from`. SPEC-PROMPT.md should also be updated to include `from` in its reserved words section.
 
 ---
 
-## F8. Subprogram Forward Declaration `public` Placement
+## F8. Subprogram Forward Declaration `public` Placement — RESOLVED
 
 **Location:** D10 (Subprogram Bodies at Point of Declaration)
 
-**Issue:** SPEC-PROMPT.md states forward declarations are permitted for mutual recursion but does not specify whether the `public` keyword appears on the forward declaration, the completing body, or both. This is an ambiguity that the generated spec resolved (§03 paragraph 14: `public` appears on the forward declaration).
+**Issue:** SPEC-PROMPT.md states forward declarations are permitted for mutual recursion but does not specify whether the `public` keyword appears on the forward declaration, the completing body, or both. The generated spec resolved this in §03 paragraph 14 but the original wording was ambiguous.
 
-**Recommendation:** Add a sentence to D10 specifying where `public` appears in the forward declaration + body pattern.
+**Resolution:** Clarified §03 paragraph 14 to state unambiguously: `public` appears on the forward declaration only; the completing body shall not repeat `public`; a conforming implementation shall reject a completing body bearing `public` when a forward declaration exists. This matches the principle that visibility is established at first declaration. SPEC-PROMPT.md should add this clarification to D10.
 
 ---
 
-## F9. Task Body Declarative Part Placement
+## F9. Task Body Declarative Part Placement — RESOLVED (no spec change)
 
 **Location:** D28 task declaration grammar
 
-**Issue:** D28's task declaration grammar shows:
-```
-task_declaration ::=
-    'task' identifier [ 'with' 'Priority' '=>' static_expression ] 'is'
-    'begin'
-        handled_sequence_of_statements
-    'end' identifier ';'
-```
+**Issue:** SPEC-PROMPT.md's D28 grammar has no `declarative_part` before `begin` in the task declaration, but D28 prose says "Declarations may precede the loop" and the non-termination rule says "Declarations may precede the outermost loop."
 
-This grammar has no declarative part before `begin`. However, the D28 text says "Declarations may precede the loop." The non-termination rule also says "Declarations may precede the outermost loop." This implies declarations go *inside* the handled_sequence_of_statements (as interleaved declarations after `begin`), not before `begin`.
-
-The generated spec grammar (§08, §8.12) includes `[ declarative_part ]` before `begin` in the task declaration, matching the Ada task body pattern, but SPEC-PROMPT.md's grammar does not show this.
-
-**Recommendation:** Clarify whether task bodies have a declarative part before `begin` (Ada-style) or whether all declarations are interleaved after `begin` (matching D11's interleaved declaration model). The generated spec chose to allow both: a pre-`begin` declarative part and interleaved declarations after `begin`, consistent with D11's rule for subprogram bodies.
+**Resolution:** The generated spec grammar (§08 §8.12) includes `[ declarative_part ]` before `begin` in the task declaration, matching the pattern used for subprogram bodies. This gives task bodies the same structure as subprogram bodies: an optional pre-`begin` declarative part plus interleaved declarations after `begin` (per D11). The spec is internally consistent. SPEC-PROMPT.md's D28 grammar should be updated to include `[ declarative_part ]` for consistency with the prose, but no spec changes are required.
 
 ---
 
-## F10. Allocation Failure Semantics
+## F10. Allocation Failure Semantics — RESOLVED
 
 **Location:** D17, D27
 
 **Issue:** SPEC-PROMPT.md specifies automatic deallocation but does not address what happens when `new` fails to allocate memory. In 8652:2023, this raises `Storage_Error`, which is an exception — and exceptions are excluded. The Silver guarantee (D27) does not address allocation failure.
 
-The TBD register includes TBD-03 "Memory model constraints (stack bounds, heap bounds, allocation failure handling)" but this is a gap in the current specification.
-
-**Recommendation:** Either (a) make allocation failure a hard abort (consistent with `pragma Assert` failure), (b) require implementations to statically bound all allocation (ambitious), or (c) define allocation failure as undefined behaviour subject to TBD resolution. This needs explicit attention before baselining.
+**Resolution:** Added normative paragraph 103a to §02 §2.3.5 specifying that allocation failure invokes the runtime abort handler with a source location diagnostic, consistent with the error model for `pragma Assert` failure. Both are non-recoverable conditions that terminate the program. This replaces 8652:2023's `Storage_Error` exception with a hard abort. TBD-03 remains open for future work on static allocation bounding as a potential Safe/Assured enhancement.
 
 ---
 
-## F11. `Channel_Id.Range` Attribute
+## F11. `Channel_Id.Range` Attribute — RESOLVED (false positive)
 
 **Location:** Quick Reference example in SPEC-PROMPT.md
 
-**Issue:** The quick reference example uses `Channel_Id.Range` as an attribute in a for loop: `for I in Channel_Id.Range loop`. In 8652:2023, `Range` is an attribute of array objects and types with array-related semantics (§3.6.2), not of scalar types. For scalar types, the loop form is `for I in Channel_Id loop` or `for I in Channel_Id.First .. Channel_Id.Last loop`.
+**Issue:** The quick reference example uses `Channel_Id.Range` as an attribute in a for loop: `for I in Channel_Id.Range loop`. The finding claimed that `Range` is an attribute of array types only (§3.6.2), not of scalar types.
 
-Using `Channel_Id.Range` on a scalar type would require `Range` to be a general-purpose attribute producing a range value, which is not its standard meaning.
-
-**Recommendation:** Correct the quick reference example to use `for I in Channel_Id loop` or `for I in Channel_Id.First .. Channel_Id.Last loop`. The attribute `Range` on scalar types would need explicit specification if intended.
+**Resolution:** This finding is incorrect. 8652:2023 §3.5(14) explicitly defines `S'Range` for any scalar subtype S as equivalent to `S'First .. S'Last`. The generated spec's retained attribute table (§02 §2.5) correctly lists `Range` with references to both §3.5(14) (scalar types) and §3.6.2(7) (array types). `Channel_Id.Range` (in Safe dot notation) is valid Ada and valid Safe. No changes required.
 
 ---
 
-## F12. Missing D3/D4/D5/D25/D29 in Specification
+## F12. Missing D3/D4/D5/D25/D29 in Specification — RESOLVED
 
 **Location:** SPEC-PROMPT.md Design Decisions
 
-**Issue:** SPEC-PROMPT.md defines decisions D1, D2, D6–D28 in the main Design Decisions section. D3 (Single-Pass Compiler), D4 (Ada/SPARK Emission), D5 (Platform-Independent via GNAT), D25 (Ada/SPARK Emission Backend), and D29 (Reference Implementation in Silver SPARK) were moved to DEFERRED-IMPL-CONTENT.md as implementation-profile decisions. The D-number sequence has gaps (no D3, D4, D5, D25, D29 in SPEC-PROMPT.md).
+**Issue:** SPEC-PROMPT.md defines decisions D1, D2, D6–D28 in the main Design Decisions section. D3, D4, D5, D25, and D29 were moved to DEFERRED-IMPL-CONTENT.md as implementation-profile decisions, creating numbering gaps that could confuse readers.
 
-This is intentional (per the Round 4 revision documented in CHANGELOG.md), but the §0.7 Design Decision Summary in the generated front matter refers to D1, D2, D6–D28 with gaps that might confuse readers unfamiliar with the revision history.
-
-**Recommendation:** Consider renumbering the design decisions to be contiguous, or add a note in SPEC-PROMPT.md explaining the numbering gaps.
+**Resolution:** Added an explanatory note to §00 paragraph 26 identifying the missing decision numbers (D3, D4, D5, D25, D29) as reclassified implementation-profile decisions, stating the gaps are intentional and preserved for traceability. Renumbering was not chosen because it would break cross-references in DEFERRED-IMPL-CONTENT.md, CHANGELOG.md, and any external documents referencing the original D-numbers.

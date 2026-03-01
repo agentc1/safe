@@ -785,7 +785,7 @@ when        while       with        xor
 
 ```
 public      channel     send        receive
-try_send    try_receive capacity
+try_send    try_receive capacity    from
 ```
 
 ## 8.16 Grammar Summary

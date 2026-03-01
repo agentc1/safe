@@ -14,7 +14,7 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 
 2. **Reserved words (§2.9).** All reserved words defined in 8652:2023 §2.9 remain reserved in Safe, regardless of whether the corresponding language feature is excluded. A conforming implementation shall reject any program that uses a reserved word as an identifier.
 
-3. **Additional reserved words.** Safe adds the following reserved words: `public`, `channel`, `send`, `receive`, `try_send`, `try_receive`, `capacity`. These identifiers shall not be used as user-defined names in Safe programs.
+3. **Additional reserved words.** Safe adds the following reserved words: `public`, `channel`, `send`, `receive`, `try_send`, `try_receive`, `capacity`, `from`. These identifiers shall not be used as user-defined names in Safe programs.
 
 4. **Tick notation (§2.2, §4.1.4).** The tick character (`'`) is used only for character literals (`'A'`). All attribute references use dot notation (see §2.4). Qualified expressions using tick (`T'(Expr)`) are replaced by type annotation syntax (see §2.4.2). A conforming implementation shall reject any use of tick for attribute references or qualified expressions.
 
@@ -417,6 +417,8 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
    - `new (Expr : T)` — creates an object of type T initialised with Expr.
    - `new T` — creates an object of type T with default initialisation (when T has default initialisation).
 
+103a. **Allocation failure.** If an allocator cannot obtain sufficient storage to create the designated object, the program is aborted. The implementation shall invoke the runtime abort handler with a diagnostic that identifies the source location of the failing allocator. This is consistent with the error model for `pragma Assert` failure: both are non-recoverable conditions that terminate the program. Rationale: in 8652:2023, allocation failure raises `Storage_Error`; since exceptions are excluded (paragraph 31), Safe replaces the exception with a hard abort.
+
 104. **Automatic deallocation.** When a pool-specific owning access variable goes out of scope and its value is non-null, the designated object is automatically deallocated. Deallocation occurs at every scope exit point:
 
    (a) Normal end of scope (the textual `end` of the enclosing block, subprogram, or package).
@@ -632,7 +634,6 @@ annotated_expression ::= '(' expression ':' subtype_mark ')'
 | `Independent` | §C.6 | Retained for memory-mapped registers |
 | `Independent_Components` | §C.6 | Retained for array components |
 | `Inline` | §6.3.2 | Retained |
-| `Linker_Options` | §B.1 | Excluded — see paragraph 84 |
 | `No_Return` | §6.5.1 | Retained (as aspect; pragma form also retained) |
 | `Optimize` | §2.8 | Retained |
 | `Pack` | §13.2 | Retained |
@@ -653,6 +654,7 @@ annotated_expression ::= '(' expression ':' subtype_mark ')'
 | `All_Calls_Remote` | §E.2.3 | Requires distributed systems |
 | `Assertion_Policy` | §11.4.2 | Assertions always enabled |
 | `Asynchronous` | §E.4.1 | Requires distributed systems |
+| `Convention` | §B.1 | Requires foreign language interface |
 | `Controlled` | §13.11.3 | Requires controlled types |
 | `Default_Storage_Pool` | §13.11.3 | Requires storage pools |
 | `Detect_Blocking` | §H.5 | Implementation concern |
@@ -664,6 +666,7 @@ annotated_expression ::= '(' expression ':' subtype_mark ')'
 | `Inspection_Point` | §H.3.2 | Implementation concern |
 | `Interrupt_Handler` | §C.3.1 | Requires interrupt handling |
 | `Interrupt_Priority` | §D.1 | Requires interrupt handling |
+| `Linker_Options` | §B.1 | Requires foreign language interface |
 | `List` | §2.8 | Compiler directive; not language semantic |
 | `Locking_Policy` | §D.3 | Implementation concern |
 | `Normalize_Scalars` | §H.1 | Implementation concern; may mask uninitialised reads |

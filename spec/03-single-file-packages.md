@@ -100,7 +100,7 @@ Clients can declare variables of type `T` (the implementation exports size and a
 
 13. A conforming implementation shall reject a forward declaration with no completing body in the same declarative region.
 
-14. Forward declarations shall not bear the `public` keyword independently of the body. If the subprogram is public, the `public` keyword shall appear on the forward declaration.
+14. If the subprogram is public, the `public` keyword shall appear on the forward declaration. The completing body shall not repeat the `public` keyword. A conforming implementation shall reject a completing body that bears `public` when a forward declaration for the same subprogram exists.
 
 ### 3.2.4 No Package-Level Statements
 

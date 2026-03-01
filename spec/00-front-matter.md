@@ -147,7 +147,7 @@
 
 ## 0.7 Design Decision Summary
 
-26. The following table summarises the design decisions that shaped Safe. Each decision is described in detail in the drafter prompt (SPEC-PROMPT.md) and is reflected in the normative sections of this specification.
+26. The following table summarises the design decisions that shaped Safe. Each decision is described in detail in the drafter prompt (SPEC-PROMPT.md) and is reflected in the normative sections of this specification. Decision numbers D3, D4, D5, D25, and D29 are not listed; they were reclassified as implementation-profile decisions during design and moved to DEFERRED-IMPL-CONTENT.md. The numbering gaps are intentional and preserved for traceability.
 
 | ID | Decision | Specification Section |
 |----|----------|----------------------|
