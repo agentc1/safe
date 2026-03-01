@@ -474,7 +474,7 @@ end Safe_Value;
 
 This is consistent with D27's philosophy throughout: `not null access` is to null dereference what `Positive` is to division by zero — the type carries the proof. Null comparison (`= null`, `/= null`) is always legal on any access type; only dereference requires the not-null guarantee.
 
-**Combined effect:** These four rules ensure that the six categories of runtime check — overflow, range, index, division-by-zero, null dereference, and discriminant — are all dischargeable from type information alone:
+**Combined effect:** These four rules ensure that the six categories of runtime check — overflow, range, index, division-by-zero, null dereference, and discriminant — are all dischargeable from static type and range information derivable from the program text:
 
 | Check                                | How discharged                                                        |
 | ------------------------------------ | --------------------------------------------------------------------- |
@@ -843,7 +843,7 @@ Full specification of the language-level assurance guarantees. This is the langu
 - Language-level assurance guarantees (expressed as language properties, not tool invocations):
   - **Representability:** Every conforming Safe program uses only constructs defined by ISO/IEC 8652:2023 as restricted and modified by this specification. (Informative note: this means every conforming Safe program has a natural mapping to valid Ada 2022 / SPARK 2022 source, but the mapping is an implementation concern, not a conformance requirement.)
   - **Bronze:** Every conforming Safe program has sufficient flow analysis information (Global, Depends, Initializes) to pass flow analysis without user-supplied annotations
-  - **Silver:** Every conforming Safe program is free of runtime errors — all runtime checks (overflow, range, index, division-by-zero, null dereference, discriminant) are dischargeable from type information and D27 legality rules alone
+  - **Silver:** Every conforming Safe program is free of runtime errors — all runtime checks (overflow, range, index, division-by-zero, null dereference, discriminant) are dischargeable from static type and range information derivable from the program text, combined with D27 legality rules
 - **Conformance levels:** To preserve the safety story through standards refactoring, define two conformance levels:
   - **Safe/Core:** Language rules and legality checking only — a conforming implementation accepts all conforming programs and rejects all non-conforming programs
   - **Safe/Assured:** Language rules plus verification that every conforming program is free of runtime errors (the Silver guarantee expressed as a language property, validatable by any suitable method — not tied to a specific prover)
@@ -929,6 +929,10 @@ Read these documents before and during drafting.
 
 - HTML: https://docs.adacore.com/spark2014-docs/html/ug/en/spark\_2014.html
 - PDF: https://docs.adacore.com/spark2014-docs/pdf/spark2014\_ug.pdf
+
+### SPARK Release Notes (changelog)
+
+- HTML: https://docs.adacore.com/live/wave/spark2014-release-notes/html/spark2014_release_note/index.html
 
 ### Ada 2022 Overview (feature rationale)
 

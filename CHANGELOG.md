@@ -791,3 +791,9 @@ return Integer(R) / Divisor;
 15. **No new GNAT/GNATprove references:** Zero occurrences in normative content. ✓
 16. **`Unchecked_Access` still excluded:** Explicitly excluded in D17 and §02. `'Access` retained separately. ✓
 17. **Access-to-subprogram exclusion rationale:** References D18 (static call resolution), not ownership. ✓
+
+### Round 6 Residual
+
+- Propagated D26 precision fix to D27 combined effect table and §06 conformance Silver bullet
+- "type information alone" → "static type and range information derivable from the program text" (2 edits)
+- Consistency check: zero occurrences of "type information alone" remain
