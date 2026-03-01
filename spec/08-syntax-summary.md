@@ -157,7 +157,7 @@ component_definition ::=
 
 record_type_definition ::=
     [ 'limited' ] record_definition
-  | [ 'public' ] 'type' defining_identifier 'is' 'private' record_definition
+  | 'private' record_definition
 
 record_definition ::=
     'record'

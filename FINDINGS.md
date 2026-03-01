@@ -110,7 +110,7 @@
 
 **Issue:** The quick reference example uses `Channel_Id.Range` as an attribute in a for loop: `for I in Channel_Id.Range loop`. The finding claimed that `Range` is an attribute of array types only (§3.6.2), not of scalar types.
 
-**Resolution:** This finding is incorrect. 8652:2023 §3.5(14) explicitly defines `S'Range` for any scalar subtype S as equivalent to `S'First .. S'Last`. The generated spec's retained attribute table (§02 §2.5) correctly lists `Range` with references to both §3.5(14) (scalar types) and §3.6.2(7) (array types). `Channel_Id.Range` (in Safe dot notation) is valid Ada and valid Safe. No changes required.
+**Resolution:** This finding is incorrect. 8652:2023 §3.5(14) defines the `Range` attribute for any scalar subtype S as equivalent to `S.First .. S.Last` (in Safe dot notation; Ada tick notation: `S'First .. S'Last`). The generated spec's retained attribute table (§02 §2.5) correctly lists `Range` with references to both §3.5(14) (scalar types) and §3.6.2(7) (array types). `Channel_Id.Range` in Safe dot notation is valid. No changes required.
 
 ---
 

@@ -156,9 +156,9 @@ This section defines what constitutes a conforming implementation and a conformi
 
    (f) The initialisation order among packages with no direct or transitive dependency relationship (Section 3, §3.4.2).
 
-   (h) The runtime abort handler behaviour on `pragma Assert` failure.
+   (g) The runtime abort handler behaviour on `pragma Assert` failure and allocation failure.
 
-   (i) The storage allocation strategy for access type allocators.
+   (h) The storage allocation strategy for access type allocators.
 
 ---
 
@@ -174,7 +174,7 @@ This section defines what constitutes a conforming implementation and a conformi
 
    (d) Automatic deallocation of owned access objects at scope exit.
 
-   (e) The `pragma Assert` abort handler with source location diagnostic.
+   (e) The runtime abort handler with source location diagnostic (for `pragma Assert` failure and allocation failure).
 
 24. The size and implementation language of the runtime system are implementation-defined. The specification does not mandate a maximum runtime size.
 
