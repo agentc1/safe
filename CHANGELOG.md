@@ -851,3 +851,51 @@ ECMA-track fitness fixes: self-containment of normative references and implement
 8. **No new GNAT/GNATprove references.** ✓
 9. **Reference Documents section still lists SPARK RM and UG (correctly, as drafter resources).** ✓
 10. **New TBD items present:** modular arithmetic wrapping semantics (with "High priority" annotation), limited/private type views, partial initialisation facility. ✓
+
+---
+
+## Round 8
+
+Syntax consistency pass for ownership-related examples and retained-feature lists: propagate D20 dot notation (`X.Attr`) and D21 type annotation syntax (`Expr : T`) into D17, D23, and §02. Also corrects terminology for named-access-type parameter passing without changing ownership semantics.
+
+### P0-R8-1. D17 Ownership Table — Tick Notation and Allocator Syntax
+
+**Changes (3 row edits):**
+- Allocator row: `new T'(...)` → `new ((...) : T)`
+- Local observe row: `X'Access` → `X.Access`
+- General access move row: `Obj'Access` → `Obj.Access`
+
+### P0-R8-2. D17 Restrictions — Tick Notation in Prose
+
+**Change (1 edit):**
+- `Unchecked_Access` bullet updated to explicitly mention dot-notation spellings (`.Unchecked_Access`, `.Access`) and to refer to "the ownership model" rather than defining rules by reference to SPARK.
+
+### P0-R8-3. D23 Retained Features — Tick Notation
+
+**Changes (2 edits):**
+- `'Access` retained feature rewritten as `Access` (dot-notation form: `.Access`) and phrased as defined by the ownership model
+- Aliased objects bullet updated to remove tick notation and SPARK-only phrasing
+
+### P0-R8-4. §02 Restrictions Drafting Instructions — Tick Notation
+
+**Change (1 edit):**
+- §02 access types instruction: `'Access` → `Access` (dot-notation form: `.Access`); "SPARK 2022 ownership rules" → "the ownership model"
+
+### P1-R8-1. D17 Ownership Table — Named Access Parameter Terminology
+
+**Changes (2 row edits):**
+- Named access `in T_Ptr` row: **Observe** → **Read-only access**
+- Named access `in out T_Ptr` row: **Borrow** → **Temporary mutable access**
+
+---
+
+## Round 8 Consistency Pass
+
+1. **D17 has zero tick-notation attributes (`'Access`, `'Unchecked_Access`).** ✓
+2. **D17 has zero qualified expressions (`T'(`, `new T'(`).** ✓
+3. **D23 has zero `'Access`; uses dot notation `.Access`.** ✓
+4. **§02 drafting instructions have zero `'Access`.** ✓
+5. **Named access parameter rows use descriptive terminology; anonymous access rows retain Local borrow/observe.** ✓
+6. **Quick Reference `sensors.safe` contains no attribute ticks.** ✓
+7. **No `new T'` remains anywhere in `SPEC-PROMPT.md`.** ✓
+8. **Spot-check no regression on prior rounds (self-contained drafting constraint, "informative precedent", "storage bound", D27 sound static range analysis, `Scale` uses `Divisor`).** ✓
