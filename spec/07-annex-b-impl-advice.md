@@ -52,7 +52,7 @@ This annex provides implementation guidance for Safe conforming implementations.
 
 6. When rejecting a program for a D27 rule violation, the diagnostic should identify:
 
-   (a) Which rule was violated (Rule 1, 2, 3, or 4).
+   (a) Which rule was violated (Rule 1, 2, 3, 4, or 5).
 
    (b) The source location of the violation.
 
@@ -104,11 +104,13 @@ This annex provides implementation guidance for Safe conforming implementations.
 
    (d) For the tasking model, emit Ada task types with single instances and `Priority` aspects under an appropriate tasking profile.
 
-   (e) For channels, emit synchronisation constructs (e.g., protected objects) with ceiling priority assignment.
+   (e) For channels, emit synchronisation constructs (e.g., protected objects) with ceiling priority assignment derived from channel-access summaries (Section 3, §3.3.1(i)) and task priorities (Section 4, §4.2, paragraph 21a).
 
    (f) Emit wide intermediate arithmetic using a 64-bit signed type for integer subexpressions.
 
-   (g) Emit deallocation calls at every scope exit point for owned access objects, including early returns, loop exits, and gotos out of scope.
+   (g) Ensure the target platform's floating-point implementation provides IEEE 754 non-trapping semantics (`Machine_Overflows = False` for all predefined floating-point types), as required by D27 Rule 5 (Section 2, §2.8.5). If the target Ada compiler's `Machine_Overflows` is `True` by default, the implementation should configure the floating-point unit for non-trapping mode or document the incompatibility.
+
+   (h) Emit deallocation calls at every scope exit point for pool-specific access objects (both owning and named access-to-constant), including early returns, loop exits, and gotos out of scope.
 
 ### B.5.2 C Output
 
@@ -142,7 +144,7 @@ procedure Try_Receive (Item : out Element_Type; Success : out Boolean);
 
 ## B.7 Deallocation
 
-17. Automatic deallocation of owned access objects at scope exit (Section 2, §2.3.5) should be emitted at every scope exit point:
+17. Automatic deallocation of pool-specific access objects — both owning access-to-variable and named access-to-constant — at scope exit (Section 2, §2.3.5) should be emitted at every scope exit point:
 
    (a) Normal scope end.
 
@@ -152,7 +154,7 @@ procedure Try_Receive (Item : out Element_Type; Success : out Boolean);
 
    (d) `goto` statements that transfer control out of the owning scope.
 
-18. When multiple owned access objects exit scope simultaneously, deallocation should occur in reverse declaration order.
+18. When multiple pool-specific access objects exit scope simultaneously, deallocation should occur in reverse declaration order.
 
 19. The implementation should verify completeness of deallocation logic, either through internal testing or by leveraging external leak-checking capabilities of the target environment.
 

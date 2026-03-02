@@ -40,13 +40,15 @@ This annex walks through 8652:2023 Annex A (Predefined Language Environment) and
 
 ### A.3.2 Ada.Characters.Handling
 
-8. **Status: MODIFIED.**
+8. **Status: RETAINED.**
 
-9. `Ada.Characters.Handling` is retained with the following modifications: functions that raise exceptions in 8652:2023 shall instead return a defined default value or the implementation shall ensure through type constraints that the exception-raising conditions cannot occur.
+9. `Ada.Characters.Handling` (8652:2023 §A.3.2) is retained. All functions in this package are total — no function raises an exception in 8652:2023:
 
-10. Character classification functions (`Is_Letter`, `Is_Digit`, `Is_Alphanumeric`, etc.) are retained.
+   (a) Character classification functions (`Is_Letter`, `Is_Digit`, `Is_Upper_Case`, `Is_Lower_Case`, `Is_Basic`, `Is_Graphic`, `Is_Control`, `Is_Alphanumeric`, `Is_Special`, `Is_Hexadecimal_Digit`, `Is_ISO_646`) return `Boolean` for all inputs.
 
-11. Character conversion functions (`To_Upper`, `To_Lower`, `To_Basic`) are retained.
+   (b) Character conversion functions (`To_Upper`, `To_Lower`, `To_Basic`) are defined for all `Character` and `String` values.
+
+   (c) Cross-width functions (`To_Character`, `To_String` from wide types) use a `Substitute` parameter for non-representable characters; widening functions (`To_Wide_Character`, `To_Wide_String`) cannot fail. No exception path exists.
 
 ### A.3.3 Ada.Characters.Latin_1
 
@@ -56,15 +58,21 @@ This annex walks through 8652:2023 Annex A (Predefined Language Environment) and
 
 ### A.3.4 Ada.Characters.Conversions
 
-14. **Status: MODIFIED.**
+14. **Status: RETAINED.**
 
-15. Character conversion functions between `Character`, `Wide_Character`, and `Wide_Wide_Character` are retained. Exception-raising paths are excluded; conversions that would fail in 8652:2023 by raising an exception shall be handled by the implementation through constrained parameter types or shall be excluded.
+15. `Ada.Characters.Conversions` (8652:2023 §A.3.4) is retained. All functions in this package are total — no function raises an exception in 8652:2023:
+
+   (a) Classification functions (`Is_Character`, `Is_String`, `Is_Wide_Character`, `Is_Wide_String`) return `Boolean` for all inputs.
+
+   (b) Widening conversions (`To_Wide_Character(Character)`, `To_Wide_Wide_Character(Character)`, `To_Wide_Wide_Character(Wide_Character)`, and their `String` variants) cannot fail.
+
+   (c) Narrowing conversions (`To_Character`, `To_Wide_Character` from wider types, and their `String` variants) take a `Substitute` parameter and return it for non-representable characters. No exception path exists.
 
 ### A.3.5–A.3.6 Wide and Wide_Wide Character Handling
 
-16. **Status: MODIFIED.**
+16. **Status: RETAINED.**
 
-17. Same modifications as A.3.2: retained with exception-raising paths excluded.
+17. `Ada.Wide_Characters.Handling` (8652:2023 §A.3.5) and `Ada.Wide_Wide_Characters.Handling` (8652:2023 §A.3.6) are retained. These packages mirror `Ada.Characters.Handling` for `Wide_Character` and `Wide_Wide_Character` respectively. All functions are total: classification functions return `Boolean`, and conversion functions (`To_Upper`, `To_Lower`) are defined for all inputs. No function raises an exception.
 
 ---
 
@@ -286,7 +294,7 @@ This annex walks through 8652:2023 Annex A (Predefined Language Environment) and
 |-------------|--------|---------------------|
 | Standard | Retained | Core language types |
 | Ada | Retained | Root package |
-| Ada.Characters.* | Retained/Modified | Exception paths excluded |
+| Ada.Characters.* | Retained | All functions are total; no exception paths |
 | Ada.Strings | Modified | Exceptions excluded; enumerations retained |
 | Ada.Strings.Fixed/Bounded/Unbounded | Excluded | Generic; exceptions |
 | Ada.Numerics.Elementary_Functions | Excluded | Generic |

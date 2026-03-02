@@ -372,6 +372,36 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 
    (c) Passing an access-to-variable value as an `out` or `in out` mode parameter (the caller's value may be moved out).
 
+   (d) Sending an owning access value through a channel via `send` or `try_send` (Section 4, §4.3, paragraphs 27a, 29a). For `try_send`, the move occurs only on successful enqueue.
+
+   (e) Receiving an owning access value from a channel via `receive` or `try_receive` (Section 4, §4.3, paragraph 28a). The receiving task becomes the owner.
+
+97a. **Null-before-move legality rule.** The target of any move into a pool-specific owning access variable — whether by assignment, `receive`, or `try_receive` — shall be provably null at the point of the move. A conforming implementation shall verify this by flow analysis: after declaration with default initialisation (null), after a move-out (the source becomes null per paragraph 96(a)), or after explicit assignment of `null`, the variable is in the null state. After an allocator, a `receive`, or any move-in, the variable is in the non-null state. A conforming implementation shall reject any move into a variable that is not provably null at that program point, with a diagnostic identifying the variable and the unresolvable ownership conflict.
+
+97b. **Rationale.** Without this rule, overwriting a non-null owning access variable leaks the old designated object — there is no mechanism to deallocate it mid-scope (`Ada.Unchecked_Deallocation` is excluded, paragraph 107(c), and automatic deallocation occurs only at scope exit, paragraph 104). The rule prevents leaks by construction and uses the same flow-analysis machinery already required for paragraph 96(c) (tracking the null/non-null state of moved-from variables).
+
+97c. **Conforming pattern for repeated receive.** When receiving owning access values in a loop, declare the target variable inside the loop body so that each iteration starts with a fresh null variable and scope-exit deallocation fires at the end of each iteration:
+
+```ada
+loop
+    Msg : Node_Ptr;          -- null by default initialisation
+    receive Ch, Msg;          -- legal: Msg is provably null
+    Process(Msg);
+end loop;                     -- Msg goes out of scope, designated object deallocated
+```
+
+The following is nonconforming:
+
+```ada
+-- NONCONFORMING: second receive overwrites non-null Msg
+Msg : Node_Ptr;
+loop
+    receive Ch, Msg;          -- rejected on second iteration:
+                               -- Msg is non-null from previous receive
+    Process(Msg);
+end loop;
+```
+
 ### 2.3.3 Borrowing
 
 98. A **borrow** creates a temporary mutable alias to a designated object. Borrowing occurs when:
@@ -392,6 +422,8 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 
 100. **Reborrowing.** A borrower may create a further borrow from its own access value, subject to the same freezing rules. The chain of borrows forms a stack: the innermost borrow must end before the outer borrow can be accessed.
 
+100a. **Initialisation-only restriction.** An anonymous access variable (whether access-to-variable or access-to-constant) shall only receive its value at its point of declaration. A conforming implementation shall reject any assignment to an anonymous access variable after its declaration. Rationale: restricting anonymous access to initialisation ensures that the borrower/observer's lifetime is lexically determined by its declaration point, which is essential for the lifetime-containment rule below. This is consistent with SPARK 2022's treatment of anonymous access objects.
+
 ### 2.3.4 Observing
 
 101. An **observe** creates a temporary read-only alias to a designated object. Observing occurs when:
@@ -410,6 +442,18 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 
    (d) The observe ends when the observer goes out of scope or the subprogram returns.
 
+### 2.3.4a Lifetime Containment
+
+102a. **Lifetime-containment legality rule.** The scope of a borrower or observer shall be contained within the scope of the lender or observed object. Specifically:
+
+   (a) For a local borrow or observe (created at a variable declaration), the borrower/observer shall be declared in the same scope as, and after, the lender/observed variable — or in an inner scope. A conforming implementation shall reject any borrow or observe where the borrower/observer could outlive the lender/observed object.
+
+   (b) For a parameter borrow or observe (created at a subprogram call), the borrow/observe ends when the subprogram returns (paragraphs 99(c), 102(d)), which is before the caller's scope exits. This is safe by construction.
+
+   (c) At scope exit, all borrows and observes on objects in that scope shall have ended before any automatic deallocation of objects in that scope occurs. With reverse declaration order (paragraph 105) and the restriction that borrowers/observers are declared after their lenders (item (a) above), this is guaranteed: borrowers/observers exit scope first (reverse order), ending the borrow/observe, then owners exit scope and are deallocated.
+
+102b. **No dangling access values.** No access value — whether owning, borrowing, observing, or constant — shall designate a deallocated object at any reachable program point. The combination of lifetime containment (paragraph 102a), the initialisation-only restriction for anonymous access (paragraph 100a), Ada's accessibility rules (§2.3.8), the exclusion of `Unchecked_Access` (paragraph 107(b)), and automatic deallocation only at scope exit (paragraph 104) collectively ensures this property. A conforming implementation shall reject any program where it cannot establish that all access values designate live objects throughout their reachable lifetime.
+
 ### 2.3.5 Allocators and Automatic Deallocation
 
 103. **Allocators.** The `new` allocator creates a new designated object and returns an owning access value. The allocator syntax is:
@@ -419,7 +463,7 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 
 103a. **Allocation failure.** If an allocator cannot obtain sufficient storage to create the designated object, the program is aborted. The implementation shall invoke the runtime abort handler with a diagnostic that identifies the source location of the failing allocator. This is consistent with the error model for `pragma Assert` failure: both are non-recoverable conditions that terminate the program. Rationale: in 8652:2023, allocation failure raises `Storage_Error`; since exceptions are excluded (paragraph 31), Safe replaces the exception with a hard abort.
 
-104. **Automatic deallocation.** When a pool-specific owning access variable goes out of scope and its value is non-null, the designated object is automatically deallocated. Deallocation occurs at every scope exit point:
+104. **Automatic deallocation.** When a pool-specific access variable — whether access-to-variable (owning) or access-to-constant (named) — goes out of scope and its value is non-null, the designated object is automatically deallocated. Deallocation occurs at every scope exit point:
 
    (a) Normal end of scope (the textual `end` of the enclosing block, subprogram, or package).
 
@@ -429,7 +473,9 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 
    (d) `goto` statements that transfer control out of the owning scope.
 
-105. When multiple owned access objects exit scope simultaneously, the order of deallocation is the reverse of their declaration order.
+104a. **Named access-to-constant deallocation.** Named access-to-constant types (`type C_Ptr is access constant T;`) are pool-specific and allocate from a pool. Although they are exempt from ownership checking (paragraph 95), their designated objects must be reclaimed. Automatic deallocation at scope exit applies to named access-to-constant variables in the same manner as pool-specific access-to-variable variables. Since `Unchecked_Deallocation` is excluded (paragraph 107(c)), scope-exit deallocation is the only mechanism for reclaiming storage allocated through named access-to-constant types.
+
+105. When multiple pool-specific access objects (whether owning or constant) exit scope simultaneously, the order of deallocation is the reverse of their declaration order.
 
 106. General access-to-variable types (`access all T`) cannot be deallocated, as they may designate stack-allocated (aliased) objects.
 
@@ -450,6 +496,67 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 ### 2.3.7 Ownership Checking Scope
 
 108. All ownership checking is local to the compilation unit — no whole-program analysis is required. A conforming implementation shall verify ownership rules using only the current compilation unit's source and the dependency interface information of its direct and transitive dependencies. This is compatible with separate compilation.
+
+### 2.3.8 Accessibility Rules for `.Access` and General Access Types
+
+109. Safe retains Ada's accessibility rules (8652:2023 §3.10.2) as compile-time legality rules. These rules prevent access values from outliving the objects they designate. In Safe's simplified type landscape (no tagged types, no anonymous access return types, no access discriminants), all accessibility checks reduce to compile-time checks — no runtime accessibility check is ever required.
+
+110. **`.Access` on a heap-designated object.** When `.Access` is applied to an object designated by a pool-specific owning access value (a heap-allocated object), the result has the accessibility level of the owning access type's declaration. This permits:
+
+   (a) Creating an anonymous access-to-constant observer: `Y : access constant T := X.Access;` — governed by the borrowing/observing rules (§2.3.3, §2.3.4) and lifetime containment (§2.3.4a).
+
+   (b) Creating an anonymous access-to-variable borrow: `Y : access T := X;` — governed by borrowing rules.
+
+111. **`.Access` on a local aliased object.** When `.Access` is applied to a local aliased variable (a stack-allocated object), the result has the accessibility level of the local scope in which the variable is declared. A conforming implementation shall reject any use of `.Access` on a local aliased variable where the result could escape the variable's scope. Specifically:
+
+   (a) **Return:** A function shall not return the result of `.Access` applied to one of its local aliased variables or parameters. The accessibility level of the local is deeper than the function's return type. A conforming implementation shall reject such a return.
+
+   (b) **Assignment to outer-scope variable:** The result of `.Access` on a local aliased variable shall not be assigned to a variable declared in an enclosing scope whose lifetime exceeds the aliased variable's scope. A conforming implementation shall reject any such assignment.
+
+   (c) **Channel send:** The result of `.Access` on a local aliased variable shall not be sent through a channel, since the channel's lifetime exceeds the local scope. A conforming implementation shall reject such a send.
+
+   (d) **Inner-scope use:** The result of `.Access` on a local aliased variable may be stored in a variable declared in the same scope or an inner scope, subject to the lifetime-containment rule (paragraph 102a). This is the normal borrow/observe pattern.
+
+112. **General access types (`access all T`).** General access values are subject to the same accessibility rules. A general access value shall not designate an object whose accessibility level is deeper than the general access type's declaration. This prevents a general access variable from outliving the stack object it designates:
+
+```ada
+type G_Ptr is access all Integer;  -- declared at package level
+
+function Bad return G_Ptr is
+begin
+    X : aliased Integer := 42;
+    return X.Access;  -- REJECTED: X has deeper accessibility than G_Ptr
+end Bad;
+```
+
+The following is conforming:
+
+```ada
+type G_Ptr is access all Integer;
+
+procedure Use_Local is
+begin
+    X : aliased Integer := 42;
+    G : G_Ptr := X.Access;   -- legal: G declared in same scope as X
+    G.all := 99;              -- legal: G_Ptr is not null by flow analysis
+                               -- (or use not-null subtype for dereference)
+end Use_Local;
+-- G goes out of scope before X (reverse declaration order)
+-- G_Ptr cannot be deallocated (paragraph 106), but X's storage is
+-- reclaimed normally — G is no longer reachable
+```
+
+113. **No runtime accessibility checks.** In Safe, accessibility violations are always detectable at compile time. The following properties ensure this:
+
+   (a) No anonymous access return types — Safe does not use anonymous access as a function return type, which is the primary source of runtime accessibility checks in full Ada.
+
+   (b) No tagged types — no dispatching calls that could return access values with dynamic accessibility levels.
+
+   (c) No access discriminants — excluded (paragraph 107(d)).
+
+   (d) `Unchecked_Access` excluded — the only mechanism to bypass accessibility levels is absent (paragraph 107(b)).
+
+A conforming implementation shall discharge the accessibility check row in the runtime check table (§5.3.8) entirely at compile time. No runtime accessibility check code shall be emitted.
 
 ---
 
@@ -711,13 +818,13 @@ annotated_expression ::= '(' expression ':' subtype_mark ')'
 
 ## 2.8 Silver-by-Construction Rules
 
-125. The following four legality and semantic rules are new to Safe — they have no 8652:2023 precedent. Together they guarantee that every conforming Safe program is free of runtime errors (D26, D27).
+125. The following five legality and semantic rules are new to Safe — they have no 8652:2023 precedent. Together they guarantee that every conforming Safe program is free of runtime errors within the scope defined by Section 5, §5.3.1, paragraph 12a (D26, D27).
 
 ### 2.8.1 Rule 1: Wide Intermediate Arithmetic
 
 126. All integer arithmetic expressions shall be evaluated in a mathematical integer type with no overflow. This modifies the dynamic semantics of 8652:2023 §4.5 (Operators and Expression Evaluation): intermediate integer results are not bounded by the base range of the operand types.
 
-127. Range checks shall be performed only when the result is:
+127. Range checks shall be performed only at the following **narrowing points**:
 
    (a) Assigned to an object.
 
@@ -725,11 +832,15 @@ annotated_expression ::= '(' expression ':' subtype_mark ')'
 
    (c) Returned from a function.
 
+   (d) Used as the operand of a type conversion whose target type or subtype has a more restrictive range than the operand's type.
+
+   (e) Used as the expression of a type annotation `(Expr : T)` (see §2.4.2).
+
 128. If the static range of any declared integer type in the program exceeds the 64-bit signed range (-(2^63) .. (2^63 - 1)), the program is nonconforming and a conforming implementation shall reject it.
 
 129. **Intermediate overflow legality rule.** If a conforming implementation cannot establish, by sound static range analysis, that every intermediate subexpression of an integer arithmetic expression stays within the 64-bit signed range, the expression shall be rejected with a diagnostic.
 
-130. Narrowing checks at assignment, return, and parameter points shall be discharged via sound static range analysis on the wide result. Interval analysis is one permitted technique; no specific analysis algorithm is mandated.
+130. Narrowing checks at all five categories of narrowing point — assignment, parameter passing, return, type conversion, and type annotation — shall be discharged via sound static range analysis on the wide result. Interval analysis is one permitted technique; no specific analysis algorithm is mandated.
 
 **Example (conforming):**
 
@@ -744,13 +855,19 @@ begin
 end Average;
 ```
 
-### 2.8.2 Rule 2: Strict Index Typing
+### 2.8.2 Rule 2: Provable Index Safety
 
-131. The index expression in an indexed_component (8652:2023 §4.1.1) shall be of a type or subtype that is the same as, or a subtype of, the array's index type. A conforming implementation shall reject any indexed_component where the index expression's type is wider than the array's index type.
+131. The index expression in an indexed_component (8652:2023 §4.1.1) shall be provably within the array object's index bounds at compile time. A conforming implementation shall accept an indexed_component if any of the following conditions holds:
 
-132. This guarantees that every array index check is dischargeable — the index value is constrained by its type to be within the array bounds.
+   (a) **Type containment:** The index expression's type or subtype range is statically contained within the array object's index constraint. For an array whose index constraint spans the full range of its index type (e.g., `array (Channel_Id) of T` where `Channel_Id` covers all values), this reduces to checking that the index expression's type is the same as, or a subtype of, the array's index type.
 
-**Example (conforming):**
+   (b) **Static range analysis:** The implementation can establish, by sound static range analysis at the program point of the indexed_component, that the index expression's value is within the array object's bounds. This includes cases where a preceding conditional narrows the index range (e.g., `if I in A.First .. A.Last then A(I)`) or where the index is derived from the array's own bounds attributes.
+
+132. If neither condition holds, the program is nonconforming and the implementation shall reject it with a diagnostic identifying the indexed_component and the unresolvable bound relationship.
+
+132a. **Rationale.** Type containment alone (condition a) is sufficient when the array object's bounds span the full range of its index type — the common case for arrays indexed by a dedicated type. When the array object has a narrower constraint than the full index type (e.g., `array (Channel_Id range 0 .. 3) of T`) or when the array has unconstrained bounds (e.g., an unconstrained array parameter), the index expression's type range may exceed the array's actual bounds. Condition (b) extends the guarantee to these cases using the same static range analysis machinery required for Rule 1's narrowing checks and Rule 3's division checks.
+
+**Example 1 (conforming — full-range array, type containment):**
 
 ```ada
 public type Channel_Id is range 0 .. 7;
@@ -758,19 +875,81 @@ Table : array (Channel_Id) of Integer;
 
 public function Lookup (Ch : Channel_Id) return Integer is
 begin
-    return Table(Ch);  -- legal: Ch is in 0..7 by type
-                       -- D27 proof: Ch in Channel_Id.First .. Channel_Id.Last
+    return Table(Ch);  -- legal via condition (a): Channel_Id 0..7
+                       -- matches array bounds 0..7
 end Lookup;
 ```
 
-**Nonconforming Example — Rule 2 violation at indexed_component:**
+**Example 2 (conforming — narrower array, tighter subtype):**
 
 ```ada
--- NONCONFORMING: index type wider than array index type
+subtype Low_Channel is Channel_Id range 0 .. 3;
+Partial : array (Low_Channel) of Integer;
+
+public function Lookup_Low (Ch : Low_Channel) return Integer is
+begin
+    return Partial(Ch);  -- legal via condition (a): Low_Channel 0..3
+                         -- contained in array bounds 0..3
+end Lookup_Low;
+```
+
+**Example 3 (conforming — unconstrained parameter, bounds-derived index):**
+
+```ada
+public type Buffer is array (Positive range <>) of Character;
+
+public function First_Char (B : Buffer) return Character is
+begin
+    return B(B.First);  -- legal via condition (b): B.First is provably
+                        -- within B.First .. B.Last
+end First_Char;
+```
+
+**Example 4 (conforming — unconstrained parameter, guarded index):**
+
+```ada
+public function Char_At (B : Buffer; I : Positive) return Character is
+begin
+    if I in B.First .. B.Last then
+        return B(I);  -- legal via condition (b): range of I narrowed
+                      -- to B.First .. B.Last by enclosing condition
+    else
+        return ' ';
+    end if;
+end Char_At;
+```
+
+**Nonconforming Example — index type wider than array bounds:**
+
+```ada
+-- NONCONFORMING: Integer range (Integer.First .. Integer.Last) not
+-- contained in Channel_Id (0..7)
 public function Bad_Lookup (N : Integer) return Integer is
 begin
-    return Table(N);  -- rejected: Integer is not a subtype of Channel_Id
+    return Table(N);  -- rejected: neither condition (a) nor (b) holds
 end Bad_Lookup;
+```
+
+**Nonconforming Example — full type used on narrower array:**
+
+```ada
+-- NONCONFORMING: Channel_Id (0..7) exceeds Partial bounds (0..3)
+public function Bad_Partial (Ch : Channel_Id) return Integer is
+begin
+    return Partial(Ch);  -- rejected: Channel_Id range 0..7 not contained
+                         -- in array bounds 0..3
+end Bad_Partial;
+```
+
+**Nonconforming Example — unconstrained array, unguarded index:**
+
+```ada
+-- NONCONFORMING: I (type Positive) not provably within B's bounds
+public function Bad_Char (B : Buffer; I : Positive) return Character is
+begin
+    return B(I);  -- rejected: B has dynamic bounds; Positive range
+                  -- not provably contained in B.First .. B.Last
+end Bad_Char;
 ```
 
 ### 2.8.3 Rule 3: Division by Provably Nonzero Divisor
@@ -854,16 +1033,66 @@ public function Bad_Value (N : Node_Ptr) return Integer
 is (N.Value);  -- rejected: Node_Ptr includes null
 ```
 
-### 2.8.5 Combined Effect
+### 2.8.5 Rule 5: Floating-Point Non-Trapping Semantics and Range Safety
 
-139. These four rules ensure that the six categories of runtime check are all dischargeable from static type and range information derivable from the program text:
+139. **IEEE 754 non-trapping requirement.** A conforming implementation shall ensure that all predefined floating-point types have `Machine_Overflows` equal to `False` (8652:2023 §A.5.3(12)). This requires the implementation to use IEEE 754 default non-trapping arithmetic: floating-point overflow produces ±infinity, floating-point division by zero produces ±infinity, and invalid operations (such as `0.0 / 0.0` or `sqrt(-1.0)`) produce NaN (Not a Number). These are defined values in the IEEE 754 model, not runtime errors.
+
+139a. **Rationale.** In Ada 2022, `Machine_Overflows` is implementation-defined. If `True`, float overflow and division by zero raise `Constraint_Error` — a runtime error that the Silver guarantee must prevent. By requiring `Machine_Overflows = False`, Safe eliminates these exception sources entirely. IEEE 754 non-trapping semantics are the default on virtually all modern hardware (ARM, x86, RISC-V, POWER); this requirement excludes only legacy or unusual targets where trapping floats are the sole option.
+
+139b. **Floating-point range checks at narrowing points.** Range checks at the five categories of narrowing point (assignment, parameter passing, return, type conversion, type annotation) apply to floating-point types as well as integer types. At each narrowing point, the implementation shall verify that the floating-point value is within the target type's range. Since IEEE 754 arithmetic can produce ±infinity or NaN as intermediate results, the implementation shall apply sound static range analysis to establish that the value at the narrowing point is a finite number within the target type's model range.
+
+139c. If a conforming implementation cannot establish, by sound static range analysis, that a floating-point narrowing point is safe (i.e., that the value is a finite number within the target type's range), the program is nonconforming and shall be rejected with a diagnostic.
+
+139d. **NaN and infinity as intermediate values.** NaN and ±infinity are permitted as intermediate values in floating-point computations — they are defined values under IEEE 754, not runtime errors. However, they shall not survive narrowing: no conforming program can assign NaN or ±infinity to a typed floating-point variable, pass it as a parameter, return it from a function, convert it to a more restrictive type, or annotate it with a type annotation, because these values are outside every finite floating-point type's range. The implementation rejects any program where NaN or infinity could reach a narrowing point.
+
+139e. **How this discharges floating-point checks.** Since `Machine_Overflows = False`, no floating-point operation raises `Constraint_Error` for overflow or division by zero — these produce infinity or NaN instead. Infinity and NaN are caught at narrowing points by the same static range analysis used for integer narrowing (Rule 1). The result is a uniform model: floating-point exceptions are eliminated at the source (non-trapping arithmetic), and out-of-range values are caught at narrowing points (static analysis or rejection).
+
+**Example (conforming):**
+
+```ada
+public type Measurement is digits 6 range -1.0E6 .. 1.0E6;
+
+public function Scale (M : Measurement; Factor : Measurement) return Measurement is
+begin
+    return M * Factor;
+    -- Rule 5: Machine_Overflows = False; M * Factor cannot raise
+    -- Constraint_Error. Range check at return: implementation verifies
+    -- M * Factor is within -1.0E6 .. 1.0E6. Max |M * Factor| =
+    -- 1.0E6 * 1.0E6 = 1.0E12, which exceeds the range — rejected
+    -- unless the implementation can narrow the range further.
+end Scale;
+```
+
+**Nonconforming Example — unresolvable float range:**
+
+```ada
+-- NONCONFORMING: float product can exceed target range
+public type Probability is digits 6 range 0.0 .. 1.0;
+
+public function Unsafe_Scale (P : Probability; X : Float) return Float is
+begin
+    return Float(P * X);
+    -- Rule 5: P * X could be any float value (X is unconstrained);
+    -- result could be infinity if X is very large.
+    -- Range check at return: Float range may not contain result.
+    -- REJECTED if implementation cannot prove result in Float'Range.
+end Unsafe_Scale;
+```
+
+### 2.8.6 Combined Effect
+
+139f. These five rules ensure that all categories of runtime check are dischargeable from static type and range information derivable from the program text:
 
 | Check | How Discharged |
 |-------|---------------|
 | Integer overflow | Impossible — wide intermediate arithmetic (Rule 1) |
-| Range on assignment/return/parameter | Sound static range analysis on wide intermediates (Rule 1) |
-| Array index out of bounds | Index type matches array index type (Rule 2) |
-| Division by zero | Divisor is provably nonzero (Rule 3) |
+| Range on assignment/return/parameter/conversion/annotation (integer) | Sound static range analysis on wide intermediates at all narrowing points (Rule 1) |
+| Range on assignment/return/parameter/conversion/annotation (float) | Sound static range analysis; non-trapping arithmetic eliminates exception sources; NaN/infinity caught at narrowing points (Rule 5) |
+| Floating-point overflow | Non-exceptional — produces ±infinity under IEEE 754 non-trapping mode (Rule 5); caught at narrowing points |
+| Floating-point division by zero | Non-exceptional — produces ±infinity under IEEE 754 non-trapping mode (Rule 5); caught at narrowing points |
+| Floating-point invalid operation (NaN) | Non-exceptional — produces NaN under IEEE 754 non-trapping mode (Rule 5); caught at narrowing points |
+| Array index out of bounds | Index provably within array object's bounds — by type containment or static range analysis (Rule 2) |
+| Division by zero (integer) | Divisor is provably nonzero (Rule 3) |
 | Null dereference | Access subtype is `not null` at every dereference (Rule 4) |
 | Discriminant | Discriminant type is discrete and static; variant access requires matching discriminant value |
 

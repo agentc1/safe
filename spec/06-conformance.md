@@ -16,7 +16,7 @@ This section defines what constitutes a conforming implementation and a conformi
 
    (c) It shall implement the dynamic semantics of 8652:2023 correctly for all conforming programs, as modified by this specification.
 
-   (d) It shall enforce all legality rules defined in this specification, including the D27 Rules 1–4 (Section 2, §2.8).
+   (d) It shall enforce all legality rules defined in this specification, including the D27 Rules 1–5 (Section 2, §2.8).
 
    (e) It shall enforce the task-variable ownership rule (Section 4, §4.5) as a legality rule.
 
@@ -36,9 +36,10 @@ This section defines what constitutes a conforming implementation and a conformi
 
    (b) It satisfies all legality rules defined in this specification, including:
    - D27 Rule 1: wide intermediate arithmetic bounds
-   - D27 Rule 2: strict index typing
+   - D27 Rule 2: provable index safety
    - D27 Rule 3: division by provably nonzero divisor
    - D27 Rule 4: not-null dereference
+   - D27 Rule 5: floating-point non-trapping semantics and range safety
 
    (c) It satisfies the task-variable ownership rule (Section 4, §4.5): each package-level variable is accessed by at most one task.
 
@@ -46,7 +47,7 @@ This section defines what constitutes a conforming implementation and a conformi
 
 4. A program for which a conforming implementation cannot establish that all required runtime checks are dischargeable (from the specification's type rules and D27 legality rules) is non-conforming and shall be rejected.
 
-5. **Clarification.** A program that is accepted by a conforming implementation is guaranteed to be free of the runtime errors enumerated in Section 5, §5.3.8. This is a consequence of the language rules, not a separate requirement — the D27 rules ensure that only Silver-provable programs are conforming.
+5. **Clarification.** A program that is accepted by a conforming implementation is guaranteed to be free of the runtime errors enumerated in Section 5, §5.3.8. This is a consequence of the language rules, not a separate requirement — the D27 Rules 1–5 ensure that only Silver-provable programs are conforming.
 
 ---
 
@@ -66,39 +67,19 @@ This section defines what constitutes a conforming implementation and a conformi
 
 ### 6.3.3 Absence of Runtime Errors (Silver)
 
-10. Every conforming Safe program is free of runtime errors — all runtime checks (overflow, range, index, division-by-zero, null dereference, discriminant) are dischargeable from static type and range information derivable from the program text, combined with D27 legality rules. This is guaranteed by the four rules enumerated in Section 5, §5.3.
+10. Every conforming Safe program is free of runtime errors within the scope defined by Section 5, §5.3.1, paragraph 12a — all runtime checks (integer overflow, floating-point overflow, range, index, division-by-zero, null dereference, discriminant) are dischargeable from static type and range information derivable from the program text, combined with D27 legality rules. Floating-point exceptional conditions (overflow, division by zero, invalid operation) are eliminated by requiring IEEE 754 non-trapping arithmetic (Rule 5); NaN and ±infinity are caught at narrowing points. Resource exhaustion (allocation failure, stack overflow) is outside Silver scope; behaviour is defined (runtime abort) but not statically preventable. This is guaranteed by the five rules enumerated in Section 5, §5.3.
 
 ---
 
-## 6.4 Conformance Levels
+## 6.4 Soundness
 
-11. To preserve the safety story through potential future standards refactoring, two conformance levels are defined:
+11. All static analyses performed by a conforming implementation to enforce the D27 rules shall be **sound**: they may conservatively reject programs that are actually safe (over-approximation), but they shall never accept programs that contain potential runtime errors (under-approximation). Specifically:
 
-### 6.4.1 Safe/Core
+   (a) If a conforming implementation accepts a program, every runtime check enumerated in Section 5, §5.3.8 is guaranteed to be dischargeable from the program text and the D27 legality rules.
 
-12. **Safe/Core** conformance requires that a conforming implementation:
+   (b) If a conforming implementation cannot establish that a runtime check is dischargeable, it shall reject the program — even if the check would in fact never fail at runtime.
 
-   (a) Accepts all conforming programs as defined in §6.2.
-
-   (b) Rejects all non-conforming programs with a diagnostic.
-
-   (c) Implements the dynamic semantics correctly.
-
-   (d) Enforces all legality rules, including D27 Rules 1–4.
-
-13. Safe/Core does not require the implementation to verify that the Silver guarantee holds for accepted programs — it requires only that the legality rules are enforced. Since the legality rules are sufficient to guarantee Silver, this is a distinction without practical difference, but it separates the "compile correctly" concern from the "verify absence of runtime errors" concern.
-
-### 6.4.2 Safe/Assured
-
-14. **Safe/Assured** conformance requires everything in Safe/Core, plus:
-
-   (a) The implementation shall verify that every conforming program accepted under Safe/Core is free of runtime errors (the Silver guarantee expressed as a verifiable property).
-
-   (b) The verification method is implementation-defined. It may use static analysis, formal verification, abstract interpretation, or any other sound technique.
-
-   (c) If the implementation cannot verify absence of runtime errors for a program that passes Safe/Core legality checking, the program shall be rejected with a diagnostic.
-
-15. **Relationship between levels.** Safe/Core requires that the legality rules are enforced. Safe/Assured additionally requires that the implementation confirms the Silver property. In practice, the D27 legality rules are designed to make Silver verification straightforward — a correct implementation of the legality rules should be sufficient. Safe/Assured exists to provide formal certification evidence when required.
+12. **Rationale.** The D27 rules are designed so that correctly enforcing them is both necessary and sufficient for the Silver guarantee (absence of runtime errors within the scope of §5.3.1 paragraph 12a). There is no gap between "enforcing the legality rules" and "guaranteeing Silver" — the latter is a logical consequence of the former. A single conformance level therefore suffices: a conforming implementation enforces D27 Rules 1–5 soundly, and Silver follows by construction.
 
 ---
 
@@ -121,6 +102,8 @@ This section defines what constitutes a conforming implementation and a conformi
    (c) Effect summaries for public subprograms (Section 3, §3.3.1(d)).
 
    (d) Size and alignment for public opaque types.
+
+   (e) Channel-access summaries for public subprograms (Section 3, §3.3.1(i)).
 
 ### 6.5.3 Linking
 
@@ -160,6 +143,8 @@ This section defines what constitutes a conforming implementation and a conformi
 
    (h) The storage allocation strategy for access type allocators.
 
+   (i) The specific IEEE 754 standard revision and rounding mode used for floating-point arithmetic (Rule 5 requires `Machine_Overflows = False` but does not mandate a specific IEEE 754 revision or rounding mode beyond the default non-trapping requirement).
+
 ---
 
 ## 6.8 Runtime Requirements
@@ -172,7 +157,7 @@ This section defines what constitutes a conforming implementation and a conformi
 
    (c) The relative `delay` statement.
 
-   (d) Automatic deallocation of owned access objects at scope exit.
+   (d) Automatic deallocation of pool-specific access objects (both owning and named access-to-constant) at scope exit.
 
    (e) The runtime abort handler with source location diagnostic (for `pragma Assert` failure and allocation failure).
 
@@ -182,16 +167,16 @@ This section defines what constitutes a conforming implementation and a conformi
 
 ## 6.9 Conformance Summary
 
-25. The following table summarises the conformance requirements:
+25. The following table summarises the conformance requirements for a conforming implementation:
 
-| Requirement | Safe/Core | Safe/Assured |
-|-------------|-----------|--------------|
-| Accept all conforming programs | Required | Required |
-| Reject all non-conforming programs | Required | Required |
-| Correct dynamic semantics | Required | Required |
-| D27 legality rules enforced | Required | Required |
-| Task-variable ownership enforced | Required | Required |
-| Flow information derivable | Required | Required |
-| Silver verification confirmed | Not required | Required |
-| Separate compilation | Required | Required |
-| Diagnostics on rejection | Required | Required |
+| Requirement | Status |
+|-------------|--------|
+| Accept all conforming programs | Required |
+| Reject all non-conforming programs | Required |
+| Correct dynamic semantics | Required |
+| D27 legality rules (Rules 1–5) enforced soundly | Required |
+| Task-variable ownership enforced | Required |
+| Flow information derivable | Required |
+| Silver guarantee (consequence of sound D27 enforcement) | Guaranteed |
+| Separate compilation | Required |
+| Diagnostics on rejection | Required |

@@ -20,7 +20,7 @@
 
    (e) Access-to-object types with the SPARK 2022 ownership and borrowing model (Section 2, §2.3).
 
-   (f) Allocators with automatic deallocation on owner scope exit.
+   (f) Allocators with automatic deallocation on scope exit for all pool-specific access objects.
 
    (g) Static tasks and typed channels (Section 4).
 

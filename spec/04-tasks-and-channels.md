@@ -86,6 +86,16 @@ channel_declaration ::=
 
 21. **Ceiling priority.** When the implementation maps channels to underlying synchronisation mechanisms, it shall assign a ceiling priority to each channel. The ceiling priority of a channel shall be at least the maximum of the priorities of all tasks that access that channel (directly or transitively through subprogram calls). This is required to prevent priority inversion.
 
+21a. **Ceiling computation across packages.** A conforming implementation shall compute each channel's ceiling priority from the priorities of all tasks that access the channel, using channel-access summaries from dependency interface information (Section 3, §3.3.1(i)) for cross-package calls. Specifically:
+
+   (a) For each public subprogram in a provider package, the dependency interface information includes a conservative summary of which channels the subprogram accesses (directly or transitively).
+
+   (b) When a task in a client package calls such a subprogram, the implementation adds the task's priority to the set of priorities considered for each channel listed in the summary.
+
+   (c) The ceiling priority computation shall be completable from the compilation unit's source plus its direct and transitive dependency interface information, without access to dependency source code. This mirrors the requirement for task-variable ownership checking (Section 4, §4.5, paragraph 47).
+
+   (d) A conservative over-approximation of channel access (listing channels that may not actually be accessed on every path) is permitted — it may raise ceilings above the necessary minimum but does not compromise priority inversion prevention.
+
 ---
 
 ## 4.3 Channel Operations
@@ -120,15 +130,25 @@ try_receive_statement ::=
 
 ### Dynamic Semantics
 
-27. **`send Ch, Value;`** — Enqueue `Value` into channel `Ch`. If `Ch` is full (number of elements equals capacity), the current task blocks until space becomes available. The blocking is on the current task only, not the entire program.
+27. **`send Ch, Value;`** — Enqueue `Value` into channel `Ch`. If `Ch` is full (number of elements equals capacity), the current task blocks until space becomes available. The blocking is on the current task only, not the entire program. The expression `Value` is evaluated before the enqueue (and before blocking, if the channel is full). Once space becomes available, the evaluated value is enqueued.
+
+27a. **Ownership transfer on `send`.** If the element type is an owning access type (pool-specific access-to-variable or a composite type containing such a component), `send` performs a **move**: the source object becomes `null` after the send completes. A conforming implementation shall reject any subsequent dereference of the source object unless it has been reassigned or verified as non-null. The move occurs at the point of the send statement — it is not deferred to the actual enqueue. Rationale: the sender must not access the designated object after committing to send it, even while blocked waiting for channel space.
 
 28. **`receive Ch, Variable;`** — Dequeue the front element of channel `Ch` into `Variable`. If `Ch` is empty, the current task blocks until an element becomes available.
 
-29. **`try_send Ch, Value, Success;`** — Attempt to enqueue `Value` into channel `Ch` without blocking. If `Ch` is not full, the element is enqueued and `Success` is set to `True`. If `Ch` is full, no element is enqueued and `Success` is set to `False`.
+28a. **Ownership transfer on `receive`.** If the element type is an owning access type, `receive` performs a **move** from the channel into `Variable`. The receiving task becomes the owner of the designated object. No two tasks can simultaneously hold an owning access to the same designated object through channel transfer. The null-before-move legality rule (Section 2, §2.3.2, paragraph 97a) applies: `Variable` shall be provably null at the point of the `receive`.
 
-30. **`try_receive Ch, Variable, Success;`** — Attempt to dequeue the front element of channel `Ch` without blocking. If `Ch` is not empty, the element is dequeued into `Variable` and `Success` is set to `True`. If `Ch` is empty, `Variable` is unchanged and `Success` is set to `False`.
+29. **`try_send Ch, Value, Success;`** — Attempt to enqueue `Value` into channel `Ch` without blocking. The operation is performed atomically: the implementation acquires the channel, evaluates the channel's fullness, and if not full, enqueues `Value` and sets `Success` to `True`. If `Ch` is full, no element is enqueued and `Success` is set to `False`.
+
+29a. **Move-only-on-success.** If the element type is an owning access type, the move of `Value` occurs only when the enqueue succeeds (`Success` is `True`). When `Success` is `False`, the source object retains its value — no move occurs and the source variable remains valid. The implementation shall ensure that the evaluation of `Value` and the fullness check are performed atomically with respect to the channel, so that the move decision is consistent with the actual enqueue outcome.
+
+29b. **Evaluation order for `try_send`.** The expression `Value` is evaluated before the atomic fullness check. If the channel is not full, the already-evaluated value is enqueued and the move (if applicable) is committed. If the channel is full, the evaluated value is discarded (for non-owning types) or not moved (for owning types — the source retains its original value). For owning access types, the implementation shall not null the source variable until the enqueue is confirmed to succeed.
+
+30. **`try_receive Ch, Variable, Success;`** — Attempt to dequeue the front element of channel `Ch` without blocking. If `Ch` is not empty, the element is dequeued into `Variable` and `Success` is set to `True`. If `Ch` is empty, `Variable` is unchanged and `Success` is set to `False`. Ownership transfer semantics for `receive` (paragraph 28a) apply when `Success` is `True`. For owning access types, the null-before-move legality rule (Section 2, §2.3.2, paragraph 97a) applies: `Variable` shall be provably null at the point of the `try_receive`. Since `try_receive` may or may not move a value into `Variable`, the implementation shall treat `Variable` as non-null after a `try_receive` regardless of the `Success` outcome, unless subsequent control flow re-establishes the null state.
 
 31. Channel operations are atomic with respect to other channel operations on the same channel. The implementation shall ensure that concurrent `send` and `receive` operations on the same channel do not corrupt the channel state.
+
+31a. **Channel ownership invariant.** At any point during program execution, each designated object reachable through an owning access value in a channel element is owned by exactly one entity: either the channel (if the element is queued) or the task that sent or received it. No designated object is simultaneously reachable from a task variable and a channel queue. This invariant is maintained by the move semantics of `send` and `receive`.
 
 ---
 
@@ -181,7 +201,7 @@ delay_arm ::=
 
 42. If no channel arm is ready and no delay arm is present, the `select` blocks until one channel arm becomes ready.
 
-43. Once an arm is selected, its `sequence_of_statements` is executed. For a channel arm, the received value is bound to the `defining_identifier` before the statements execute.
+43. Once an arm is selected, its `sequence_of_statements` is executed. For a channel arm, the received value is bound to the `defining_identifier` before the statements execute. The ownership transfer semantics of `receive` (paragraph 28a) apply: if the element type is an owning access type, the receiving task becomes the owner.
 
 44. **Starvation.** A channel whose arm is listed later in a `select` may be starved if earlier arms are always ready. This is by design — it gives the programmer explicit priority control via declaration order.
 

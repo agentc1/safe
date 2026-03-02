@@ -14,7 +14,7 @@ This section specifies the language-level assurance guarantees provided by Safe.
 |-------|----------|---------------|
 | Stone | Expressibility as valid Ada/SPARK source | By construction (D1, D2) |
 | Bronze | Complete and correct flow information | Guaranteed — language design enables automatic derivation (D22, D26) |
-| Silver | Absence of Runtime Errors (AoRTE) | Guaranteed — D27 Rules 1–4 (this section) |
+| Silver | Absence of Runtime Errors (AoRTE) | Guaranteed — D27 Rules 1–5 (this section) |
 | Gold | Functional correctness | Out of scope — requires developer-authored specifications |
 | Platinum | Full formal verification with mathematical proof | Out of scope — requires developer-authored lemmas and ghost code |
 
@@ -78,25 +78,27 @@ This section specifies the language-level assurance guarantees provided by Safe.
 
 12. Every conforming Safe program shall be free of runtime errors. Specifically, every runtime check that the implementation must perform (by the semantics of 8652:2023) shall be dischargeable from static type and range information derivable from the program text, combined with the D27 legality rules.
 
-13. The following four rules collectively guarantee Silver (see Section 2, §2.8 for the formal legality rules):
+12a. **Scope of the Silver guarantee.** The Silver guarantee covers the runtime checks enumerable from the program text and the language semantics — those listed in the table at §5.3.8. It does not cover resource exhaustion conditions (allocation failure, stack overflow), which depend on the execution environment rather than the program text. Resource exhaustion is outside the scope of static reasoning in any language; the behaviour when it occurs is defined (runtime abort — Section 2, §2.3.5, paragraph 103a) but cannot be statically prevented by the language rules alone. This scoping is consistent with SPARK 2022, where AoRTE (Absence of Runtime Errors) does not cover `Storage_Error`. A future revision may tighten this boundary by introducing static allocation bounding (see TBD-03).
+
+13. The following five rules collectively guarantee Silver (see Section 2, §2.8 for the formal legality rules):
 
 ### 5.3.2 Wide Intermediate Arithmetic (Rule 1)
 
-14. All integer arithmetic expressions are evaluated in a mathematical integer type. Intermediate results cannot overflow. Range checks are performed only at narrowing points: assignment, parameter passing, and return.
+14. All integer arithmetic expressions are evaluated in a mathematical integer type. Intermediate results cannot overflow. Range checks are performed only at narrowing points: assignment, parameter passing, return, type conversion, and type annotation.
 
 15. A conforming implementation shall reject any program where the static range of a declared integer type exceeds 64-bit signed range.
 
 16. A conforming implementation shall reject any integer expression where it cannot establish that all intermediate subexpressions stay within 64-bit signed range.
 
-17. **How this discharges overflow checks.** Since intermediate results are computed in a wide type, integer overflow in subexpressions is impossible. The only point where a range violation can occur is at narrowing (assignment to a typed variable, return from a function, parameter passing). At these points, the implementation performs sound static range analysis on the wide intermediate to establish that the result is within the target type's range.
+17. **How this discharges overflow checks.** Since intermediate results are computed in a wide type, integer overflow in subexpressions is impossible. The only points where a range violation can occur are at narrowing: assignment to a typed variable, return from a function, parameter passing, type conversion to a more restrictive type, and type annotation `(Expr : T)`. At these points, the implementation performs sound static range analysis on the wide intermediate to establish that the result is within the target type's range.
 
 18. Interval analysis is one permitted technique for range analysis; no specific algorithm is mandated.
 
-### 5.3.3 Strict Index Typing (Rule 2)
+### 5.3.3 Provable Index Safety (Rule 2)
 
-19. The index expression in an indexed component shall be of a type that is the same as, or a subtype of, the array's index type. The implementation rejects any indexing where the index type is wider.
+19. The index expression in an indexed component shall be provably within the array object's index bounds at compile time. The implementation accepts the indexing if: (a) the index expression's type or subtype range is statically contained within the array object's index constraint (type containment), or (b) the implementation can establish by sound static range analysis that the index value is within the array's bounds at that program point (e.g., after a conditional guard or when using bounds-derived expressions). If neither condition holds, the program is rejected.
 
-20. **How this discharges index checks.** The index value is constrained by its type to be within the array bounds. The implementation need not insert a runtime index check because the type system guarantees the index is in range.
+20. **How this discharges index checks.** For full-range arrays indexed by a matching type (the common case), the index value is constrained by its type to be within the array bounds — no runtime check is needed. For arrays with narrower constraints or unconstrained array parameters with dynamic bounds, the implementation discharges the index check via static range analysis — the same machinery used for Rule 1's narrowing checks and Rule 3's division checks. The result is uniform: every index check is either discharged statically or the program is rejected.
 
 ### 5.3.4 Division by Provably Nonzero Divisor (Rule 3)
 
@@ -112,7 +114,7 @@ This section specifies the language-level assurance guarantees provided by Safe.
 
 ### 5.3.6 Range Checks at Narrowing Points
 
-25. Range checks occur when a wide intermediate result is assigned to a typed variable, returned from a function, or passed as a parameter. The implementation shall discharge these checks via sound static range analysis.
+25. Range checks occur at every narrowing point: when a wide intermediate result is assigned to a typed variable, returned from a function, passed as a parameter, used as the operand of a type conversion to a more restrictive type, or used as the expression of a type annotation `(Expr : T)`. The implementation shall discharge these checks via sound static range analysis.
 
 26. If a conforming implementation cannot establish that a narrowing point is safe (i.e., the computed range of the wide intermediate does not fit within the target type), the program is nonconforming and shall be rejected with a diagnostic.
 
@@ -126,6 +128,14 @@ This section specifies the language-level assurance guarantees provided by Safe.
 
    (b) Case statements and if statements that check discriminant values create branches where the discriminant value is known.
 
+### 5.3.7a Floating-Point Non-Trapping Semantics (Rule 5)
+
+28a. A conforming implementation shall ensure that all predefined floating-point types use IEEE 754 default non-trapping arithmetic (`Machine_Overflows = False`). Under this model, floating-point overflow produces ±infinity, division by zero produces ±infinity, and invalid operations produce NaN. These are defined values, not runtime errors.
+
+28b. **How this discharges floating-point checks.** Since no floating-point operation raises `Constraint_Error` (the non-trapping model replaces exceptions with special values), floating-point arithmetic itself is never a source of runtime errors. The remaining concern is range checks at narrowing points: assigning ±infinity or NaN to a typed floating-point variable would violate the type's range constraint. These are discharged by the same static range analysis used for integer narrowing (Rule 1, §5.3.2): the implementation verifies at each narrowing point that the floating-point value is a finite number within the target type's model range. Programs where this cannot be established are rejected.
+
+28c. **NaN and infinity propagation.** NaN and ±infinity are permitted as intermediate values in floating-point expressions — they are well-defined under IEEE 754 and do not constitute runtime errors. However, they cannot survive a narrowing point (assignment, parameter passing, return, type conversion, type annotation) because no finite floating-point type's range includes them. This provides a natural containment boundary: floating-point computations run under full IEEE 754 semantics, but values that cross type boundaries must be finite and in-range.
+
 ### 5.3.8 Complete Runtime Check Enumeration
 
 29. The following table enumerates all categories of runtime check and how each is discharged in Safe:
@@ -133,17 +143,23 @@ This section specifies the language-level assurance guarantees provided by Safe.
 | Check Category | 8652:2023 Reference | How Discharged |
 |---------------|--------------------:|----------------|
 | Integer overflow | §4.5 | Impossible — wide intermediate arithmetic (Rule 1) |
-| Range check (assignment) | §4.6, §5.2 | Sound static range analysis on wide intermediates (Rule 1) |
-| Range check (return) | §6.5 | Sound static range analysis on wide intermediates (Rule 1) |
-| Range check (parameter) | §6.4 | Sound static range analysis on wide intermediates (Rule 1) |
-| Index check | §4.1.1 | Index type matches array index type (Rule 2) |
-| Division by zero | §4.5.5 | Divisor provably nonzero (Rule 3) |
+| Range check — integer (assignment) | §4.6, §5.2 | Sound static range analysis on wide intermediates (Rule 1) |
+| Range check — integer (return) | §6.5 | Sound static range analysis on wide intermediates (Rule 1) |
+| Range check — integer (parameter) | §6.4 | Sound static range analysis on wide intermediates (Rule 1) |
+| Range check — integer (type conversion) | §4.6 | Sound static range analysis on wide intermediates (Rule 1) |
+| Range check — integer (type annotation) | §4.7 | Sound static range analysis on wide intermediates (Rule 1) |
+| Floating-point overflow | §A.5.3, §4.5 | Non-exceptional — produces ±infinity under IEEE 754 non-trapping mode; caught at narrowing points (Rule 5) |
+| Floating-point division by zero | §A.5.3, §4.5.5 | Non-exceptional — produces ±infinity under IEEE 754 non-trapping mode; caught at narrowing points (Rule 5) |
+| Floating-point invalid operation (NaN) | §A.5.3 | Non-exceptional — produces NaN under IEEE 754 non-trapping mode; caught at narrowing points (Rule 5) |
+| Range check — float (assignment/return/parameter/conversion/annotation) | §4.6, §5.2, §6.4, §6.5, §4.7 | Sound static range analysis; value must be finite and within target type's model range (Rule 5) |
+| Index check | §4.1.1 | Index provably within array object's bounds — by type containment or static range analysis (Rule 2) |
+| Division by zero (integer) | §4.5.5 | Divisor provably nonzero (Rule 3) |
 | Null dereference (explicit) | §4.1 | Access subtype is `not null` (Rule 4) |
 | Null dereference (implicit) | §4.1.3 | Access subtype is `not null` (Rule 4) |
 | Discriminant check | §4.1.3 | Discriminant type is discrete; access consistent with value |
-| Accessibility check | §3.10.2 | Simplified by ownership model; local borrows have lexical scope |
+| Accessibility check | §3.10.2 | Compile-time only — Ada accessibility rules retained as legality rules; no runtime check needed (Section 2, §2.3.8, paragraph 113) |
 | Tag check | §3.9 | Not applicable — no tagged types |
-| Allocation check | §4.8 | Implementation-defined (see TBD register) |
+| Allocation check | §4.8 | Outside Silver scope — resource exhaustion (paragraph 12a); defined behaviour is runtime abort (Section 2, §2.3.5, paragraph 103a) |
 | Elaboration check | §3.11 | Not applicable — no circular dependencies; topological order |
 | Length check (array assignment) | §4.6 | Static bounds or matching subtypes |
 | Constraint check (subtype) | §3.2.2 | Sound static range analysis |
@@ -164,9 +180,11 @@ This section specifies the language-level assurance guarantees provided by Safe.
 
 33. The implementation shall verify this through task-variable ownership analysis (Section 4, §4.5): each package-level variable is accessed by at most one task.
 
+33a. **Designated objects transferred through channels.** When an owning access value is sent through a channel, the channel move semantics (Section 4, §4.3, paragraphs 27a, 28a, 29a) ensure that the designated object is owned by exactly one entity at any time — either the sending task (before the send), the channel (while queued), or the receiving task (after the receive). This extends the data-race-freedom guarantee to heap-allocated objects communicated between tasks.
+
 ### 5.4.2 Priority Inversion Avoidance
 
-34. When mapping channels to underlying synchronisation mechanisms, the implementation shall use ceiling priority rules (or equivalent) to prevent priority inversion (Section 4, §4.2, paragraph 21).
+34. When mapping channels to underlying synchronisation mechanisms, the implementation shall use ceiling priority rules (or equivalent) to prevent priority inversion (Section 4, §4.2, paragraph 21). The ceiling priority of each channel is computed from the priorities of all tasks that access it, including tasks in other packages that access the channel transitively through public subprogram calls. Channel-access summaries in the dependency interface information (Section 3, §3.3.1(i)) provide the cross-package information needed for this computation (Section 4, §4.2, paragraph 21a).
 
 ### 5.4.3 Deadlock Freedom — Not Guaranteed
 
@@ -262,9 +280,9 @@ package Averaging is
 end Averaging;
 ```
 
-### 5.6.2 Example: Array Indexing — Silver-Provable via Strict Index Typing
+### 5.6.2 Example: Array Indexing — Silver-Provable via Provable Index Safety
 
-**Conforming Example.**
+**Conforming Example — full-range array, type containment (condition a).**
 
 ```ada
 -- lookup.safe
@@ -277,11 +295,39 @@ package Lookup is
     public function Get_Cal (Id : Sensor_Id) return Float is
     begin
         return Calibration(Id);
-        -- Rule 2: Id is Sensor_Id, same as array index type
-        -- D27 proof: Id in Sensor_Id.First .. Sensor_Id.Last
+        -- Rule 2(a): Sensor_Id 0..15 matches array bounds 0..15
+        -- D27 proof: Id in Sensor_Id.First .. Sensor_Id.Last by type
     end Get_Cal;
 
 end Lookup;
+```
+
+**Conforming Example — unconstrained array, guarded index (condition b).**
+
+```ada
+-- strings.safe
+
+package Strings is
+
+    public type Buffer is array (Positive range <>) of Character;
+
+    public function Char_At (B : Buffer; I : Positive) return Character is
+    begin
+        if I in B.First .. B.Last then
+            return B(I);
+            -- Rule 2(b): I narrowed to B.First .. B.Last by guard
+        else
+            return ' ';
+        end if;
+    end Char_At;
+
+    public function First_Char (B : Buffer) return Character is
+    begin
+        return B(B.First);
+        -- Rule 2(b): B.First provably within B.First .. B.Last
+    end First_Char;
+
+end Strings;
 ```
 
 ### 5.6.3 Example: Division — Silver-Provable via Nonzero Divisor Types
@@ -414,11 +460,29 @@ package Bad_Index is
     public function Bad (N : Integer) return Integer is
     begin
         return Table(N);
-        -- REJECTED: Integer is not a subtype of Sensor_Id
-        -- Violated rule: D27 Rule 2 (strict index typing)
+        -- REJECTED: Integer range not contained in Sensor_Id (0..15)
+        -- and no static analysis can narrow N to 0..15 at this point
+        -- Violated rule: D27 Rule 2 (provable index safety)
         -- Source location: indexed_component Table(N)
     end Bad;
 end Bad_Index;
+```
+
+**Nonconforming Example — Rule 2 violation (unguarded unconstrained array index).**
+
+```ada
+-- NONCONFORMING
+package Bad_Buffer is
+    type Buffer is array (Positive range <>) of Character;
+
+    public function Bad_Char (B : Buffer; I : Positive) return Character is
+    begin
+        return B(I);
+        -- REJECTED: Positive range not provably within B's dynamic bounds
+        -- Violated rule: D27 Rule 2 (provable index safety)
+        -- Fix: guard with "if I in B.First .. B.Last then"
+    end Bad_Char;
+end Bad_Buffer;
 ```
 
 **Nonconforming Example — Rule 3 violation (divisor type includes zero).**

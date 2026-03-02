@@ -306,17 +306,19 @@ These rules ensure that every runtime check in a conforming Safe program is prov
 
 **Rule 1: Wide Intermediate Arithmetic**
 
-All integer arithmetic expressions are evaluated in a mathematical integer type with no overflow. Range checks are performed only when the result is:
+All integer arithmetic expressions are evaluated in a mathematical integer type with no overflow. Range checks are performed only at the following **narrowing points**:
 
 - Assigned to an object
 - Passed as a parameter
 - Returned from a function
+- Used as the operand of a type conversion to a more restrictive type
+- Used as the expression of a type annotation `(Expr : T)`
 
 If the static range of any declared type in the program exceeds 64-bit signed range, the implementation shall reject the program. This is a legality rule, not a silent truncation. In practice, all Safe integer types will fit within 64 bits.
 
-**Intermediate overflow legality rule:** For types whose range fits within 32 bits, intermediate wide arithmetic cannot overflow for single operations. For chained operations or types with larger ranges (e.g., products of two values near the 32-bit boundary), intermediate subexpressions may approach the 64-bit bounds. If a conforming implementation cannot establish (by sound static range analysis) that every intermediate subexpression stays within 64-bit signed range, the expression shall be rejected with a diagnostic. This ensures the "no intermediate overflow" guarantee holds universally, not just for small-range types. Narrowing checks at assignment, return, and parameter points are discharged via sound static range analysis on the wide result. Interval analysis is one permitted technique; no specific analysis algorithm is mandated.
+**Intermediate overflow legality rule:** For types whose range fits within 32 bits, intermediate wide arithmetic cannot overflow for single operations. For chained operations or types with larger ranges (e.g., products of two values near the 32-bit boundary), intermediate subexpressions may approach the 64-bit bounds. If a conforming implementation cannot establish (by sound static range analysis) that every intermediate subexpression stays within 64-bit signed range, the expression shall be rejected with a diagnostic. This ensures the "no intermediate overflow" guarantee holds universally, not just for small-range types. Narrowing checks at all five categories of narrowing point — assignment, return, parameter, type conversion, and type annotation — are discharged via sound static range analysis on the wide result. Interval analysis is one permitted technique; no specific analysis algorithm is mandated.
 
-For example, `A + B` where `A, B : Reading` (0..4095) computes in a wide intermediate type — the intermediate result 8190 does not overflow, and a range check fires only when the result is narrowed to `Reading` at an assignment, return, or parameter point.
+For example, `A + B` where `A, B : Reading` (0..4095) computes in a wide intermediate type — the intermediate result 8190 does not overflow, and a range check fires only when the result is narrowed to `Reading` at a narrowing point (assignment, return, parameter, type conversion, or type annotation).
 
 Example:
 
@@ -479,7 +481,7 @@ This is consistent with D27's philosophy throughout: `not null access` is to nul
 | Check                                | How discharged                                                        |
 | ------------------------------------ | --------------------------------------------------------------------- |
 | Integer overflow                     | Impossible — wide intermediate arithmetic                             |
-| Range on assignment/return/parameter | Sound static range analysis on wide intermediates                     |
+| Range at narrowing points            | Sound static range analysis on wide intermediates at all narrowing points |
 | Array index out of bounds            | Index type matches array index type                                   |
 | Division by zero                     | Divisor is provably nonzero (type, static value, or checked conversion) |
 | Null dereference                     | Access subtype is `not null` at every dereference                     |
@@ -731,7 +733,7 @@ Do this for every exclusion. Be exhaustive. Cross-reference related exclusions.
 
 **Silver-by-construction rules (D27):** These are new legality rules with no 8652:2023 precedent. Specify each precisely:
 
-1. **Wide intermediate arithmetic:** All integer arithmetic expressions are evaluated in a mathematical integer type. Range checks are performed only at assignment, parameter passing, and return. Reference how this modifies the dynamic semantics of 8652:2023 §4.5 (Operators and Expression Evaluation).
+1. **Wide intermediate arithmetic:** All integer arithmetic expressions are evaluated in a mathematical integer type. Range checks are performed only at narrowing points: assignment, parameter passing, return, type conversion to a more restrictive type, and type annotation `(Expr : T)`. Reference how this modifies the dynamic semantics of 8652:2023 §4.5 (Operators and Expression Evaluation).
 
 2. **Strict index typing:** The index expression in an indexed\_component (8652:2023 §4.1.1) shall be of a type or subtype that is the same as, or a subtype of, the array's index type. A conforming implementation shall reject any indexed\_component where this is not statically determinable.
 

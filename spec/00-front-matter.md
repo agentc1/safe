@@ -74,7 +74,7 @@
 
 13. **Observe.** The creation of a temporary read-only alias to a designated object. The observed object is frozen for writes while the observe is active. See Section 2, §2.3.4.
 
-14. **Dependency interface information.** The information about a package's public declarations, types, subprogram signatures, and effect summaries that a conforming implementation makes available for separate compilation. See Section 3, §3.3.
+14. **Dependency interface information.** The information about a package's public declarations, types, subprogram signatures, effect summaries, and channel-access summaries that a conforming implementation makes available for separate compilation. See Section 3, §3.3.
 
 15. **Wide intermediate arithmetic.** The evaluation model for integer arithmetic in Safe, where all intermediate results are computed in a mathematical integer type with no overflow. See Section 2, §2.8.1.
 
@@ -83,6 +83,8 @@
 17. **Conforming program.** A program that satisfies all requirements of Section 6. See Section 6, §6.2.
 
 18. **Effect summary.** A conservative interprocedural summary of the package-level variables read and written by a subprogram, including transitive callees. See Section 3, §3.3.1(d).
+
+18a. **Channel-access summary.** A conservative interprocedural summary of the channels accessed (by send, receive, try_send, or try_receive) by a subprogram, including transitive callees. See Section 3, §3.3.1(i).
 
 ---
 
@@ -186,8 +188,8 @@
 |----|------|-------|----------------|-----------------|
 | TBD-01 | Target platform constraints beyond "Ada compiler exists" | Language committee | Survey implementer capabilities; define minimum target requirements | v0.2 |
 | TBD-02 | Performance targets (compile time, proof time, code size) | Implementation lead | Benchmark reference implementation; set normative bounds if warranted | v0.3 |
-| TBD-03 | Memory model constraints (stack bounds, heap bounds, allocation failure handling) | Language committee | Define allocation failure semantics; evaluate stack-bounding rules | v0.2 |
-| TBD-04 | Floating-point semantics beyond inheriting Ada's | Numerics reviewer | Evaluate IEEE 754 binding requirements; consider strict mode | v0.3 |
+| TBD-03 | Memory model constraints (stack bounds, heap bounds, static allocation bounding) | Language committee | Allocation failure semantics defined (paragraph 103a, abort); evaluate static allocation bounding to bring resource exhaustion into Silver scope; evaluate stack-bounding rules | v0.2 |
+| TBD-04 | Floating-point semantics beyond inheriting Ada's | Numerics reviewer | Partially resolved: IEEE 754 non-trapping mode required (`Machine_Overflows = False`) and integrated into Silver as D27 Rule 5 (Section 2, §2.8.5). Remaining items: evaluate whether to mandate a specific IEEE 754 standard revision (e.g., IEEE 754-2019); define static range analysis precision requirements for floating-point narrowing; evaluate strict reproducibility mode (deterministic rounding, extended-precision prohibition) | v0.3 |
 | TBD-05 | Diagnostic catalogue and localisation | Implementation lead | Define structured diagnostic identifiers; evaluate i18n approach | v0.3 |
 | TBD-06 | `Constant_After_Elaboration` aspect — determine whether required for concurrency analysis | Concurrency reviewer | Evaluate whether package-level constants need this aspect for sound analysis | v0.2 |
 | TBD-07 | Abort handler behaviour (language-defined or implementation-defined) | Language committee | Define minimum abort handler guarantees; evaluate diagnostic requirements | v0.2 |

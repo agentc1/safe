@@ -222,6 +222,8 @@ Clients can declare variables of type `T` (the implementation exports size and a
 
    (h) **Incomplete type declarations:** Public incomplete type declarations for forward references.
 
+   (i) **Channel-access summaries:** For each public subprogram, a conservative interprocedural summary (including transitive callees) of the channels accessed by `send`, `receive`, `try_send`, or `try_receive` — directly or transitively. This information is needed for ceiling priority computation across packages (Section 4, §4.2, paragraph 21a). The summary may be conservatively over-approximate; an over-approximate summary may raise ceiling priorities above the necessary minimum but does not compromise correctness.
+
 34. The mechanism for conveying this information (e.g., symbol files, compiler databases) is implementation-defined.
 
 35. If required dependency interface information is unavailable for a `with`'d package, the program shall be rejected.

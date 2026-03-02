@@ -69,6 +69,8 @@ object_declaration ::=
         subtype_indication [ ':=' expression ] ';'
   | [ 'public' ] defining_identifier_list ':' [ 'aliased' ] [ 'constant' ]
         array_type_definition [ ':=' expression ] ';'
+  | [ 'public' ] defining_identifier_list ':' [ 'aliased' ] [ 'constant' ]
+        access_definition [ ':=' expression ] ';'
 
 number_declaration ::=
     [ 'public' ] defining_identifier_list ':' 'constant' ':=' static_expression ';'
@@ -477,6 +479,10 @@ extended_return_statement ::=
         [ ':=' expression ] 'do'
         handled_sequence_of_statements
     'end' 'return' ';'
+  | 'return' defining_identifier ':' access_definition
+        [ ':=' expression ] 'do'
+        handled_sequence_of_statements
+    'end' 'return' ';'
 
 exit_statement ::=
     'exit' [ loop_name ] [ 'when' condition ] ';'
@@ -563,12 +569,15 @@ procedure_specification ::=
 
 function_specification ::=
     'function' defining_identifier [ formal_part ] 'return' subtype_mark
+  | 'function' defining_identifier [ formal_part ] 'return' access_definition
 
 formal_part ::=
     '(' parameter_specification { ';' parameter_specification } ')'
 
 parameter_specification ::=
     defining_identifier_list ':' [ 'aliased' ] mode subtype_mark
+        [ ':=' default_expression ]
+  | defining_identifier_list ':' access_definition
         [ ':=' default_expression ]
 
 mode ::=
