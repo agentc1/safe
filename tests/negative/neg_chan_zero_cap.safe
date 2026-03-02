@@ -1,0 +1,14 @@
+-- Test: neg_chan_zero_cap
+-- Description: Declaring a channel with zero capacity.
+--   The capacity must be at least 1. A capacity of 0 is rejected.
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p15:b5b29b0e
+-- Expected: REJECT invalid_channel_capacity
+
+package Zero_Cap_Test is
+
+   type Msg is range 0 .. 255;
+
+   --  Zero_Ch: capacity 0 violates the requirement that capacity >= 1.
+   channel Zero_Ch : Msg capacity 0;  -- ERROR: capacity must be >= 1
+
+end Zero_Cap_Test;

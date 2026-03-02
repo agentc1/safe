@@ -1,0 +1,25 @@
+Diagnostics Golden: Null Dereference
+Source: tests/negative/neg_rule4_null_deref.safe
+Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.4.p136:fa5e94b7
+
+Expected diagnostic output:
+------------------------------------------------------------------------
+neg_rule4_null_deref.safe:14:14: error: dereference of possibly null access value
+  |
+  | 14 |       return P.all;  -- ERROR: P may be null
+  |    |              ^~~~~
+  |
+  note: P is of type Value_Ptr (access Value), which does not exclude null.
+  note: no null check precedes this dereference on all paths reaching
+        this program point.
+  note: rule: D27 Rule 4 (Not-Null Dereference)
+  note: per spec/02-restrictions.md section 2.8.4 paragraph 136:
+        "Dereference of an access value shall require the access subtype
+        to be not null. A conforming implementation shall reject any
+        dereference where the access subtype at the point of dereference
+        does not exclude null."
+  suggestion: use a "not null access" subtype, or add an explicit null check:
+        if P /= null then
+           return P.all;
+        end if;
+------------------------------------------------------------------------

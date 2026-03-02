@@ -1,0 +1,25 @@
+-- Test: neg_own_double_move
+-- Description: Moving an access value that has already been moved.
+--   After the first move, Source is null/moved. The second move
+--   attempts to transfer ownership from a moved variable.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.3.2.p96a:0eaf48aa
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.3.2.p96c:0b45de01
+-- Expected: REJECT double_move
+
+package Double_Move_Test is
+
+   type Payload is range 0 .. 100;
+   type Payload_Ptr is access Payload;
+
+   --  Double_Move: moves Source twice.
+   procedure Double_Move is
+      Source  : Payload_Ptr := new Payload'(42);
+      Target1 : Payload_Ptr := null;
+      Target2 : Payload_Ptr := null;
+   begin
+      Target1 := Source;
+      --  Source is now null (moved).
+      Target2 := Source;  -- ERROR: Source has already been moved
+   end Double_Move;
+
+end Double_Move_Test;

@@ -1,0 +1,23 @@
+-- Test: neg_rule2_negative
+-- Description: Negative index used on a naturally-indexed array.
+--   The array is indexed from 0, but the computed index can be negative.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p131:30aba5f5
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p132:8613ecf4
+-- Expected: REJECT index_out_of_bounds
+
+package Negative_Index_Test is
+
+   type Nat_Index is range 0 .. 15;
+   type Buffer is array (Nat_Index) of Integer;
+
+   --  Access_Offset: accesses Arr(Base - Offset).
+   --  If Base = 0 and Offset = 1, then Base - Offset = -1, which
+   --  is below the array's lower bound of 0.
+   function Access_Offset (Arr : Buffer;
+                           Base : Nat_Index;
+                           Offset : Natural) return Integer is
+   begin
+      return Arr (Nat_Index (Integer (Base) - Offset));  -- ERROR: may be negative
+   end Access_Offset;
+
+end Negative_Index_Test;

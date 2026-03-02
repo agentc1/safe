@@ -1,0 +1,137 @@
+# Safe Language Annotated SPARK Companion -- CI Workflow
+# Source commit: 4aecf219ffa5473bfc42b026a66c8bdea2ce5872
+#
+# This workflow builds the SPARK companion, runs GNATprove flow and proof
+# analysis, extracts assumptions, and diffs them against the tracked baseline.
+
+name: SPARK Companion CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  FROZEN_SHA: "4aecf219ffa5473bfc42b026a66c8bdea2ce5872"
+
+jobs:
+  spark-verify:
+    name: Build & Verify SPARK Companion
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ------------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # Install GNAT and GNATprove via Alire
+      # ------------------------------------------------------------------
+      - name: Install Alire
+        uses: alire-project/setup-alire@v3
+        with:
+          toolchain: gnat_native^14 gprbuild^24
+
+      - name: Install GNATprove
+        run: |
+          alire toolchain --select gnatprove
+          echo "GNATprove version:"
+          gnatprove --version || echo "GNATprove installed via Alire"
+
+      # ------------------------------------------------------------------
+      # Verify frozen commit SHA
+      # ------------------------------------------------------------------
+      - name: Verify frozen commit SHA
+        run: |
+          REPO_SHA="$(cat meta/commit.txt | tr -d '[:space:]')"
+          echo "Frozen SHA from meta/commit.txt: ${REPO_SHA}"
+          echo "Expected SHA from workflow env:  ${FROZEN_SHA}"
+          if [[ "${REPO_SHA}" != "${FROZEN_SHA}" ]]; then
+            echo "WARNING: Frozen SHA mismatch. Proceeding but results may be inconsistent."
+          fi
+
+      # ------------------------------------------------------------------
+      # Cache GNATprove results
+      # ------------------------------------------------------------------
+      - name: Cache GNATprove results
+        uses: actions/cache@v4
+        with:
+          path: |
+            companion/gen/obj/gnatprove
+          key: gnatprove-${{ runner.os }}-${{ hashFiles('companion/spark/*.ads', 'companion/spark/*.adb', 'companion/gen/companion.gpr') }}
+          restore-keys: |
+            gnatprove-${{ runner.os }}-
+
+      # ------------------------------------------------------------------
+      # Ensure build directory exists
+      # ------------------------------------------------------------------
+      - name: Prepare build directory
+        run: mkdir -p companion/gen/obj
+
+      # ------------------------------------------------------------------
+      # Make scripts executable
+      # ------------------------------------------------------------------
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      # ------------------------------------------------------------------
+      # Step 1: Compile
+      # ------------------------------------------------------------------
+      - name: "Step 1: Compile (gprbuild)"
+        run: gprbuild -P companion/gen/companion.gpr -q
+
+      # ------------------------------------------------------------------
+      # Step 2: GNATprove flow analysis (Bronze gate)
+      # ------------------------------------------------------------------
+      - name: "Step 2: GNATprove flow analysis"
+        run: scripts/run_gnatprove_flow.sh
+
+      # ------------------------------------------------------------------
+      # Step 3: GNATprove proof analysis (Silver gate)
+      # ------------------------------------------------------------------
+      - name: "Step 3: GNATprove proof"
+        run: scripts/run_gnatprove_prove.sh
+
+      # ------------------------------------------------------------------
+      # Step 4: Extract assumptions
+      # ------------------------------------------------------------------
+      - name: "Step 4: Extract assumptions"
+        run: scripts/extract_assumptions.sh
+
+      # ------------------------------------------------------------------
+      # Step 5: Diff assumptions against baseline
+      # ------------------------------------------------------------------
+      - name: "Step 5: Diff assumptions"
+        run: scripts/diff_assumptions.sh
+
+      # ------------------------------------------------------------------
+      # Upload artifacts on failure for debugging
+      # ------------------------------------------------------------------
+      - name: Upload GNATprove output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnatprove-output
+          path: |
+            companion/gen/obj/gnatprove/
+            companion/assumptions_extracted.txt
+          retention-days: 14
+
+      # ------------------------------------------------------------------
+      # Upload assumptions extraction as artifact
+      # ------------------------------------------------------------------
+      - name: Upload assumptions extraction
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: assumptions-report
+          path: |
+            companion/assumptions_extracted.txt
+            companion/assumptions.yaml
+            companion/gen/prove_golden.txt
+            companion/gen/obj/gnatprove/gnatprove.out
+          retention-days: 30

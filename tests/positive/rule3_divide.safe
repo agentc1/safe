@@ -1,0 +1,33 @@
+-- Test: rule3_divide
+-- Description: Integer division with provably nonzero divisor.
+--   The divisor is constrained to a positive subtype, or guarded
+--   by a conditional check before division.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.3.p133:0610d951
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.3.p134:90a17a3b
+-- Expected: ACCEPT
+
+package Safe_Divide is
+
+   type Positive_Divisor is range 1 .. 1000;
+   type Result_Value is range -10_000 .. 10_000;
+
+   --  Safe_Div: the divisor type excludes zero by its range 1..1000.
+   function Safe_Div (Dividend : Result_Value;
+                      Divisor  : Positive_Divisor) return Result_Value is
+   begin
+      --  Divisor is of type Positive_Divisor (1..1000), provably nonzero.
+      return Dividend / Result_Value (Divisor);
+   end Safe_Div;
+
+   --  Guarded_Div: uses a runtime check to ensure nonzero.
+   function Guarded_Div (A, B : Result_Value) return Result_Value is
+   begin
+      if B /= 0 then
+         --  B is provably nonzero by the guard.
+         return A / B;
+      else
+         return 0;
+      end if;
+   end Guarded_Div;
+
+end Safe_Divide;

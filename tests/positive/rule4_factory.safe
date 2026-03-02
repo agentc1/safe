@@ -1,0 +1,34 @@
+-- Test: rule4_factory
+-- Description: Factory pattern returning non-null access values.
+--   The allocator always returns a non-null access value, so the
+--   caller can safely dereference without additional checks.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.4.p136:fa5e94b7
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.3.5.p103a:520dc0d4
+-- Expected: ACCEPT
+
+package Safe_Factory is
+
+   type Sensor_Data is record
+      Id    : Natural;
+      Value : Integer;
+   end record;
+
+   type Sensor_Ptr is not null access Sensor_Data;
+
+   --  Create_Sensor: allocates a new Sensor_Data.
+   --  The allocator returns a not-null value by construction.
+   function Create_Sensor (Id : Natural;
+                           Initial_Value : Integer) return Sensor_Ptr is
+   begin
+      return new Sensor_Data'(Id => Id, Value => Initial_Value);
+   end Create_Sensor;
+
+   --  Read_Sensor: dereferences the factory-created pointer.
+   --  The return type Sensor_Ptr is not null access, so
+   --  dereference is always safe.
+   function Read_Sensor (S : Sensor_Ptr) return Integer is
+   begin
+      return S.all.Value;
+   end Read_Sensor;
+
+end Safe_Factory;

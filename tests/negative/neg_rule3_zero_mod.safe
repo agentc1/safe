@@ -1,0 +1,18 @@
+-- Test: neg_rule3_zero_mod
+-- Description: Modulo by a variable that may be zero.
+--   The divisor's type includes zero, and no guard is present.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.3.p133:0610d951
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.3.p134:90a17a3b
+-- Expected: REJECT division_by_zero
+
+package Zero_Mod_Test is
+
+   type Counter is range 0 .. 255;
+
+   --  Wrap: computes Counter mod N, but N may be zero.
+   function Wrap (C : Counter; N : Counter) return Counter is
+   begin
+      return C mod N;  -- ERROR: N may be zero
+   end Wrap;
+
+end Zero_Mod_Test;

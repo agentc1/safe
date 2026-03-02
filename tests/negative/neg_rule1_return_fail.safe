@@ -1,0 +1,21 @@
+-- Test: neg_rule1_return_fail
+-- Description: Function return that cannot be proven within return type range.
+--   The function computes a value that may exceed the return type's range
+--   without any guard.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p127:d5d93439
+-- Clause: SAFE@4aecf21:spec/05-assurance.md#5.3.6.p25:e8253bd7
+-- Expected: REJECT narrowing_check_failure
+
+package Return_Fail is
+
+   type Small is range 0 .. 100;
+
+   --  Double: doubles a value and returns it as Small.
+   --  If V = 60, then V * 2 = 120 which exceeds 100.
+   --  The compiler cannot prove the result fits in 0..100.
+   function Double (V : Small) return Small is
+   begin
+      return V * 2;  -- ERROR: V * 2 may exceed 100
+   end Double;
+
+end Return_Fail;

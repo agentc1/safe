@@ -1,0 +1,64 @@
+-- Test: channel_pipeline
+-- Description: Three-stage pipeline with channels.
+--   Stage 1 produces data, Stage 2 transforms it, Stage 3 consumes it.
+--   Each stage communicates via bounded FIFO channels.
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.1.p2:78f022f7
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p15:b5b29b0e
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p27:ef0ce6bd
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p28:ea6bd13c
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p20:8aa1a21e
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p31:a7297e97
+-- Expected: ACCEPT
+
+package Pipeline is
+
+   type Sample is range 0 .. 10_000;
+
+   --  Channels connecting the three stages.
+   channel Raw_Ch      : Sample capacity 4;
+   channel Filtered_Ch : Sample capacity 4;
+
+   --  Producer: generates sample data and sends to Raw_Ch.
+   task Producer is
+      Counter : Sample := 0;
+   begin
+      loop
+         send Raw_Ch, Counter;
+         if Counter < 10_000 then
+            Counter := Counter + 1;
+         else
+            Counter := 0;
+         end if;
+      end loop;
+   end Producer;
+
+   --  Filter: receives from Raw_Ch, applies simple transformation,
+   --  sends result to Filtered_Ch.
+   task Filter is
+      Input  : Sample;
+      Output : Sample;
+   begin
+      loop
+         receive Raw_Ch, Input;
+         --  Simple low-pass: output = input / 2 (safe, 2 /= 0).
+         Output := Input / 2;
+         send Filtered_Ch, Output;
+      end loop;
+   end Filter;
+
+   --  Consumer: receives from Filtered_Ch and processes.
+   task Consumer is
+      Data : Sample;
+      Sum  : Natural := 0;
+   begin
+      loop
+         receive Filtered_Ch, Data;
+         Sum := Sum + Natural (Data);
+         --  Prevent unbounded growth.
+         if Sum > 1_000_000 then
+            Sum := 0;
+         end if;
+      end loop;
+   end Consumer;
+
+end Pipeline;

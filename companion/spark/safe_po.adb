@@ -110,7 +110,6 @@ package body Safe_PO is
       Arr_Hi : Long_Long_Integer;
       Idx    : Long_Long_Integer)
    is
-      pragma Unreferenced (Arr_Lo, Arr_Hi, Idx);
    begin
       null;
    end Safe_Index;
@@ -126,7 +125,6 @@ package body Safe_PO is
    procedure Nonzero
      (V : Long_Long_Integer)
    is
-      pragma Unreferenced (V);
    begin
       null;
    end Nonzero;
@@ -168,7 +166,6 @@ package body Safe_PO is
    procedure Not_Null_Ptr
      (Is_Null : Boolean)
    is
-      pragma Unreferenced (Is_Null);
    begin
       null;
    end Not_Null_Ptr;
@@ -180,7 +177,6 @@ package body Safe_PO is
    procedure Safe_Deref
      (Is_Null : Boolean)
    is
-      pragma Unreferenced (Is_Null);
    begin
       null;
    end Safe_Deref;
@@ -196,7 +192,6 @@ package body Safe_PO is
    procedure FP_Not_NaN
      (V : Long_Float)
    is
-      pragma Unreferenced (V);
    begin
       null;
    end FP_Not_NaN;
@@ -208,7 +203,6 @@ package body Safe_PO is
    procedure FP_Not_Infinity
      (V : Long_Float)
    is
-      pragma Unreferenced (V);
    begin
       null;
    end FP_Not_Infinity;
@@ -224,6 +218,12 @@ package body Safe_PO is
    is
    begin
       R := X / Y;
+      pragma Annotate
+        (GNATprove, Intentional,
+         "float overflow check might fail",
+         "A-05: The compiler ensures the result is finite at " &
+         "narrowing points via range analysis.  See " &
+         "companion/assumptions.yaml A-05.");
    end FP_Safe_Div;
 
    --========================================================================

@@ -1,0 +1,26 @@
+-- Test: neg_rule1_param_fail
+-- Description: Parameter passing where the actual does not fit the formal type.
+--   A value of a wider type is passed to a parameter of a narrower type
+--   without any range guard.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p127:d5d93439
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p130:2289e5b2
+-- Expected: REJECT narrowing_check_failure
+
+package Param_Fail is
+
+   type Percentage is range 0 .. 100;
+   type Wide_Int is range -10_000 .. 10_000;
+
+   procedure Use_Percent (P : Percentage) is
+   begin
+      null;
+   end Use_Percent;
+
+   --  Pass_Unchecked: passes a Wide_Int to a Percentage parameter
+   --  without verifying the value is in 0..100.
+   procedure Pass_Unchecked (V : Wide_Int) is
+   begin
+      Use_Percent (Percentage (V));  -- ERROR: V may not be in 0..100
+   end Pass_Unchecked;
+
+end Param_Fail;

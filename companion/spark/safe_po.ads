@@ -38,7 +38,8 @@ package Safe_PO is
      (X : Long_Long_Integer;
       Y : Long_Long_Integer;
       R : out Long_Long_Integer)
-   with Pre  => Y /= 0,
+   with Pre  => Y /= 0
+                and then not (X = Long_Long_Integer'First and then Y = -1),
         Post => R = X / Y;
 
    ---------------------------------------------------------------------------
@@ -127,7 +128,8 @@ package Safe_PO is
       Idx    : Long_Long_Integer)
    with Pre => Arr_Lo <= Arr_Hi
                and then Idx >= Arr_Lo
-               and then Idx <= Arr_Hi;
+               and then Idx <= Arr_Hi,
+        Ghost;
 
    --========================================================================
    --  D27 Rule 3 -- Division by Zero
@@ -143,7 +145,8 @@ package Safe_PO is
    ---------------------------------------------------------------------------
    procedure Nonzero
      (V : Long_Long_Integer)
-   with Pre => V /= 0;
+   with Pre => V /= 0,
+        Ghost;
 
    ---------------------------------------------------------------------------
    --  Safe_Mod: Modulo with provably nonzero divisor.
@@ -185,7 +188,8 @@ package Safe_PO is
    ---------------------------------------------------------------------------
    procedure Not_Null_Ptr
      (Is_Null : Boolean)
-   with Pre => not Is_Null;
+   with Pre => not Is_Null,
+        Ghost;
 
    ---------------------------------------------------------------------------
    --  Safe_Deref: Dereference with not-null guarantee.
@@ -194,7 +198,8 @@ package Safe_PO is
    ---------------------------------------------------------------------------
    procedure Safe_Deref
      (Is_Null : Boolean)
-   with Pre => not Is_Null;
+   with Pre => not Is_Null,
+        Ghost;
 
    --========================================================================
    --  D27 Rule 5 -- Floating-Point Safety
@@ -212,7 +217,8 @@ package Safe_PO is
    ---------------------------------------------------------------------------
    procedure FP_Not_NaN
      (V : Long_Float)
-   with Pre => V = V;
+   with Pre => V = V,
+        Ghost;
 
    ---------------------------------------------------------------------------
    --  FP_Not_Infinity: Floating-point value is finite.
@@ -225,7 +231,8 @@ package Safe_PO is
      (V : Long_Float)
    with Pre => V = V
                and then V >= Long_Float'First
-               and then V <= Long_Float'Last;
+               and then V <= Long_Float'Last,
+        Ghost;
 
    ---------------------------------------------------------------------------
    --  FP_Safe_Div: Floating-point division with nonzero, non-NaN divisor.
@@ -239,7 +246,11 @@ package Safe_PO is
       R : out Long_Float)
    with Pre  => Y /= 0.0
                 and then Y = Y
-                and then X = X,
+                and then X = X
+                and then X >= Long_Float'First
+                and then X <= Long_Float'Last
+                and then Y >= Long_Float'First
+                and then Y <= Long_Float'Last,
         Post => R = X / Y;
 
    --========================================================================

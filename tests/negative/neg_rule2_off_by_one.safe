@@ -1,0 +1,23 @@
+-- Test: neg_rule2_off_by_one
+-- Description: Off-by-one error accessing beyond the last element.
+--   The loop iterates one position past the array's upper bound.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p131:30aba5f5
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p132:8613ecf4
+-- Expected: REJECT index_out_of_bounds
+
+package Off_By_One_Test is
+
+   type Idx is range 1 .. 10;
+   type Data is array (Idx) of Integer;
+
+   --  Sum_Plus_One: iterates from 1 to 11, but array only goes to 10.
+   function Sum_Plus_One (Arr : Data) return Integer is
+      Total : Integer := 0;
+   begin
+      for I in 1 .. 11 loop
+         Total := Total + Arr (Idx (I));  -- ERROR: I = 11 is out of bounds
+      end loop;
+      return Total;
+   end Sum_Plus_One;
+
+end Off_By_One_Test;

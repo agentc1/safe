@@ -24,7 +24,7 @@
       "node_type": "CompilationUnit",
       "production": "compilation_unit",
       "source_section": "8.1",
-      "clause_ids": ["SAFE@4aecf21:spec/03-single-file-packages.md#3.1.p1"],
+      "clause_ids": ["SAFE@4aecf21:spec/03-single-file-packages.md#3.p0:dcd1bc13"],
       "fields": [
         { "name": "context_clause", "type": "NodeRef<ContextClause>", "optional": false },
         { "name": "package_unit", "type": "NodeRef<PackageUnit>", "optional": false },
@@ -62,8 +62,8 @@
       "production": "package_unit",
       "source_section": "8.1",
       "clause_ids": [
-        "SAFE@4aecf21:spec/03-single-file-packages.md#3.1.p1",
-        "SAFE@4aecf21:spec/03-single-file-packages.md#3.2.1.p8"
+        "SAFE@4aecf21:spec/03-single-file-packages.md#3.p0:dcd1bc13",
+        "SAFE@4aecf21:spec/03-single-file-packages.md#3.2.1.p8:cb47c342"
       ],
       "fields": [
         { "name": "name", "type": "Identifier", "optional": false },
@@ -76,7 +76,7 @@
       "node_type": "PackageItem",
       "production": "package_item",
       "source_section": "8.2",
-      "clause_ids": ["SAFE@4aecf21:spec/03-single-file-packages.md#3.1.2.p2"],
+      "clause_ids": ["SAFE@4aecf21:spec/03-single-file-packages.md#3.2.1.p8:cb47c342"],
       "fields": [
         { "name": "kind", "type": "PackageItemKind", "optional": false, "note": "Discriminant: one of BasicDeclaration, TaskDeclaration, ChannelDeclaration, UseTypeClause, RepresentationItem, Pragma" },
         { "name": "item", "type": "NodeRef<BasicDeclaration | TaskDeclaration | ChannelDeclaration | UseTypeClause | RepresentationItem | Pragma>", "optional": false },
@@ -207,7 +207,7 @@
       "node_type": "SignedIntegerTypeDefinition",
       "production": "signed_integer_type_definition",
       "source_section": "8.4",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p128"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p128:d2e83ca8"],
       "fields": [
         { "name": "low_bound", "type": "NodeRef<Expression>", "optional": false },
         { "name": "high_bound", "type": "NodeRef<Expression>", "optional": false },
@@ -317,7 +317,7 @@
       "node_type": "RecordTypeDefinition",
       "production": "record_type_definition",
       "source_section": "8.4",
-      "clause_ids": ["SAFE@4aecf21:spec/03-single-file-packages.md#3.2.6.p21"],
+      "clause_ids": ["SAFE@4aecf21:spec/03-single-file-packages.md#3.2.6.p23:26dc2217"],
       "fields": [
         { "name": "is_limited", "type": "Boolean", "optional": false },
         { "name": "is_private", "type": "Boolean", "optional": false, "note": "True for 'private record' (opaque type)" },
@@ -430,7 +430,7 @@
       "node_type": "AccessToObjectDefinition",
       "production": "access_to_object_definition",
       "source_section": "8.4",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.3.1.p95"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.7.p124:ef993f07"],
       "fields": [
         { "name": "is_not_null", "type": "Boolean", "optional": false },
         { "name": "is_all", "type": "Boolean", "optional": false },
@@ -443,7 +443,7 @@
       "node_type": "AccessDefinition",
       "production": "access_definition",
       "source_section": "8.4",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.3.1.p95"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.7.p124:ef993f07"],
       "fields": [
         { "name": "is_not_null", "type": "Boolean", "optional": false },
         { "name": "is_all", "type": "Boolean", "optional": false },
@@ -467,8 +467,7 @@
       "production": "allocator",
       "source_section": "8.4",
       "clause_ids": [
-        "SAFE@4aecf21:spec/02-restrictions.md#2.4.2.p116",
-        "SAFE@4aecf21:spec/02-restrictions.md#2.3.5.p103"
+        "SAFE@4aecf21:spec/02-restrictions.md#2.3.5.p103a:520dc0d4"
       ],
       "fields": [
         { "name": "kind", "type": "AllocatorKind", "optional": false, "note": "SubtypeOnly (new T) or Annotated (new (Expr : T))" },
@@ -582,7 +581,7 @@
       "node_type": "IndexedComponent",
       "production": "indexed_component",
       "source_section": "8.6",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p131"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p131:30aba5f5"],
       "fields": [
         { "name": "prefix", "type": "NodeRef<Name>", "optional": false },
         { "name": "indices", "type": "NonEmptyList<Expression>", "optional": false },
@@ -603,7 +602,7 @@
       "node_type": "SelectedComponent",
       "production": "selected_component",
       "source_section": "8.6",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.4.1.p110"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.3.7.p108:083e15a2"],
       "fields": [
         { "name": "prefix", "type": "NodeRef<Name>", "optional": false },
         { "name": "selector", "type": "Identifier", "optional": false },
@@ -741,8 +740,7 @@
       "production": "annotated_expression",
       "source_section": "8.6",
       "clause_ids": [
-        "SAFE@4aecf21:spec/02-restrictions.md#2.4.2.p113",
-        "SAFE@4aecf21:spec/02-restrictions.md#2.4.2.p114"
+        "SAFE@4aecf21:spec/02-restrictions.md#2.3.8.p113:75fcd707"
       ],
       "fields": [
         { "name": "expression", "type": "NodeRef<Expression>", "optional": false },
@@ -881,7 +879,7 @@
       "node_type": "SequenceOfStatements",
       "production": "sequence_of_statements",
       "source_section": "8.7",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.9.p140"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.9.p140:7eeb1bb6"],
       "fields": [
         { "name": "items", "type": "NonEmptyList<InterleavedItem>", "optional": false, "note": "May contain both statements and interleaved declarations" },
         { "name": "span", "type": "Span", "optional": false }
@@ -891,7 +889,7 @@
       "node_type": "InterleavedItem",
       "production": "interleaved_item",
       "source_section": "8.7",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.9.p140"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.9.p140:7eeb1bb6"],
       "fields": [
         { "name": "kind", "type": "InterleavedItemKind", "optional": false, "note": "Statement or BasicDeclaration" },
         { "name": "item", "type": "NodeRef<Statement | BasicDeclaration>", "optional": false },
@@ -921,7 +919,7 @@
       "node_type": "AssignmentStatement",
       "production": "assignment_statement",
       "source_section": "8.7",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p127"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p127:d5d93439"],
       "fields": [
         { "name": "target", "type": "NodeRef<Name>", "optional": false },
         { "name": "expression", "type": "NodeRef<Expression>", "optional": false },
@@ -943,7 +941,7 @@
       "node_type": "SimpleReturnStatement",
       "production": "simple_return_statement",
       "source_section": "8.7",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p127"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p127:d5d93439"],
       "fields": [
         { "name": "expression", "type": "Option<Expression>", "optional": true },
         { "name": "span", "type": "Span", "optional": false }
@@ -985,7 +983,7 @@
       "node_type": "DelayStatement",
       "production": "delay_statement",
       "source_section": "8.7",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.1.8.p60"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.1.8.p60:75dc85e6"],
       "fields": [
         { "name": "expression", "type": "NodeRef<Expression>", "optional": false },
         { "name": "span", "type": "Span", "optional": false }
@@ -1164,7 +1162,7 @@
       "node_type": "UseTypeClause",
       "production": "use_type_clause",
       "source_section": "8.10",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.1.7.p52"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.1.7.p51:3bd0226a"],
       "fields": [
         { "name": "subtype_marks", "type": "NonEmptyList<Name>", "optional": false },
         { "name": "span", "type": "Span", "optional": false }
@@ -1238,10 +1236,9 @@
       "production": "task_declaration",
       "source_section": "8.12",
       "clause_ids": [
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.1.p1",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.1.p2",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.1.p3",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.1.p6"
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.1.p2:78f022f7",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.1.p3:542e0dee",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.1.p6:be85291b"
       ],
       "fields": [
         { "name": "name", "type": "Identifier", "optional": false },
@@ -1257,10 +1254,9 @@
       "production": "channel_declaration",
       "source_section": "8.12",
       "clause_ids": [
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p12",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p13",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p14",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p15"
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p13:4f888b03",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p14:a35bd0fa",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p15:b5b29b0e"
       ],
       "fields": [
         { "name": "is_public", "type": "Boolean", "optional": false },
@@ -1275,8 +1271,8 @@
       "production": "send_statement",
       "source_section": "8.12",
       "clause_ids": [
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p27",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p27a"
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p27:ef0ce6bd",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p27a:8ed3c1d4"
       ],
       "fields": [
         { "name": "channel_name", "type": "NodeRef<Name>", "optional": false },
@@ -1289,8 +1285,8 @@
       "production": "receive_statement",
       "source_section": "8.12",
       "clause_ids": [
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p28",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p28a"
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p28:ea6bd13c",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p28a:4cb19779"
       ],
       "fields": [
         { "name": "channel_name", "type": "NodeRef<Name>", "optional": false },
@@ -1303,8 +1299,8 @@
       "production": "try_send_statement",
       "source_section": "8.12",
       "clause_ids": [
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p29",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p29a"
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p29:f792d704",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p29a:8d3f2225"
       ],
       "fields": [
         { "name": "channel_name", "type": "NodeRef<Name>", "optional": false },
@@ -1318,7 +1314,7 @@
       "production": "try_receive_statement",
       "source_section": "8.12",
       "clause_ids": [
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p30"
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p30:62619161"
       ],
       "fields": [
         { "name": "channel_name", "type": "NodeRef<Name>", "optional": false },
@@ -1332,9 +1328,9 @@
       "production": "select_statement",
       "source_section": "8.12",
       "clause_ids": [
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p32",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p39",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p41"
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p33:7a94ab51",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p39:1012f4db",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p41:cdf6a558"
       ],
       "fields": [
         { "name": "arms", "type": "NonEmptyList<SelectArm>", "optional": false },
@@ -1356,8 +1352,8 @@
       "production": "channel_arm",
       "source_section": "8.12",
       "clause_ids": [
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p37",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p43"
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p37:6ced8129",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p42:dce8ac38"
       ],
       "fields": [
         { "name": "variable_name", "type": "Identifier", "optional": false },
@@ -1372,8 +1368,8 @@
       "production": "delay_arm",
       "source_section": "8.12",
       "clause_ids": [
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p38",
-        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p40"
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p38:35ed84d9",
+        "SAFE@4aecf21:spec/04-tasks-and-channels.md#4.4.p40:4cfdeffe"
       ],
       "fields": [
         { "name": "duration_expr", "type": "NodeRef<Expression>", "optional": false },
@@ -1385,7 +1381,7 @@
       "node_type": "Pragma",
       "production": "pragma",
       "source_section": "8.13",
-      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.1.10.p68"],
+      "clause_ids": ["SAFE@4aecf21:spec/02-restrictions.md#2.1.10.p67:50d815f0"],
       "fields": [
         { "name": "name", "type": "Identifier", "optional": false },
         { "name": "arguments", "type": "List<PragmaArgumentAssociation>", "optional": false },

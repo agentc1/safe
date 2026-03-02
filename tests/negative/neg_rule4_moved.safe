@@ -1,0 +1,27 @@
+-- Test: neg_rule4_moved
+-- Description: Dereference of an access value after it has been moved.
+--   After the move, the source variable is null and cannot be dereferenced.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.3.2.p96c:0b45de01
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.4.p136:fa5e94b7
+-- Expected: REJECT use_after_move
+
+package Moved_Deref_Test is
+
+   type Data is record
+      Value : Integer;
+   end record;
+
+   type Data_Ptr is access Data;
+
+   --  Use_After_Move: dereferences Source after it has been moved to Target.
+   procedure Use_After_Move is
+      Source : Data_Ptr := new Data'(Value => 42);
+      Target : Data_Ptr := null;
+      V      : Integer;
+   begin
+      Target := Source;
+      --  Source is now null (moved).
+      V := Source.all.Value;  -- ERROR: Source has been moved (is null)
+   end Use_After_Move;
+
+end Moved_Deref_Test;
