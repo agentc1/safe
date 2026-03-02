@@ -18,6 +18,8 @@
 7. [K Skeleton Structure](#7-k-skeleton-structure)
 8. [Effort Estimate and Roadmap](#8-effort-estimate-and-roadmap)
 9. [Comparison with SPARK Approach](#9-comparison-with-spark-approach)
+10. [Assumption Linkage](#10-assumption-linkage)
+11. [References](#11-references)
 
 ---
 
@@ -1150,7 +1152,58 @@ The K semantics provides the formal foundation at the top of this chain, while G
 
 ---
 
-## References
+## 10. Assumption Linkage
+
+The SPARK companion tracks 13 assumptions in `companion/assumptions.yaml` -- dependencies that the companion relies on but cannot verify within SPARK itself. Several of these assumptions directly affect the semantic modeling choices made in this K definition. This section maps each relevant assumption to its K semantic counterpart and notes whether the K semantics can help discharge the assumption or whether it remains an external dependency.
+
+### 10.1 Assumption-to-K-Component Mapping
+
+| Assumption ID | Summary | Severity | K Semantic Component(s) | Relationship |
+|---|---|---|---|---|
+| **A-01** | 64-bit intermediate integer evaluation | Critical | Expression evaluation rules (section 4.1), narrowing-point rules (section 4.2), `intVal` value domain (section 3.2) | **External dependency.** The K rules enforce `minInt64 <= I <= maxInt64` side conditions on all integer operations, directly encoding this assumption. The K semantics *relies on* A-01 but cannot discharge it -- the guarantee that physical hardware provides 64-bit intermediates is outside the model. |
+| **A-02** | IEEE 754 non-trapping floating-point mode | Critical | Float narrowing rules (section 4.2.6), `checkNarrowFloat` rules, `floatVal` value domain | **External dependency.** The K rules model NaN detection via `V == V` and infinity detection via range checks at narrowing points, assuming that intermediate float operations silently propagate NaN and infinity per IEEE 754. The hardware non-trapping guarantee is outside the model. |
+| **A-03** | Static range analysis is sound | Critical | Narrowing-point rules (section 4.2), the "stuck state" model for compile-time rejection | **Partially dischargeable.** The K semantics models the *runtime effect* of narrowing points: if a value passes `checkNarrow`, it is in range. `kprove` can verify that, given the compiler's static guarantee, no narrowing check fails at runtime. However, soundness of the compiler's analysis itself is external. The K semantics can serve as a cross-check: a program accepted by the compiler should not reach a narrowing stuck state in the K interpreter. |
+| **A-04** | Channel implementation correctly serializes access | Critical | Channel operation rules (section 4.4), `<channel>` configuration cell (section 3) | **External dependency.** The K model treats each channel operation as an atomic rewrite step, implicitly assuming serialization. The runtime's use of Ada protected objects to enforce this serialization is outside the K model. |
+| **A-05** | FP division result is finite when operands are finite | Major | Float evaluation rules, `FP_Safe_Div` correspondence (section 6, D27 Rule 5) | **External dependency.** The K `checkNarrowFloat` rule catches infinity at narrowing points but does not model subnormal operand behavior. The compiler's narrowing-point analysis guaranteeing finite results is assumed, not verified by K. |
+| **B-01** | Ownership state enumeration is complete | Major | Ownership state machine (section 4.3), `OwnershipState` sort (section 3.3) | **Dischargeable via kprove.** The K definition encodes exactly five ownership states (`Null_State`, `Owned`, `Moved`, `Borrowed`, `Observed`) and defines exhaustive transition rules. `kprove` can verify *transition completeness*: every reachable ownership configuration is handled by some rule, and no stuck state arises from an unmodeled ownership state. If a sixth state were needed, the K definition would reach a stuck configuration, exposing the gap. |
+| **B-02** | Channel FIFO ordering preserved by implementation | Major | Channel buffer model (section 4.4), `<buffer>` cell using K `List` | **Dischargeable via kprove.** The K model uses an explicit `List` with head-removal and tail-append, directly encoding FIFO semantics. `kprove` can verify the FIFO invariant: for all reachable configurations, the dequeue order matches the enqueue order. This discharges B-02 *within the K model* and provides a reference specification that the runtime implementation must conform to. |
+| **B-03** | Task-variable map covers all shared variables | Major | Task-variable ownership checking (section 4.7), `<task-var-map>` cell (section 3.1) | **Partially dischargeable.** The K rules enforce that every global variable access by a task is registered in the `<task-var-map>`. `kprove` can verify that the data-race stuck state is unreachable for conforming programs. However, completeness of the compiler's registration of variables into the map remains an external dependency on the compiler front-end. |
+| **B-04** | Not_Null_Ptr and Safe_Deref model Boolean null flag | Minor | Null dereference rules (section 4.3.8), pointer operations (section 2.2) | **Superseded in K model.** The K semantics models pointers directly as `ptrVal(Loc)` or `nullVal()` rather than using a Boolean proxy. The `deref(nullVal()) => stuck("null-dereference")` rule directly encodes the null check. B-04 is a SPARK modeling limitation that does not apply to K. |
+| **C-01** | Flow analysis (Bronze gate) is sufficient for data-dependency proofs | Minor | Not directly relevant | **Not applicable.** C-01 concerns GNATprove's `--mode=flow` analysis, which is specific to the SPARK toolchain. The K semantics operates at a different abstraction level and does not model flow analysis. |
+| **C-02** | Proof-only (Ghost) procedures have no runtime effect | Minor | Not directly relevant | **Not applicable.** C-02 concerns the erasure of Ghost-annotated procedures in the SPARK companion. The K semantics does not include ghost code; all K rules model runtime behavior. |
+| **D-01** | Select lowering via polling is conformant | Minor | Select statement rules (section 4.5), `tryArms`/`pollDelay` rules | **Partially dischargeable.** The K `select` rules model polling semantics (retry loop with `pollDelay`), matching the compiler's lowering strategy. `kprove` can verify that the polling model satisfies the spec's determinism requirement: given identical channel states, the same arm is always chosen. Whether the polling latency is acceptable under real-time constraints remains outside the K model. |
+| **D-02** | Frozen spec commit is authoritative | Minor | All clause ID references throughout this document (e.g., `SAFE@4aecf21:...`) | **External dependency.** The K definition pins all clause references to commit `4aecf21`. D-02 is a process-level assumption that applies equally to the K semantics, the SPARK companion, and all other artifacts. If the spec evolves, K rules must be re-derived from updated clause IDs. |
+
+### 10.2 Summary by Disposition
+
+**Assumptions the K semantics can help discharge:**
+
+- **B-01** (Ownership state completeness) -- `kprove` can verify that the five-state ownership model handles all reachable transitions without stuck states, confirming enumeration completeness.
+- **B-02** (Channel FIFO ordering) -- The K `List`-based buffer model directly encodes FIFO semantics, and `kprove` can verify the ordering invariant across all interleavings.
+
+**Assumptions the K semantics can partially verify:**
+
+- **A-03** (Static range analysis soundness) -- K can cross-check: programs accepted by the compiler should not reach narrowing stuck states in the K interpreter, providing empirical evidence (via test execution) and bounded verification (via `kprove`) of range analysis soundness.
+- **B-03** (Task-variable map completeness) -- K can verify race-freedom given a complete map, but map completeness depends on the compiler.
+- **D-01** (Select polling conformance) -- K can verify the determinism property of the polling model but not real-time latency bounds.
+
+**Assumptions that are external dependencies (hardware, toolchain, or process):**
+
+- **A-01** (64-bit hardware) -- Hardware property; K relies on it.
+- **A-02** (IEEE 754 non-trapping mode) -- Hardware property; K relies on it.
+- **A-04** (Channel serialization by runtime) -- Runtime implementation property; K assumes atomicity.
+- **A-05** (FP division finiteness) -- Compiler analysis property; K catches infinity at narrowing but does not verify the analysis.
+- **D-02** (Frozen spec commit) -- Process-level assumption; applies to all artifacts.
+
+**Assumptions not applicable to the K semantics:**
+
+- **B-04** (Boolean null flag model) -- SPARK modeling workaround; K models pointers directly.
+- **C-01** (Flow analysis sufficiency) -- SPARK toolchain concern; not relevant to K.
+- **C-02** (Ghost procedure erasure) -- SPARK toolchain concern; not relevant to K.
+
+---
+
+## 11. References
 
 1. **Safe Language Specification** -- spec/02-restrictions.md (ownership model, D27 rules), spec/04-tasks-and-channels.md (concurrency model), spec/08-syntax-summary.md (BNF grammar, 148 productions).
 

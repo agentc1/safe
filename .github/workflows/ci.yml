@@ -51,7 +51,8 @@ jobs:
           echo "Frozen SHA from meta/commit.txt: ${REPO_SHA}"
           echo "Expected SHA from workflow env:  ${FROZEN_SHA}"
           if [[ "${REPO_SHA}" != "${FROZEN_SHA}" ]]; then
-            echo "WARNING: Frozen SHA mismatch. Proceeding but results may be inconsistent."
+            echo "ERROR: Frozen SHA mismatch. meta/commit.txt=${REPO_SHA} != env.FROZEN_SHA=${FROZEN_SHA}"
+            exit 1
           fi
 
       # ------------------------------------------------------------------

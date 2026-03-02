@@ -621,7 +621,7 @@ flowchart LR
     D --> F["GNATprove<br/>Flow Analysis<br/>Proof Discharge"]
     E --> F
     F --> G["Verified POs"]
-    C --> H["Assumptions<br/>assumptions.yaml<br/>12 tracked assumptions"]
+    C --> H["Assumptions<br/>assumptions.yaml<br/>13 tracked assumptions"]
     H --> I["Manual Review<br/>Assumption Audit"]
     G --> J["Traceability<br/>Matrix"]
     I --> J
@@ -635,17 +635,17 @@ The 5-step CI verification pipeline for the SPARK companion.
 
 ```mermaid
 flowchart TD
-    S1["Step 1: Compile<br/>gnatmake safe_po.ads safe_model.ads<br/>Verify SPARK sources compile cleanly"]
+    S1["Step 1: Compile<br/>gprbuild -P companion/gen/companion.gpr<br/>Verify SPARK sources compile cleanly"]
     S1 --> S2["Step 2: Flow Analysis<br/>gnatprove --mode=flow<br/>Bronze gate: 0 flow errors<br/>Verify data dependencies & initialization"]
     S2 --> S3["Step 3: Prove<br/>gnatprove --mode=prove --level=2<br/>Silver gate: all VCs discharged<br/>Verify Pre/Post contracts"]
-    S3 --> S4["Step 4: Extract<br/>Regenerate clauses.yaml & po_map.yaml<br/>from frozen spec commit 4aecf21"]
-    S4 --> S5["Step 5: Diff<br/>Compare regenerated artifacts<br/>against checked-in versions<br/>Detect spec-code drift"]
+    S3 --> S4["Step 4: Extract Assumptions<br/>scripts/extract_assumptions.sh<br/>Parse GNATprove output for assumption references"]
+    S4 --> S5["Step 5: Diff Assumptions<br/>scripts/diff_assumptions.sh<br/>Compare proof summary against golden baseline<br/>Enforce assumption budget"]
 
     S1 -.- N1["Gate: compilation success"]
     S2 -.- N2["Gate: 0 flow errors"]
     S3 -.- N3["Gate: 0 unproven VCs"]
     S4 -.- N4["Gate: extraction success"]
-    S5 -.- N5["Gate: zero diff"]
+    S5 -.- N5["Gate: zero diff against golden"]
 ```
 
 ---

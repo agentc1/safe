@@ -60,6 +60,7 @@ Neither layer subsumes the other. GNATprove operates on Ada/SPARK source and rea
 **Property.** All integer arithmetic in Safe evaluates via 64-bit signed intermediates. Range checks occur only at the five categories of narrowing point (assignment, parameter passing, return, type conversion, type annotation). If the compiler's static range analysis computes a conservative bound for every subexpression and verifies containment at every narrowing point, then no integer overflow reaches a program variable.
 
 **Spec reference.** Section 2.8.1, paragraphs 126--130 (`spec/02-restrictions.md`).
+Canonical clause IDs: `SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p126:812b54a8` through `#2.8.1.p130:2289e5b2`.
 
 **Companion anchor.** `safe_model.ads` Part 1 (Range64, Contains, Subset, Intersect, Widen, Excludes_Zero); `safe_po.ads` procedures Narrow_Assignment, Narrow_Parameter, Narrow_Return, Narrow_Indexing, Narrow_Conversion.
 
@@ -143,6 +144,7 @@ Isabelle/HOL is a viable alternative with comparable library support (`Int.thy`,
 5. No designated object is simultaneously Owned by two distinct variables.
 
 **Spec reference.** Section 2.3, paragraphs 94--113 (`spec/02-restrictions.md`). Specifically: 2.3.2 (move semantics, paragraphs 96--97c), 2.3.3 (borrowing, paragraphs 98--100a), 2.3.4 (observing, paragraphs 101--102), 2.3.4a (lifetime containment, paragraphs 102a--102b).
+Key canonical clause IDs: `SAFE@4aecf21:spec/02-restrictions.md#2.3.2.p96a:0eaf48aa`, `#2.3.2.p96c:0b45de01`, `#2.3.3.p99b:47108b45`, `#2.3.4a.p102a:5bc5ab8b`, `#2.3.4a.p102b:2ed757bd`.
 
 **Companion anchor.** `safe_model.ads` Part 3 (Ownership_State enumeration, Is_Accessible, Is_Movable, Is_Borrowable, Is_Observable, Is_Valid_Transition); `safe_po.ads` procedures Check_Not_Moved, Check_Owned_For_Move, Check_Borrow_Exclusive, Check_Observe_Shared.
 
@@ -238,6 +240,7 @@ Coq is a viable alternative, particularly if the Priority 1 proof is already in 
 **Property.** Messages sent on a Safe channel are received in the same order they were sent. Specifically, for any sequence of Send and Receive operations serialized by the runtime (assumption A-04), the sequence of values returned by Receive is a prefix of the sequence of values passed to Send, in the same order.
 
 **Spec reference.** Section 4.2, paragraph 20: "A channel is a FIFO queue: elements are dequeued in the order they were enqueued." Section 4.3, paragraphs 27--31 (`spec/04-tasks-and-channels.md`).
+Key canonical clause IDs: `SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p20:8aa1a21e`, `#4.3.p27:ef0ce6bd`, `#4.3.p28:ea6bd13c`, `#4.3.p31:a7297e97`.
 
 **Companion anchor.** `safe_model.ads` Part 2 (Channel_State, Is_Valid_Channel, After_Append, After_Remove, Make_Channel); `safe_po.ads` procedures Check_Channel_Not_Full, Check_Channel_Not_Empty, Check_Channel_Capacity_Positive. Note: the current companion ghost model tracks only length and capacity, not element ordering. Assumption B-02 records this gap.
 
