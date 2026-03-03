@@ -103,13 +103,13 @@ jobs:
       # Step 2: GNATprove flow analysis (Bronze gate)
       # ------------------------------------------------------------------
       - name: "Step 2: GNATprove flow analysis"
-        run: alr exec -- gnatprove -P companion.gpr --mode=flow --report=all --warnings=on
+        run: alr exec -- gnatprove -P companion.gpr --mode=flow --report=all --warnings=error
 
       # ------------------------------------------------------------------
       # Step 3: GNATprove proof analysis (Silver gate)
       # ------------------------------------------------------------------
       - name: "Step 3: GNATprove proof"
-        run: alr exec -- gnatprove -P companion.gpr --mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=on --checks-as-errors=on
+        run: alr exec -- gnatprove -P companion.gpr --mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=error --checks-as-errors=on
 
       # ------------------------------------------------------------------
       # Step 4: Extract assumptions
@@ -203,10 +203,10 @@ jobs:
         run: alr build
 
       - name: "Step 2: GNATprove flow analysis"
-        run: alr exec -- gnatprove -P templates.gpr --mode=flow --report=all --warnings=on
+        run: alr exec -- gnatprove -P templates.gpr --mode=flow --report=all --warnings=error
 
       - name: "Step 3: GNATprove proof"
-        run: alr exec -- gnatprove -P templates.gpr --mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=on --checks-as-errors=on
+        run: alr exec -- gnatprove -P templates.gpr --mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=error --checks-as-errors=on
 
       # ----------------------------------------------------------------
       # Step 4-5: Assumption extraction and diff (matches spark-verify)

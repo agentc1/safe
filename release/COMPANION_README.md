@@ -179,7 +179,7 @@ Step 1: Compile
         │
         ▼
 Step 2: Flow Analysis (Bronze)
-  gnatprove --mode=flow --report=all --warnings=on
+  gnatprove --mode=flow --report=all --warnings=error
   Gate: 29/29 flow checks, 0 errors
         │
         ▼

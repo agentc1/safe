@@ -38,7 +38,7 @@ The Safe Language Annotated SPARK Companion has completed all 13 tasks (T0-T12) 
 ### 3.1 Bronze Gate (Flow Analysis)
 
 ```
-gnatprove --mode=flow --report=all --warnings=on
+gnatprove --mode=flow --report=all --warnings=error
 ```
 
 | Check Category | Count | Status |

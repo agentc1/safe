@@ -1,6 +1,6 @@
 # Safe Companion -- Extracted Assumptions
-# Generated: 2026-03-03T19:52:10Z
-# Source: /Users/agentc1/src/github.com/agentc1/safe/companion/templates/obj/gnatprove
+# Generated: 2026-03-03T21:35:20Z
+# Source: companion/templates/obj/gnatprove
 #
 # This file lists all assumptions extracted from GNATprove output.
 # Compare against companion/assumptions.yaml to detect drift.
@@ -342,7 +342,6 @@
   claim: unknown:? [unknown]
   claim: unknown:? [unknown]
   claim: unknown:? [unknown]
-  claim: unknown:? [unknown]
     assumes: unknown:? [unknown]
     assumes: unknown:? [unknown]
     assumes: unknown:? [unknown]
@@ -362,6 +361,7 @@
     assumes: unknown:? [unknown]
     assumes: unknown:? [unknown]
     assumes: unknown:? [unknown]
+  claim: unknown:? [unknown]
   claim: unknown:? [unknown]
 
 ## File: template_task_decl.spark

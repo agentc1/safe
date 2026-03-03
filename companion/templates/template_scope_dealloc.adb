@@ -64,26 +64,27 @@ is
 
       declare
          C : Var_Model :=
-           (Is_Null => True, Is_Moved => False, Value => 0);
+           (Is_Null => False, Is_Moved => False, Value => A.Value);
       begin
-         C.Value := A.Value;
-         C.Is_Null := False;
-         C.Is_Moved := False;
-
          A.Is_Null := True;
          A.Is_Moved := True;
+         pragma Assert (A.Is_Null and A.Is_Moved);
 
          --  Read from C (not moved).
          Check_Not_Moved (To_State (C.Is_Null, C.Is_Moved));
          Result := C.Value;
 
          --  Scope exit for inner block: deallocate C.
+         pragma Assert (not C.Is_Null and not C.Is_Moved);
          Dealloc (C);
+         pragma Assert (C.Is_Null and not C.Is_Moved);
       end;
 
       --  Scope exit: deallocate in reverse declaration order.
       --  B is Owned -> deallocate.
+      pragma Assert (not B.Is_Null and not B.Is_Moved and B.Value = 99);
       Dealloc (B);
+      pragma Assert (B.Is_Null and not B.Is_Moved);
       --  A is Moved (Is_Null=True, Is_Moved=True).
       --  Dealloc precondition (not Is_Moved or else Is_Null) holds
       --  because Is_Null is True. Inside Dealloc, the else branch
@@ -91,6 +92,7 @@ is
       --    if A /= null then Free(A); end if;
       --  Since A is null (moved), the guard skips deallocation.
       Dealloc (A);
+      pragma Assert (A.Is_Null and not A.Is_Moved);
    end Run_Scope;
 
 end Template_Scope_Dealloc;

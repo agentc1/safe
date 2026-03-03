@@ -29,13 +29,13 @@ echo ""
 # Clean previous results to ensure a fresh analysis
 gnatprove -P "${GPR_FILE}" --clean 2>/dev/null || true
 
-echo "Running: gnatprove -P ${GPR_FILE} --mode=flow --report=all --warnings=on"
+echo "Running: gnatprove -P ${GPR_FILE} --mode=flow --report=all --warnings=error"
 echo ""
 
 if gnatprove -P "${GPR_FILE}" \
     --mode=flow \
     --report=all \
-    --warnings=on \
+    --warnings=error \
     2>&1; then
     echo ""
     echo "================================================================"

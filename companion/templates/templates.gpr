@@ -24,7 +24,7 @@ project Templates is
         ("--mode=prove",
          "--level=2",
          "--report=all",
-         "--warnings=on");
+         "--warnings=error");
    end Prove;
 
 end Templates;

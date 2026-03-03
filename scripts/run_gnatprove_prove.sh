@@ -30,7 +30,7 @@ echo ""
 # Clean previous results to ensure a fresh analysis
 gnatprove -P "${GPR_FILE}" --clean 2>/dev/null || true
 
-echo "Running: gnatprove -P ${GPR_FILE} --mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=on --checks-as-errors=on"
+echo "Running: gnatprove -P ${GPR_FILE} --mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=error --checks-as-errors=on"
 echo ""
 
 if gnatprove -P "${GPR_FILE}" \
@@ -40,7 +40,7 @@ if gnatprove -P "${GPR_FILE}" \
     --steps=0 \
     --timeout=120 \
     --report=all \
-    --warnings=on \
+    --warnings=error \
     --checks-as-errors=on \
     2>&1; then
     echo ""
