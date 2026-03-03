@@ -38,7 +38,7 @@ The audit examined 30 files across 8 directories:
 |----------|-------|-------|
 | SPARK source | `safe_model.ads` (319), `safe_model.adb` (55), `safe_po.ads` (365), `safe_po.adb` (340) | 1,079 |
 | Clause artifacts | `clauses.yaml` (2,638), `po_map.yaml` (1,662), `normative_inventory.md` | 4,300+ |
-| Documentation | 7 files in `docs/` | 4,593 |
+| Documentation | 4 files in `docs/` | 1,970 |
 | Release docs | `COMPANION_README.md` (266), `status_report.md` (289) | 555 |
 | CI/Scripts | `ci.yml`, 6 shell scripts, 2 Python generators | 8 files |
 | Tests | 76 files across 5 directories | 76 files |
@@ -65,7 +65,7 @@ Every numerical claim in the release documents was independently recomputed agai
 | Tracked assumptions | 13 | 13 (4 crit + 4 major + 5 minor) | PASS |
 | Critical assumptions | 4 | 4 (A-01, A-02, A-03, A-04) | PASS |
 | Test files | 76 | 76 (30+33+3+5+5) | PASS |
-| Documentation files | 7 | 7 | PASS |
+| Documentation files | 4 | 4 | PASS |
 | CI scripts | 8 | 8 (6 .sh + 2 .py) | PASS |
 | prove_golden.txt lines | **20** | **19** | **FAIL** (off-by-one) |
 | All other line counts | (see below) | Match | PASS |
@@ -84,12 +84,9 @@ Every numerical claim in the release documents was independently recomputed agai
 | `clauses.yaml` | 2,638 | 2,638 | PASS |
 | `po_map.yaml` | 1,662 | 1,662 | PASS |
 | `gnatprove_profile.md` | 435 | 435 | PASS |
-| `k_semantics_scope.md` | 1,220 | 1,220 | PASS |
-| `mechanized_scope.md` | 537 | 537 | PASS |
 | `po_index.md` | 677 | 677 | PASS |
 | `traceability_matrix.md` | 652 | 652 | PASS |
 | `traceability_matrix.csv` | 206 | 206 | PASS |
-| `why3_alignment.md` | 866 | 866 | PASS |
 | `run_all.sh` | 167 | 167 | PASS |
 | `run_gnatprove_flow.sh` | 58 | 58 | PASS |
 | `run_gnatprove_prove.sh` | 81 | 81 | PASS |
@@ -97,7 +94,7 @@ Every numerical claim in the release documents was independently recomputed agai
 | `diff_assumptions.sh` | 156 | 156 | PASS |
 | `spec2spark.sh` | 44 | 44 | PASS |
 
-**22 of 22 line counts correct; 1 off-by-one (`prove_golden.txt`: 19 not 20).**
+**19 of 19 line counts correct; 1 off-by-one (`prove_golden.txt`: 19 not 20).**
 
 ### 2.3 Clause-by-Spec-File Distribution
 
@@ -196,7 +193,7 @@ Note: The `Safe_Model` package itself is declared `with Ghost` (line 18), which 
 | Quickstart: `scripts/run_all.sh` | File exists, executable | PASS |
 | Quickstart: `scripts/run_gnatprove_flow.sh` | File exists, executable | PASS |
 | Quickstart: `scripts/run_gnatprove_prove.sh` | File exists, executable | PASS |
-| Phase 4 docs "scoping", not "implemented" | README S9: "define the scope and feasibility... deferred to future phases" | PASS |
+| Verification strategy documented | README S9: GNATprove Silver verification strategy | PASS |
 | Structure: `meta/commit.txt` listed | Listed at line 87 | PASS |
 | Structure: `meta/generator_version.txt` | **NOT LISTED** | **FAIL** |
 
@@ -228,7 +225,7 @@ All file paths referenced in `COMPANION_README.md` and `status_report.md` were v
 | SPARK source (4 files) | `companion/spark/safe_model.{ads,adb}`, `safe_po.{ads,adb}` | PASS |
 | Clause files (2 files) | `clauses/clauses.yaml`, `clauses/po_map.yaml` | PASS |
 | Build config (3 files) | `companion/gen/companion.gpr`, `prove_golden.txt`, `assumptions.yaml` | PASS |
-| Documentation (7 files) | All `docs/*.md` + `docs/*.csv` | PASS |
+| Documentation (4 files) | All `docs/*.md` + `docs/*.csv` | PASS |
 | Scripts (8 files) | All `scripts/*.sh` + `scripts/*.py` | PASS |
 | Metadata (2 files) | `meta/commit.txt`, `meta/generator_version.txt` | PASS |
 | Release (2 files) | `release/COMPANION_README.md`, `release/status_report.md` | PASS |
@@ -290,16 +287,14 @@ The conditional branch prints a warning and **continues execution**. A mismatch 
 | Clause ID references | Spot-checked | Valid clause IDs in sampled test files |
 | Concurrency liveness claims | None | Tests do not imply liveness guarantees |
 
-### 2.12 Formal Methods Documentation (CHECK 9)
+### 2.12 Verification Strategy Documentation (CHECK 9)
 
-| Document | Status Label | Verified |
-|----------|-------------|----------|
-| `docs/why3_alignment.md` | Scoping analysis (maps VCs to Why3 theories) | PASS -- no implementation claims |
-| `docs/mechanized_scope.md` | Scoping (identifies proof targets, effort estimates) | PASS -- explicitly "planned" |
-| `docs/k_semantics_scope.md` | DRAFT scoping (7-9 person-months estimate) | PASS -- no K code present |
-| README S9 | "define the scope and feasibility... deferred to future phases" | PASS |
+The companion relies on GNATprove Silver verification (Bronze flow + Silver proof) as its sole formal verification strategy. No separate formal methods scoping documents (Why3, Coq/Isabelle, K-Framework) are included -- these were removed as premature. GNATprove's internal use of Why3 as its VC backend is documented in `docs/gnatprove_profile.md`.
 
-No silent semantic drift detected. All Phase 4 documents are correctly labeled as scoping/planned.
+| Document | Status | Verified |
+|----------|--------|----------|
+| `docs/gnatprove_profile.md` | GNATprove configuration and prover settings | PASS |
+| README S9 | "Verification Strategy" -- GNATprove Silver gates only | PASS |
 
 ### 2.13 Security & Hygiene
 
@@ -511,7 +506,7 @@ findings:
 | 6 | Assumption budget within limits | PASS (13 ≤ 15, 4 ≤ 4) |
 | 7 | Test suite counts verified | PASS (76 files) |
 | 8 | Proof baseline verified | PASS (64/29/34/1/0) |
-| 9 | Phase 4 docs labeled as scoping | PASS |
+| 9 | Verification strategy documented (GNATprove Silver) | PASS |
 | 10 | All findings have evidence (file + line) | PASS |
 | 11 | Patches are minimal and correct | PASS |
 

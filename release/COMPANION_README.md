@@ -77,12 +77,9 @@ safe/
 │       └── safe_po.adb        # PO procedure bodies (340 lines)
 ├── docs/
 │   ├── gnatprove_profile.md   # GNATprove configuration & prover settings (435 lines)
-│   ├── k_semantics_scope.md   # K-Framework scoping document (1,220 lines)
-│   ├── mechanized_scope.md    # Coq/Isabelle scoping document (537 lines)
 │   ├── po_index.md            # PO procedure index (677 lines)
 │   ├── traceability_matrix.md # Full clause-to-artifact traceability (652 lines)
-│   ├── traceability_matrix.csv# Machine-readable traceability (206 lines)
-│   └── why3_alignment.md      # Why3 alignment analysis (866 lines)
+│   └── traceability_matrix.csv# Machine-readable traceability (206 lines)
 ├── meta/
 │   ├── commit.txt             # Frozen spec SHA
 │   └── generator_version.txt  # Generator version (spec2spark v0.1.0)
@@ -125,7 +122,7 @@ safe/
 | -- Unproved | 0 |
 | Tracked assumptions | 13 (4 critical, 4 major, 5 minor) |
 | Test files | 76 |
-| Documentation files | 7 |
+| Documentation files | 4 |
 | CI scripts | 8 |
 
 ---
@@ -203,17 +200,14 @@ Step 5: Diff Against Golden
 
 ---
 
-## 9. Formal Methods Roadmap
+## 9. Verification Strategy
 
-The companion includes scoping documents for three mechanized verification approaches:
+The companion relies exclusively on GNATprove for formal verification at two assurance gates:
 
-| Approach | Document | Status |
-|----------|----------|--------|
-| **Why3** intermediate VC language | `docs/why3_alignment.md` | Scoping complete -- maps all 23 PO procedures to Why3 theories |
-| **Coq / Isabelle** mechanized proofs | `docs/mechanized_scope.md` | Scoping complete -- identifies proof targets for ownership and channel models |
-| **K-Framework** executable semantics | `docs/k_semantics_scope.md` | Scoping complete -- defines rewrite rules for Safe operational semantics |
+- **Bronze gate** -- flow analysis (data-flow, initialization, termination): 29/29 checks proved
+- **Silver gate** -- absence of runtime errors via formal proof: 34 checks proved by CVC5, 1 justified
 
-These documents define the scope and feasibility of each approach. Implementation is deferred to future phases.
+GNATprove uses Why3 internally as its intermediate VC language and dispatches to CVC5, Z3, and Alt-Ergo solvers. No additional verification tools are required. See `docs/gnatprove_profile.md` for configuration details.
 
 ---
 

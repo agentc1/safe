@@ -27,7 +27,7 @@ The Safe Language Annotated SPARK Companion has completed all 13 tasks (T0-T12) 
 | T7 | Silver gate (proof) | `companion/gen/prove_golden.txt` | COMPLETE | 64 checks, 34 proved, 1 justified, 0 unproved |
 | T8 | Assumption registry | `companion/assumptions.yaml` | COMPLETE | 13 assumptions (4 critical, 4 major, 5 minor) |
 | T9 | Test suite | `tests/` (76 files across 5 dirs) | COMPLETE | 30 positive, 33 negative, 3 golden, 5 concurrency, 5 diagnostics |
-| T10 | Documentation | `docs/` (7 files) | COMPLETE | Traceability, GNATprove profile, formal methods scoping |
+| T10 | Documentation | `docs/` (4 files) | COMPLETE | Traceability, GNATprove profile |
 | T11 | CI pipeline | `scripts/` (8 files) | COMPLETE | 5-step pipeline: compile → flow → prove → extract → diff |
 | T12 | Release bundle | `release/COMPANION_README.md`, `release/status_report.md` | COMPLETE | This document |
 
@@ -104,13 +104,10 @@ gnatprove --mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=12
 | File | Lines | Description |
 |------|-------|-------------|
 | `docs/gnatprove_profile.md` | 435 | GNATprove configuration, prover settings, regression policy |
-| `docs/k_semantics_scope.md` | 1,220 | K-Framework executable semantics scoping |
-| `docs/mechanized_scope.md` | 537 | Coq/Isabelle mechanized proof scoping |
 | `docs/po_index.md` | 677 | PO procedure index and contract details |
 | `docs/traceability_matrix.md` | 652 | Full clause-to-artifact traceability matrix |
 | `docs/traceability_matrix.csv` | 206 | Machine-readable traceability (1 header + 205 data rows) |
-| `docs/why3_alignment.md` | 866 | Why3 intermediate VC alignment analysis |
-| **Docs total** | **4,593** | |
+| **Docs total** | **1,970** | |
 
 ### 4.5 CI Scripts
 
@@ -268,7 +265,7 @@ These process-level recommendations have been addressed in the CI workflow.
 | 7 | Assumption budget: 13 total ≤ 15, 4 critical ≤ 4 | PASS |
 | 8 | Proof golden: 64 checks, 0 unproved | PASS |
 | 9 | All 76 test files exist on disk | PASS |
-| 10 | All 23 PO procedures referenced in Why3 alignment doc | PASS |
+| 10 | All 23 PO procedures referenced in po_index.md | PASS |
 | 11 | All 13 assumptions cross-referenced in traceability matrix | PASS |
 
 ---
