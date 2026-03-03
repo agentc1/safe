@@ -84,7 +84,7 @@ The Bronze gate passes if and only if:
 2. The summary reports **0 errors** and **0 warnings** in flow analysis mode.
 3. All 29 flow checks are proved.
 
-Any flow warning (even a "medium" severity) is treated as a gate failure because the project file enables `-gnatwe` (warnings as errors).
+Any flow warning (even a "medium" severity) is treated as a gate failure because CI runs GNATprove with `--warnings=error`, which treats any GNATprove warning as a gate failure.
 
 ---
 
@@ -340,7 +340,7 @@ The following table consolidates all GNATprove switches used across both gates.
 | `--steps` | `0` | Silver | Unlimited solver steps. Combined with `--timeout`, this ensures solvers use wall-clock time as the bound rather than step count. |
 | `--timeout` | `120` | Silver | Maximum wall-clock seconds per VC per solver. 120s is generous for the current companion size. |
 | `--report` | `all` | Both | Report every check result (proved, not proved, error). Required for audit trail and golden-output comparison. |
-| `--warnings` | `on` | Both | Enable all GNATprove warnings. Combined with `-gnatwe` in the project file, any warning becomes a gate failure. |
+| `--warnings` | `error` | Both | Enable all GNATprove warnings and treat them as errors. When CI passes `--warnings=error`, any GNATprove warning becomes a gate failure. |
 | `--checks-as-errors` | `on` | Silver | Treat unproved check messages as errors. Ensures the Silver gate fails if any VC is unproved (or not justified). |
 
 ### 8.1 Project File Compiler Switches
@@ -430,6 +430,6 @@ The flow analysis summary output is deterministic for a given toolchain version.
 
 | Gate | Trigger | Command | Pass Criteria | Blocking? |
 |------|---------|---------|--------------|-----------|
-| Bronze (flow) | Every push, every PR | `gnatprove -P ... --mode=flow --report=all --warnings=on` | 0 errors, 0 warnings, all flow checks proved | Yes -- merge blocking |
-| Silver (proof) | Every push, every PR | `gnatprove -P ... --mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=on --checks-as-errors=on` | All VCs proved or justified (0 unproved) | Yes -- merge blocking |
+| Bronze (flow) | Every push, every PR | `gnatprove -P ... --mode=flow --report=all --warnings=error` | 0 errors, 0 warnings, all flow checks proved | Yes -- merge blocking |
+| Silver (proof) | Every push, every PR | `gnatprove -P ... --mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=error --checks-as-errors=on` | All VCs proved or justified (0 unproved) | Yes -- merge blocking |
 | Assumption diff | Every CI cycle | `scripts/diff_assumptions.sh` | Proof summary matches golden; assumption budget within limits | Yes -- merge blocking |
