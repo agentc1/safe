@@ -1,0 +1,220 @@
+# Safe Language Annotated SPARK Companion -- Tracked Assumptions
+# Source commit: 4aecf219ffa5473bfc42b026a66c8bdea2ce5872
+# Generated: 2026-03-02
+# Generator: spec2spark v0.1.0
+#
+# Each assumption records a dependency that the SPARK companion relies on
+# but cannot verify within SPARK itself.  If an assumption is invalidated,
+# the proof obligations that depend on it may become unsound.
+
+# ============================================================================
+#  A -- Implementation / Target Assumptions
+# ============================================================================
+
+- id: A-01
+  summary: "64-bit intermediate integer evaluation"
+  description: >
+    The implementation provides at least 64-bit intermediate evaluation for
+    all integer arithmetic expressions, matching the Safe specification's
+    wide-arithmetic model (D27 Rule 1).  Long_Long_Integer is used as the
+    SPARK proxy for the mathematical-integer intermediate type.
+  spec_reference: "spec/02-restrictions.md#2.8.1"
+  affects:
+    - Safe_PO.Safe_Div
+    - Safe_PO.Narrow_Assignment
+    - Safe_PO.Narrow_Parameter
+    - Safe_PO.Narrow_Return
+    - Safe_PO.Narrow_Indexing
+    - Safe_PO.Narrow_Conversion
+  severity: critical
+  status: open
+
+- id: A-02
+  summary: "IEEE 754 non-trapping floating-point mode"
+  description: >
+    The target hardware and runtime support IEEE 754 binary64 (Long_Float)
+    in non-trapping mode.  NaN and infinity propagate silently through
+    intermediate computations; the companion models check-at-narrowing
+    rather than check-at-production (D27 Rule 5).
+  spec_reference: "spec/02-restrictions.md#2.8.5"
+  affects:
+    - Safe_PO.FP_Not_NaN
+    - Safe_PO.FP_Not_Infinity
+    - Safe_PO.FP_Safe_Div
+  severity: critical
+  status: open
+
+- id: A-03
+  summary: "Static range analysis is sound"
+  description: >
+    The compiler's static range-analysis pass correctly computes conservative
+    bounds for every integer sub-expression.  The Range64 ghost model
+    captures only the interface (Contains, Subset, Intersect, Widen);
+    soundness of the analysis itself is assumed.
+  spec_reference: "spec/05-assurance.md#5.3.6"
+  affects:
+    - Safe_Model.Range64
+    - Safe_Model.Contains
+    - Safe_Model.Subset
+    - Safe_Model.Intersect
+    - Safe_Model.Widen
+  severity: critical
+  status: open
+
+- id: A-04
+  summary: "Channel implementation correctly serializes access"
+  description: >
+    The runtime implementation of channels (bounded FIFO queues) correctly
+    serializes concurrent send and receive operations using Ada protected
+    objects or equivalent synchronization.  The ghost Channel_State model
+    assumes sequential access to channel state.
+  spec_reference: "spec/04-tasks-and-channels.md#4.3"
+  affects:
+    - Safe_PO.Check_Channel_Not_Full
+    - Safe_PO.Check_Channel_Not_Empty
+    - Safe_PO.Check_Channel_Capacity_Positive
+    - Safe_Model.Channel_State
+  severity: critical
+  status: open
+
+# ============================================================================
+#  B -- Modeling Assumptions (Ghost Model Fidelity)
+# ============================================================================
+
+- id: B-01
+  summary: "Ownership state enumeration is complete"
+  description: >
+    The five-state Ownership_State enumeration (Null_State, Owned, Moved,
+    Borrowed, Observed) faithfully covers every ownership state a Safe
+    variable can occupy.  If the specification adds new states (e.g.,
+    partially-moved aggregates), the model must be extended.
+  spec_reference: "spec/02-restrictions.md#2.3.2"
+  affects:
+    - Safe_Model.Ownership_State
+    - Safe_PO.Check_Not_Moved
+    - Safe_PO.Check_Owned_For_Move
+    - Safe_PO.Check_Borrow_Exclusive
+    - Safe_PO.Check_Observe_Shared
+  severity: major
+  status: open
+
+- id: B-02
+  summary: "Channel FIFO ordering preserved by implementation"
+  description: >
+    The ghost Channel_State models a simple length/capacity pair but does
+    not model element ordering.  FIFO preservation is assumed to hold in
+    the runtime implementation and is not verified by the SPARK companion.
+  spec_reference: "spec/04-tasks-and-channels.md#4.3.p23:197d9a49"
+  affects:
+    - Safe_Model.Channel_State
+    - Safe_Model.After_Append
+    - Safe_Model.After_Remove
+  severity: major
+  status: open
+  note: "M2-AUD-006: Future work could extend the ghost model with a sequence type."
+
+- id: B-03
+  summary: "Task-variable map covers all shared variables"
+  description: >
+    The Task_Var_Map ghost model assumes that all variables accessed by
+    multiple tasks are registered in the map before first use.  The
+    compiler is responsible for emitting the registration calls; the
+    companion does not verify completeness of registration.
+  spec_reference: "spec/04-tasks-and-channels.md#4.5"
+  affects:
+    - Safe_Model.Task_Var_Map
+    - Safe_PO.Check_Exclusive_Ownership
+  severity: major
+  status: open
+
+- id: B-04
+  summary: "Not_Null_Ptr and Safe_Deref model Boolean null flag"
+  description: >
+    SPARK disallows access types under SPARK_Mode.  The companion models
+    null/not-null state using a Boolean parameter (Is_Null).  The compiler
+    must correctly lower access-type null checks to this Boolean model.
+  spec_reference: "spec/02-restrictions.md#2.8.4"
+  affects:
+    - Safe_PO.Not_Null_Ptr
+    - Safe_PO.Safe_Deref
+  severity: minor
+  status: open
+  note: "M2-AUD-008: Both procedures have identical contracts; kept separate for distinct emission contexts (declaration vs dereference)."
+
+# ============================================================================
+#  C -- Proof-Mode Assumptions
+# ============================================================================
+
+- id: C-01
+  summary: "Flow analysis (Bronze gate) is sufficient for data-dependency proofs"
+  description: >
+    GNATprove --mode=flow is used for the Bronze assurance level.  This
+    mode proves initialization, data dependencies, and termination but
+    does not verify functional contracts (Pre/Post).  The Bronze gate
+    is declared passing when flow analysis reports 0 errors.
+  spec_reference: "spec/05-assurance.md#5.2.1"
+  affects:
+    - "All Safe_PO procedures (flow mode)"
+    - "All Safe_Model functions (flow mode)"
+  severity: minor
+  status: open
+
+- id: C-02
+  summary: "Proof-only (Ghost) procedures have no runtime effect"
+  description: >
+    All Ghost-annotated PO procedures (19 of 23) have null bodies and are
+    erased at compilation.  The 4 non-Ghost procedures (Safe_Div, Safe_Mod,
+    Safe_Rem, FP_Safe_Div) produce output values and are retained at
+    runtime to model the actual operations.
+  spec_reference: "spec/05-assurance.md#5.3.1"
+  affects:
+    - "All Ghost PO procedures"
+  severity: minor
+  status: open
+
+# ============================================================================
+#  D -- Specification Assumptions
+# ============================================================================
+
+- id: A-05
+  summary: "FP division result is finite when operands are finite"
+  description: >
+    The FP_Safe_Div body has a float overflow check that GNATprove cannot
+    discharge at level 2: dividing a finite X by a very small finite Y
+    (e.g., subnormal) can produce infinity.  The compiler's narrowing-point
+    analysis guarantees the result is finite before it reaches a narrowing
+    point (D27 Rule 5).  This runtime guarantee is modeled by a pragma
+    Annotate (GNATprove, Intentional) in the FP_Safe_Div body.
+  spec_reference: "spec/02-restrictions.md#2.8.5"
+  affects:
+    - Safe_PO.FP_Safe_Div
+  severity: major
+  status: open
+  note: "M3-AUD-002: GNATprove counterexample: X=-1.1e-5, Y=1.3e-318 → overflow."
+
+- id: D-01
+  summary: "Select lowering via polling is conformant"
+  description: >
+    The Safe select statement is lowered to a polling loop over channel
+    protected objects.  The spec does not mandate a specific implementation
+    strategy.  The polling approach introduces bounded latency between a
+    channel becoming ready and the select arm executing.  This is assumed
+    conformant under the spec's determinism requirements.
+  spec_reference: "spec/04-tasks-and-channels.md#4.4"
+  affects:
+    - "compiler/translation_rules.md Section 5 (Select Lowering)"
+  severity: minor
+  status: open
+  note: "M2-AUD-005: Spec does not define maximum latency for select responsiveness."
+
+- id: D-02
+  summary: "Frozen spec commit is authoritative"
+  description: >
+    All clause IDs, paragraph references, and normative text are anchored
+    to commit 4aecf21.  Any subsequent spec changes may invalidate clause
+    references.  The companion must be regenerated when the spec is updated.
+  spec_reference: "meta/commit.txt"
+  affects:
+    - "All clause IDs across all artifacts"
+  severity: minor
+  status: open

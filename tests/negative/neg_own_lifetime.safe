@@ -1,0 +1,29 @@
+-- Test: neg_own_lifetime
+-- Description: Borrower outlives the lender.
+--   The borrower is declared in an outer scope while the lender
+--   is in an inner scope. When the lender's scope ends, the
+--   borrower would reference a deallocated object.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.3.4a.p102a:5bc5ab8b
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.3.4a.p102a-a:ae729065
+-- Expected: REJECT lifetime_violation
+
+package Lifetime_Test is
+
+   type Value is range 0 .. 100;
+   type Value_Ptr is access Value;
+
+   --  Dangling_Borrow: the borrow outlives the owning variable.
+   procedure Dangling_Borrow is
+      Ref : access Value;
+   begin
+      declare
+         Owner : Value_Ptr := new Value'(42);
+      begin
+         Ref := Owner;  -- borrow from Owner
+      end;
+      --  Owner is out of scope; designated object is deallocated.
+      --  Ref now dangles.
+      Ref.all := 99;  -- ERROR: borrower outlives lender
+   end Dangling_Borrow;
+
+end Lifetime_Test;

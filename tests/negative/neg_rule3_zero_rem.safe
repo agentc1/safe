@@ -1,0 +1,18 @@
+-- Test: neg_rule3_zero_rem
+-- Description: Remainder by a variable that may be zero.
+--   The divisor parameter includes zero in its type range.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.3.p133:0610d951
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.3.p134:90a17a3b
+-- Expected: REJECT division_by_zero
+
+package Zero_Rem_Test is
+
+   type Signed is range -50 .. 50;
+
+   --  Remainder_Unsafe: computes A rem B, but B may be zero.
+   function Remainder_Unsafe (A, B : Signed) return Signed is
+   begin
+      return A rem B;  -- ERROR: B may be zero
+   end Remainder_Unsafe;
+
+end Zero_Rem_Test;

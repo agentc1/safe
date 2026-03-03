@@ -1,0 +1,21 @@
+-- Test: neg_rule1_overflow
+-- Description: Integer arithmetic that may overflow 64-bit intermediate range.
+--   Multiplying two values near Long_Long_Integer'Last produces a result
+--   that cannot be proven within 64-bit signed range.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p129:9f3b1394
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p126:812b54a8
+-- Expected: REJECT intermediate_overflow
+
+package Overflow_Test is
+
+   type Big is range 0 .. 9_999_999_999_999_999;
+
+   --  Multiply: the product of two Big values can exceed 64-bit signed range.
+   --  9_999_999_999_999_999 * 9_999_999_999_999_999 exceeds 2^63 - 1.
+   --  A conforming implementation shall reject this expression.
+   function Multiply (A, B : Big) return Big is
+   begin
+      return A * B;  -- ERROR: intermediate may exceed 64-bit range
+   end Multiply;
+
+end Overflow_Test;

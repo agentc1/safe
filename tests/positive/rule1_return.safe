@@ -1,0 +1,38 @@
+-- Test: rule1_return
+-- Description: Function return with range narrowing.
+--   Shows that the returned value is provably within the return type's
+--   range at every return point in the function.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p127:d5d93439
+-- Clause: SAFE@4aecf21:spec/05-assurance.md#5.3.6.p25:e8253bd7
+-- Expected: ACCEPT
+
+package Safe_Return is
+
+   type Bounded is range -500 .. 500;
+   type Small is range -10 .. 10;
+
+   --  Signum: returns -1, 0, or 1 depending on sign.
+   --  Every return path yields a value in -10..10.
+   function Signum (V : Bounded) return Small is
+   begin
+      if V > 0 then
+         --  Narrowing point (return): 1 is in -10..10.
+         return 1;
+      elsif V < 0 then
+         --  Narrowing point (return): -1 is in -10..10.
+         return -1;
+      else
+         --  Narrowing point (return): 0 is in -10..10.
+         return 0;
+      end if;
+   end Signum;
+
+   --  Bounded_Add: adds two Small values. The sum of two values
+   --  each in -10..10 is in -20..20, which fits in Bounded.
+   function Bounded_Add (A, B : Small) return Bounded is
+   begin
+      --  Narrowing point (return): A + B is in -20..20, within -500..500.
+      return Bounded (A) + Bounded (B);
+   end Bounded_Add;
+
+end Safe_Return;

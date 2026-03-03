@@ -1,0 +1,24 @@
+-- Test: neg_rule4_uninitialized
+-- Description: Dereference of an access variable that has no initial value.
+--   The access variable's default value is null, and it is dereferenced
+--   without being assigned a non-null value.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.4.p136:fa5e94b7
+-- Expected: REJECT null_dereference
+
+package Uninitialized_Test is
+
+   type Rec is record
+      X : Integer;
+   end record;
+
+   type Rec_Ptr is access Rec;
+
+   --  Read_Uninitialized: declares P (default null), then dereferences.
+   function Read_Uninitialized return Integer is
+      P : Rec_Ptr;
+   begin
+      --  P is null (default for access types).
+      return P.all.X;  -- ERROR: P is null (uninitialized = null)
+   end Read_Uninitialized;
+
+end Uninitialized_Test;

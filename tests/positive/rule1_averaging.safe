@@ -1,0 +1,33 @@
+-- Test: rule1_averaging
+-- Description: Compute average of sensor readings without overflow.
+--   Uses wide intermediate arithmetic so that the sum of 10 readings
+--   (each in 0..1000) stays within mathematical integers. The final
+--   result is narrowed back to the Reading range on return.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p126:812b54a8
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.1.p127:d5d93439
+-- Clause: SAFE@4aecf21:spec/05-assurance.md#5.3.6.p25:e8253bd7
+-- Expected: ACCEPT
+
+package Sensor_Average is
+
+   type Reading is range 0 .. 1000;
+   type Sensor_Count is range 1 .. 10;
+   type Readings is array (Sensor_Count) of Reading;
+
+   --  Average: compute mean of sensor readings.
+   --  Sum of 10 values each in 0..1000 is at most 10_000,
+   --  well within 64-bit signed range. Division by 10 yields
+   --  a result in 0..1000, fitting Reading.
+   function Average (Data : Readings) return Reading is
+      Sum : Reading := 0;
+   begin
+      for I in Sensor_Count loop
+         --  Sum ranges from 0 to I * 1000.
+         --  Wide arithmetic: intermediate sum can be up to 10_000.
+         Sum := Sum + Data (I);
+      end loop;
+      --  Narrowing point (return): Sum / 10 is in 0..1000.
+      return Sum / 10;
+   end Average;
+
+end Sensor_Average;

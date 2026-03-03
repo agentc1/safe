@@ -1,0 +1,36 @@
+-- Test: rule2_lookup
+-- Description: Array lookup with proven index bounds.
+--   The index is constrained by the array's index subtype,
+--   so every access is provably within bounds.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p131:30aba5f5
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p132:8613ecf4
+-- Expected: ACCEPT
+
+package Safe_Lookup is
+
+   type Sensor_Id is range 1 .. 8;
+   type Calibration is range -100 .. 100;
+   type Cal_Table is array (Sensor_Id) of Calibration;
+
+   --  Lookup: retrieves calibration value for a given sensor.
+   --  The index type Sensor_Id is 1..8, matching the array bounds.
+   function Lookup (Table : Cal_Table; Id : Sensor_Id) return Calibration is
+   begin
+      --  Index Id is of type Sensor_Id (1..8), which matches the
+      --  array index range exactly. Provably within bounds.
+      return Table (Id);
+   end Lookup;
+
+   --  Lookup_With_Default: safe lookup with a clamped index.
+   function Lookup_With_Default (Table : Cal_Table;
+                                 Raw_Id : Integer) return Calibration is
+   begin
+      if Raw_Id >= 1 and then Raw_Id <= 8 then
+         --  Index Raw_Id is proven in 1..8 by the guard.
+         return Table (Sensor_Id (Raw_Id));
+      else
+         return 0;
+      end if;
+   end Lookup_With_Default;
+
+end Safe_Lookup;

@@ -1,0 +1,21 @@
+-- Test: neg_rule2_oob
+-- Description: Out-of-bounds array access with an unconstrained index.
+--   The index variable is of a wider type than the array index range,
+--   and no bounds check is performed.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p131:30aba5f5
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p132:8613ecf4
+-- Expected: REJECT index_out_of_bounds
+
+package OOB_Test is
+
+   type Slot is range 0 .. 7;
+   type Data is array (Slot) of Integer;
+
+   --  Access_With_Integer: uses an unconstrained Integer index.
+   --  The compiler cannot prove Idx is in 0..7.
+   function Access_With_Integer (Arr : Data; Idx : Integer) return Integer is
+   begin
+      return Arr (Slot (Idx));  -- ERROR: Idx may not be in 0..7
+   end Access_With_Integer;
+
+end OOB_Test;

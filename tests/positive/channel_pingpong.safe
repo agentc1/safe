@@ -1,0 +1,49 @@
+-- Test: channel_pingpong
+-- Description: Two-task ping-pong via channels.
+--   Two tasks exchange messages over two bounded channels. Each task
+--   sends on one channel and receives on the other, forming a ping-pong.
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.1.p2:78f022f7
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p15:b5b29b0e
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p27:ef0ce6bd
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.3.p28:ea6bd13c
+-- Clause: SAFE@4aecf21:spec/04-tasks-and-channels.md#4.2.p20:8aa1a21e
+-- Expected: ACCEPT
+
+package Ping_Pong is
+
+   type Message is range 0 .. 1000;
+
+   --  Two channels, each with capacity 1 (bounded FIFO).
+   channel Ping_Ch : Message capacity 1;
+   channel Pong_Ch : Message capacity 1;
+
+   --  Ping_Task: sends a value on Ping_Ch, then waits for reply on Pong_Ch.
+   task Ping_Task is
+      Val : Message := 0;
+      Reply : Message;
+   begin
+      loop
+         send Ping_Ch, Val;
+         receive Pong_Ch, Reply;
+         Val := Reply + 1;
+         if Val > 999 then
+            Val := 0;
+         end if;
+      end loop;
+   end Ping_Task;
+
+   --  Pong_Task: receives from Ping_Ch, increments, sends back on Pong_Ch.
+   task Pong_Task is
+      Received : Message;
+   begin
+      loop
+         receive Ping_Ch, Received;
+         if Received < 1000 then
+            send Pong_Ch, Received + 1;
+         else
+            send Pong_Ch, 0;
+         end if;
+      end loop;
+   end Pong_Task;
+
+end Ping_Pong;

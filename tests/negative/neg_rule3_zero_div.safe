@@ -1,0 +1,19 @@
+-- Test: neg_rule3_zero_div
+-- Description: Division by a variable that may be zero.
+--   The divisor is of a type that includes zero, with no guard.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.3.p133:0610d951
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.3.p134:90a17a3b
+-- Expected: REJECT division_by_zero
+
+package Zero_Div_Test is
+
+   type Value is range -100 .. 100;
+
+   --  Divide: divides A by B without checking B /= 0.
+   --  B's range includes zero, so division is not provably safe.
+   function Divide (A, B : Value) return Value is
+   begin
+      return A / B;  -- ERROR: B may be zero
+   end Divide;
+
+end Zero_Div_Test;

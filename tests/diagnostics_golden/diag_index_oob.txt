@@ -1,0 +1,30 @@
+Diagnostics Golden: Index Out of Bounds
+Source: tests/negative/neg_rule2_oob.safe
+Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p131:30aba5f5
+Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p132:8613ecf4
+
+Expected diagnostic output:
+------------------------------------------------------------------------
+neg_rule2_oob.safe:15:14: error: index expression not provably within array bounds
+  |
+  | 15 |       return Arr (Slot (Idx));  -- ERROR: Idx may not be in 0..7
+  |    |              ^~~~~~~~~~~~~~~~
+  |
+  note: array 'Arr' has index range Slot (0 .. 7).
+  note: index expression 'Slot (Idx)' has type Integer, with range
+        [Integer'First .. Integer'Last].
+  note: static analysis cannot establish that the index is within
+        [0 .. 7] on all execution paths.
+  note: rule: D27 Rule 2 (Provable Index Safety)
+  note: per spec/02-restrictions.md section 2.8.2 paragraph 131:
+        "The index expression in an indexed_component shall be provably
+        within the array object's index bounds at compile time."
+  note: per spec/02-restrictions.md section 2.8.2 paragraph 132:
+        "If neither condition holds, the program is nonconforming and
+        the implementation shall reject it with a diagnostic identifying
+        the indexed_component and the unresolvable bound relationship."
+  suggestion: add a bounds check before indexing:
+        if Idx >= 0 and then Idx <= 7 then
+           return Arr (Slot (Idx));
+        end if;
+------------------------------------------------------------------------

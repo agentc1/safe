@@ -1,0 +1,37 @@
+-- Test: rule2_iteration
+-- Description: Array iteration with index provably in bounds.
+--   The for loop variable ranges over the array's index subtype,
+--   guaranteeing every access is safe.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.2.p131:30aba5f5
+-- Expected: ACCEPT
+
+package Safe_Iteration is
+
+   type Slot is range 0 .. 15;
+   type Value is range 0 .. 1000;
+   type Register_Bank is array (Slot) of Value;
+
+   --  Find_Max: iterates over all slots to find the maximum value.
+   --  The loop variable I has type Slot (0..15), matching the
+   --  array index bounds exactly.
+   function Find_Max (Bank : Register_Bank) return Value is
+      Max_Val : Value := Bank (0);
+   begin
+      for I in Slot loop
+         --  I is of type Slot (0..15), same as array index. In bounds.
+         if Bank (I) > Max_Val then
+            Max_Val := Bank (I);
+         end if;
+      end loop;
+      return Max_Val;
+   end Find_Max;
+
+   --  Zero_All: sets every element to zero.
+   procedure Zero_All (Bank : out Register_Bank) is
+   begin
+      for I in Slot loop
+         Bank (I) := 0;
+      end loop;
+   end Zero_All;
+
+end Safe_Iteration;

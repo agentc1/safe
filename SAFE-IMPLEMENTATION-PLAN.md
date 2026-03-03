@@ -13,10 +13,7 @@ Key external tool reality that the companion must respect:
 - GNATprove runs **two distinct analyses**: *flow analysis* (for `Global`, `Depends`, `Initializes`, etc.) and *proof* (AoRTE + contracts). citeturn0search0  
 - Concurrency proof expectations in SPARK require Ravenscar/Jorvik plus `Partition_Elaboration_Policy (Sequential)` to avoid races during elaboration. citeturn0search1turn0search3  
 - Ownership reclamation for hidden/private resource types often needs explicit GNATprove ownership annotations (use sparingly; avoid turning the companion into “assume-based” verification). citeturn0search2  
-- Why3 is a standard platform where programs meet provers and is used as an intermediate language in multiple verification toolchains, including Ada-related pipelines. citeturn1search4  
 - RustBelt is the right precedent for “ownership-based safety claims + library/runtime obligations”; it explicitly frames safe language cores plus verification conditions for unsafe library components. citeturn1search6turn1search47  
-- CompCert is the canonical precedent for semantic preservation theorems and per-pass proof decomposition. citeturn1search3  
-- K is a rewrite-based executable semantics framework that can generate analyzers (parser/interpreter/verifier) from formal semantics; K’s reachability-logic lineage is relevant for a semantics cross-check of the SPARK companion. citeturn3search2turn4search0  
 
 ## Repository anchors and scope
 
@@ -73,7 +70,7 @@ Where:
 For each clause ID, generate a PO entry with at least:
 
 - `target`: {Bronze-flow, Silver-AoRTE, Memory-safety, Race-freedom, Determinism, Library-safety, Conformance}
-- `mechanism`: {flow contract check, GNATprove proof VC, ghost model invariant, runtime wrapper check, translation validation, K semantics proof, Coq lemma, etc.}
+- `mechanism`: {flow contract check, GNATprove proof VC, ghost model invariant, runtime wrapper check, translation validation, etc.}
 - `soundness note`: what the PO guarantees and what it does *not* guarantee
 - `status`: {implemented, stubbed, deferred}
 - `assumptions`: explicit list; these must be diffed in CI
@@ -166,33 +163,6 @@ This is the multi-agent prompt proper. Each agent must produce both human-readab
 - **Failure modes**: proofs rely on hidden assumptions; target mismatch (especially concurrency elaboration requirements); flaky CI due to prover nondeterminism.
 - **Resources**: GNATprove documentation + runtime.
 
-**Why3 Agent**
-
-- **Goal**: align PO shapes with Why3-friendly abstractions; optionally generate WhyML mirrors for core models (range facts, queue model) to increase solver robustness.
-- **Inputs**: `po_map.yaml`, `Safe_Model` interface, Why3 docs. citeturn1search4  
-- **Outputs**: `why3_notes.md`, optional `whyml/` mirror modules for the queue and range abstractions.
-- **Success criteria**: recommends solver-friendly formulations; identifies where SPARK contracts will produce hard VCs and proposes reforms.
-- **Failure modes**: inventing semantics; duplicating models without traceability.
-- **Resources**: Why3 standard library knowledge; SMT solver insight.
-
-**Coq/Isabelle Agent**
-
-- **Goal**: propose a bounded mechanized proof scope: soundness of range abstraction, semantic preservation of a restricted translation, or ownership invariants.
-- **Inputs**: D27 rules, ownership model points, CompCert and RustBelt precedents. fileciteturn95file0L120-L220 citeturn1search3turn1search6  
-- **Outputs**: `mechanized_scope.md` (what to prove now vs later), and outlines in Coq/Isabelle style.
-- **Success criteria**: defines a tractable first theorem (e.g., “if range analysis proves containment at all narrowing points, then no integer overflow/range check fails” for the subset).
-- **Failure modes**: proposing an infeasible full-language proof; ignoring runtime/library trusted base.
-- **Resources**: proof assistant expertise; semantic modeling experience.
-
-**K-Framework Agent**
-
-- **Goal**: provide an executable formal semantics cross-check for a Safe subset (expressions, narrowing, channels select-order), and/or a translation validation oracle.
-- **Inputs**: Safe grammar, concurrency semantics, K docs + reachability logic references. fileciteturn99file0L1-L200 fileciteturn91file2L1-L260 citeturn3search2turn4search0  
-- **Outputs**: `k_semantics_scope.md`, `k/` skeleton semantics for subset, and a plan for `kprove` properties (e.g., determinism of select resolution).
-- **Success criteria**: semantics is executable for the subset; defined properties match spec wording.
-- **Failure modes**: modeling beyond scope; semantic mismatch with translator.
-- **Resources**: K toolchain, familiarity with configurations and rewrite rules.
-
 **CI Agent**
 
 - **Goal**: produce reproducible CI: generate artifacts, run GNATprove flow/prove, diff assumptions, run golden tests.
@@ -273,21 +243,6 @@ tasks:
     outputs: ["docs/traceability_matrix.md", "docs/traceability_matrix.csv"]
 
   - id: T9
-    owner: Why3
-    action: "Review PO shapes; propose Why3-friendly formulations; optional WhyML mirrors for core models."
-    outputs: ["docs/why3_alignment.md", "whyml/ (optional)"]
-
-  - id: T10
-    owner: CoqIsabelle
-    action: "Propose mechanized proof scope (subset + theorem statements) aligned to Safe guarantees."
-    outputs: ["docs/mechanized_scope.md"]
-
-  - id: T11
-    owner: KFramework
-    action: "Define K semantics subset + properties for cross-checking select determinism and expression evaluation order."
-    outputs: ["docs/k_semantics_scope.md", "k/ (optional)"]
-
-  - id: T12
     owner: Orchestrator
     action: "Assemble release bundle; verify all headers embed SHA + clause IDs; run CI locally."
     outputs: ["release/COMPANION_README.md", "release/status_report.md"]
@@ -563,8 +518,5 @@ These mitigations align with: GNATprove’s explicit mode split, its concurrency
 The orchestrator must produce a short “tool plan” section assigning explicitly:
 
 - GNATprove: primary flow/proof gates and AoRTE validation citeturn0search0  
-- Why3: VC-shape and solver tractability alignment citeturn1search4  
-- Coq/Isabelle: small, high-value mechanized theorems (range abstraction soundness, restricted translation preservation) citeturn1search3  
 - RustBelt precedent: treat runtime/library components as “unsafe extensions” with explicit verification conditions citeturn1search6turn1search47  
-- K framework: executable semantics cross-check for a subset (especially select determinism / evaluation order), plus optional reachability properties citeturn3search2turn4search0  
 - Ada/AARM precedent: companion can adopt an “annotated manual” style for implementer-facing precision without changing normative spec text citeturn2search2turn2search0

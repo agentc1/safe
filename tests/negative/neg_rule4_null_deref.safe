@@ -1,0 +1,19 @@
+-- Test: neg_rule4_null_deref
+-- Description: Dereference of a possibly-null access value without a null check.
+--   The access variable is of a nullable type and no guard is present.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.4.p136:fa5e94b7
+-- Expected: REJECT null_dereference
+
+package Null_Deref_Test is
+
+   type Value is range 0 .. 1000;
+   type Value_Ptr is access Value;
+
+   --  Read_Unsafe: dereferences P without checking for null.
+   --  P's type allows null, so dereference is not provably safe.
+   function Read_Unsafe (P : Value_Ptr) return Value is
+   begin
+      return P.all;  -- ERROR: P may be null
+   end Read_Unsafe;
+
+end Null_Deref_Test;

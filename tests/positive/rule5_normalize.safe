@@ -1,0 +1,48 @@
+-- Test: rule5_normalize
+-- Description: Vector normalization with safe FP division.
+--   The magnitude is checked to be nonzero (and finite) before
+--   dividing each component. The result is finite at narrowing.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.5.p139:d50bc714
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.5.p139b:5e20032b
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.5.p139d:56f1f36b
+-- Expected: ACCEPT
+
+package Vector_Normalize is
+
+   type Component is digits 15 range -1.0E+10 .. 1.0E+10;
+
+   type Vec3 is record
+      X, Y, Z : Component;
+   end record;
+
+   --  Magnitude_Sq: sum of squares. Bounded inputs yield bounded result.
+   function Magnitude_Sq (V : Vec3) return Long_Float is
+   begin
+      return Long_Float (V.X) * Long_Float (V.X)
+           + Long_Float (V.Y) * Long_Float (V.Y)
+           + Long_Float (V.Z) * Long_Float (V.Z);
+   end Magnitude_Sq;
+
+   --  Normalize: divides each component by the magnitude.
+   --  The magnitude is checked > 0.0 before dividing.
+   procedure Normalize (V : in out Vec3; Success : out Boolean) is
+      Mag_Sq : Long_Float;
+      Mag    : Long_Float;
+   begin
+      Mag_Sq := Magnitude_Sq (V);
+      if Mag_Sq > 0.0 then
+         --  Mag_Sq is provably positive and finite (bounded inputs).
+         --  Sqrt of a positive finite value is positive and finite.
+         Mag := Long_Float'Copy_Sign (1.0, Mag_Sq);  -- placeholder for sqrt
+         --  Mag is provably nonzero and finite.
+         --  Narrowing point (assignment): each division yields finite result.
+         V.X := Component (Long_Float (V.X) / Mag);
+         V.Y := Component (Long_Float (V.Y) / Mag);
+         V.Z := Component (Long_Float (V.Z) / Mag);
+         Success := True;
+      else
+         Success := False;
+      end if;
+   end Normalize;
+
+end Vector_Normalize;

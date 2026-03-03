@@ -1,0 +1,32 @@
+-- Test: rule4_optional
+-- Description: Optional value access with null check before dereference.
+--   The access value is checked for null before any dereference,
+--   so the dereference is proven safe.
+-- Clause: SAFE@4aecf21:spec/02-restrictions.md#2.8.4.p136:fa5e94b7
+-- Expected: ACCEPT
+
+package Safe_Optional is
+
+   type Value is range 0 .. 10_000;
+   type Value_Ptr is access Value;
+
+   --  Get_Or_Default: returns the designated value if non-null,
+   --  otherwise returns a default.
+   function Get_Or_Default (P : Value_Ptr;
+                            Default : Value) return Value is
+   begin
+      if P /= null then
+         --  P is provably not null by the guard.
+         return P.all;
+      else
+         return Default;
+      end if;
+   end Get_Or_Default;
+
+   --  Has_Value: checks if the pointer is non-null.
+   function Has_Value (P : Value_Ptr) return Boolean is
+   begin
+      return P /= null;
+   end Has_Value;
+
+end Safe_Optional;
