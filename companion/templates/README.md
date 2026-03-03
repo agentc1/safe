@@ -1,7 +1,8 @@
 # Verified Emission Templates
 
-This directory contains 8 SPARK 2022 packages that demonstrate, and formally
-verify, the Ada/SPARK code shapes a Safe compiler emitter must produce. Each
+This directory contains 8 SPARK 2022 packages (M1–M4 complete) that demonstrate,
+and formally verify, the Ada/SPARK code shapes a Safe compiler emitter must
+produce. Six additional templates are planned across milestones M5–M7. Each
 template is a concrete, stand-alone package (no generics) that a compiler
 instantiates by substituting application-specific types, bounds, and constants
 into its public API.
@@ -37,6 +38,20 @@ The mapping from Safe constructs to templates is defined in
 
 Each `.ads` file carries clause IDs in its header comment tracing to the
 frozen spec commit (`4aecf21`).
+
+## Roadmap
+
+Milestones M0–M4 are complete. The following milestones add 6 templates to
+reach full coverage of `translation_rules.md` and all 23 `Safe_PO` hooks:
+
+| Milestone | Templates | Status |
+|-----------|-----------|--------|
+| M5 | `template_effect_summary`, `template_package_structure` | Planned |
+| M6 | `template_select_polling`, `template_fp_safety`, `template_borrow_observe` | Planned |
+| M7 | `template_narrow_conversion` + final PO hook coverage audit | Planned |
+
+See [`docs/template_plan.md`](../../docs/template_plan.md) for detailed
+milestone definitions including hooks, clauses, expected VCs, and risks.
 
 ## Dependencies
 

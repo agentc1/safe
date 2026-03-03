@@ -33,7 +33,7 @@ The `companion/spark/` directory contains a formal verification artefact: 25 gho
 
 ### Verified Emission Templates
 
-The `companion/templates/` directory contains 8 templates demonstrating how a Safe compiler would emit provably correct Ada/SPARK for each D27 rule category. 178 verification conditions across 11 units, 0 unproved. See [`docs/template_inventory.md`](docs/template_inventory.md).
+The `companion/templates/` directory contains 8 templates demonstrating how a Safe compiler would emit provably correct Ada/SPARK for each D27 rule category. 184 verification conditions across 11 units, 0 unproved. Six additional templates are planned (M5–M7) to cover effect summaries, package structure, select lowering, floating-point safety, borrow/observe, and narrowing completeness. See [`docs/template_plan.md`](docs/template_plan.md) for the roadmap and [`docs/template_inventory.md`](docs/template_inventory.md) for current proof status.
 
 ---
 
@@ -45,7 +45,7 @@ The `companion/templates/` directory contains 8 templates demonstrating how a Sa
 | Normative clauses | 205 |
 | Ghost functions / PO procedures | 25 / 23 |
 | Companion VCs (flow / proved / justified / unproved) | 29 / 34 / 1 / 0 (64 total) |
-| Template VCs (flow / proved / justified / unproved) | 54 / 123 / 1 / 0 (178 total, 11 units) |
+| Template VCs (flow / proved / justified / unproved) | 54 / 129 / 1 / 0 (184 total, 11 units) |
 | Tracked assumptions | 13 (4 critical, 4 major, 5 minor) |
 | Test files | 76 |
 
@@ -88,7 +88,7 @@ safe/
 ├── companion/
 │   ├── spark/                   # Safe_Model + Safe_PO
 │   ├── gen/                     # Build config, proof golden
-│   ├── templates/               # 8 verified emission templates
+│   ├── templates/               # 8 verified emission templates (6 more planned)
 │   └── assumptions.yaml         # 13 tracked assumptions
 ├── clauses/                     # 205 clauses + PO mappings
 ├── tests/                       # 76 test files (5 categories)
@@ -97,7 +97,7 @@ safe/
 ├── meta/                        # Frozen commit SHA, generator version
 ├── release/                     # Companion README, status report
 ├── references/                  # SPARK RM extracts, Ada standards
-├── audit/                       # M4 audit report
+├── audit/                       # Phase 0/1 audit reports
 └── archive/                     # Historical artefacts
 ```
 
@@ -114,6 +114,7 @@ safe/
 | PO procedure index | [`docs/po_index.md`](docs/po_index.md) |
 | GNATprove configuration | [`docs/gnatprove_profile.md`](docs/gnatprove_profile.md) |
 | Template inventory | [`docs/template_inventory.md`](docs/template_inventory.md) |
+| Template roadmap (M0–M7) | [`docs/template_plan.md`](docs/template_plan.md) |
 | Assumption registry | [`companion/assumptions.yaml`](companion/assumptions.yaml) |
 | Status report | [`release/status_report.md`](release/status_report.md) |
 | Spec generation decisions | [`EXEC_SUMMARY.md`](EXEC_SUMMARY.md) |
@@ -126,7 +127,7 @@ safe/
 Two parallel CI jobs run on every push and pull request to `main`:
 
 - **`spark-verify`** -- Companion: 64 VCs, 0 unproved
-- **`templates-verify`** -- Templates pipeline: 178 VCs, 0 unproved
+- **`templates-verify`** -- Templates pipeline: 184 VCs, 0 unproved
 
 Both execute the 5-step pipeline (compile, flow, prove, extract, diff) and fail on any unproved check or assumption budget violation.
 
@@ -142,7 +143,7 @@ See [`release/COMPANION_README.md`](release/COMPANION_README.md) Section 8 for t
 | Frozen spec commit | `4aecf21` |
 | Generator | spec2spark v0.1.0 |
 | Companion status | All 13 tasks complete |
-| Emission templates | 8/8 proved (178 VCs, 0 unproved) |
+| Emission templates | 8/14 proved (184 VCs, 0 unproved; 6 planned in M5–M7) |
 
 There is no compiler implementation yet. The translation rules and AST schema in `compiler/` define the interface a future compiler must satisfy.
 
