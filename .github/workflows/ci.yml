@@ -38,7 +38,7 @@ jobs:
 
       - name: Install GNATprove
         run: |
-          alr toolchain --select gnatprove
+          alr install gnatprove
           echo "GNATprove version:"
           gnatprove --version || echo "GNATprove installed via Alire"
 
