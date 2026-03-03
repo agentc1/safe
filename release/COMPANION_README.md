@@ -244,13 +244,13 @@ The short SHA prefix (`4aecf21`) anchors every clause to the frozen spec commit.
 
 1 verification condition is justified rather than proved: the float overflow check in `FP_Safe_Div`. GNATprove cannot discharge this at level 2 because dividing a finite X by a very small finite Y can produce infinity. The compiler's narrowing-point analysis provides the runtime guarantee (see assumption A-05, M3-AUD-002).
 
-### Open M3 Minors
+### Closed M3 Minors
 
 | Finding | Description | Status |
 |---------|-------------|--------|
-| M3-AUD-006 | Pin Alire toolchain versions in CI | Open -- recommended for reproducibility |
-| M3-AUD-007 | Pin GitHub Actions to commit SHAs | Open -- recommended for supply chain integrity |
-| M3-AUD-008 | Cache/clean interaction in CI | Open -- cosmetic |
+| M3-AUD-006 | Pin Alire toolchain versions in CI | Closed |
+| M3-AUD-007 | Pin GitHub Actions to commit SHAs | Closed |
+| M3-AUD-008 | Cache/clean interaction in CI | Closed |
 
 ---
 

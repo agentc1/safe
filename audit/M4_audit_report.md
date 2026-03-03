@@ -9,22 +9,22 @@
 
 ## 1. Executive Verdict
 
-### CONDITIONAL PASS
+### PASS
 
-The Safe Language Annotated SPARK Companion release bundle is **substantially correct** and ready for release with two conditions:
+The Safe Language Annotated SPARK Companion release bundle is **correct** and ready for release. All 7 findings from the initial M4 audit have been resolved:
 
-1. **M4-AUD-001 (Minor):** Ghost function count in release docs must be corrected from 26 to **25**.
-2. **M4-AUD-002 (Major):** CI SHA-mismatch check must be changed from WARNING to `exit 1` to prevent false-green CI passes.
+- **M4-AUD-001 through M4-AUD-004:** Fixed in commit `3068435` (ghost function count, CI SHA-mismatch exit, generator_version.txt in README, prove_golden.txt line count).
+- **M4-AUD-005 through M4-AUD-007:** Fixed in the current commit (GitHub Actions pinned to SHAs, Alire toolchain pinned to exact versions, cache key includes toolchain version).
 
-No blocking defects were found. All 205 clause IDs are consistent across `clauses.yaml`, `po_map.yaml`, `traceability_matrix.csv`, and `traceability_matrix.md`. The proof baseline (64 checks, 0 unproved) is verified. The assumption budget (13 total, 4 critical) is within defined limits. Three minor M3 findings remain open but are acknowledged in the release docs.
+All 205 clause IDs are consistent across `clauses.yaml`, `po_map.yaml`, `traceability_matrix.csv`, and `traceability_matrix.md`. The proof baseline (64 checks, 0 unproved) is verified. The assumption budget (13 total, 4 critical) is within defined limits. All three M3 minors have been closed.
 
-**Summary of findings:**
+**Summary of findings (all resolved):**
 
-| Severity | Count | IDs |
-|----------|-------|-----|
-| Major | 1 | M4-AUD-002 |
-| Minor | 6 | M4-AUD-001, M4-AUD-003, M4-AUD-004, M4-AUD-005, M4-AUD-006, M4-AUD-007 |
-| **Total** | **7** | |
+| Severity | Count | IDs | Status |
+|----------|-------|-----|--------|
+| Major | 1 | M4-AUD-002 | Resolved |
+| Minor | 6 | M4-AUD-001, M4-AUD-003, M4-AUD-004, M4-AUD-005, M4-AUD-006, M4-AUD-007 | Resolved |
+| **Total** | **7** | | **All resolved** |
 
 ---
 
@@ -387,7 +387,11 @@ findings:
     affected_files:
       - .github/workflows/ci.yml:29,35,61,116,129
     recommendation: "Pin each action to a specific commit SHA."
-    fix_available: false
+    fix_available: true
+    resolution: >
+      All 5 uses: lines pinned to full 40-character commit SHAs with version
+      comments (checkout@11bd719, setup-alire@b607671, cache@0057852,
+      upload-artifact@ea165f8).
 
   - id: M4-AUD-006
     severity: minor
@@ -398,7 +402,10 @@ findings:
     affected_files:
       - .github/workflows/ci.yml:37
     recommendation: "Pin to exact versions (e.g., gnat_native=14.2.1)."
-    fix_available: false
+    fix_available: true
+    resolution: >
+      Toolchain pinned to exact versions: gnat_native=14.2 gprbuild=24.0.
+      The ^ semver range operator has been removed.
 
   - id: M4-AUD-007
     severity: minor
@@ -410,7 +417,11 @@ findings:
     affected_files:
       - .github/workflows/ci.yml:65
     recommendation: "Add toolchain version hash to the cache key."
-    fix_available: false
+    fix_available: true
+    resolution: >
+      Added toolchain-version step that captures gnatprove --version output.
+      Cache key now includes steps.toolchain-version.outputs.gnatprove,
+      ensuring a toolchain upgrade invalidates the cache.
 ```
 
 ---
@@ -496,7 +507,7 @@ findings:
 | 2 | All SHA references match `meta/commit.txt` | PASS |
 | 3 | Every numerical claim recomputed against artifacts | PASS (2 discrepancies found) |
 | 4 | All referenced file paths exist on disk | PASS |
-| 5 | CI pipeline cannot produce false green | CONDITIONAL (M4-AUD-002) |
+| 5 | CI pipeline cannot produce false green | PASS |
 | 6 | Assumption budget within limits | PASS (13 ≤ 15, 4 ≤ 4) |
 | 7 | Test suite counts verified | PASS (76 files) |
 | 8 | Proof baseline verified | PASS (64/29/34/1/0) |

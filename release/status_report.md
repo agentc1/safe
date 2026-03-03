@@ -243,15 +243,15 @@ Clause `0.8.p27:5000a79a` is deferred because it references 14 TBD items (TBD-01
 
 The float overflow check in `FP_Safe_Div` is justified via `pragma Annotate (GNATprove, Intentional)` rather than proved. GNATprove counterexample: `X=-1.1e-5, Y=1.3e-318 → overflow`. The compiler's narrowing-point analysis guarantees the result is finite before it reaches a narrowing point (D27 Rule 5). This runtime guarantee is tracked as assumption A-05 (severity: major).
 
-### 8.4 Open M3 Audit Minors
+### 8.4 M3 Audit Minors (Closed)
 
 | Finding | Description | Severity | Status |
 |---------|-------------|----------|--------|
-| M3-AUD-006 | Pin Alire toolchain versions in CI configuration | Minor | Open |
-| M3-AUD-007 | Pin GitHub Actions workflow steps to commit SHAs | Minor | Open |
-| M3-AUD-008 | Cache/clean interaction in CI may cause stale artifacts | Minor | Open |
+| M3-AUD-006 | Pin Alire toolchain versions in CI configuration | Minor | Closed |
+| M3-AUD-007 | Pin GitHub Actions workflow steps to commit SHAs | Minor | Closed |
+| M3-AUD-008 | Cache/clean interaction in CI may cause stale artifacts | Minor | Closed |
 
-These are process-level recommendations that do not affect the correctness of the companion artifacts.
+These process-level recommendations have been addressed in the CI workflow.
 
 ---
 
