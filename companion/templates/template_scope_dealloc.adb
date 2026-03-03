@@ -84,11 +84,12 @@ is
       --  Scope exit: deallocate in reverse declaration order.
       --  B is Owned -> deallocate.
       Dealloc (B);
-      --  A is Moved (null) -> the Dealloc guard handles this.
-      --  A.Is_Moved is True, so we need to clear it for Dealloc precondition.
-      --  In emitted code, this is: if A /= null then Free(A); end if;
+      --  A is Moved (Is_Null=True, Is_Moved=True).
+      --  Dealloc precondition (not Is_Moved or else Is_Null) holds
+      --  because Is_Null is True. Inside Dealloc, the else branch
+      --  runs (already null), matching the emitted code:
+      --    if A /= null then Free(A); end if;
       --  Since A is null (moved), the guard skips deallocation.
-      A.Is_Moved := False;  --  Model: moved -> null_state for dealloc
       Dealloc (A);
    end Run_Scope;
 

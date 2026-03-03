@@ -79,9 +79,15 @@ is
       Safe_Index (Long_Long_Integer (Data_Index'First),
                   Long_Long_Integer (Data_Index'Last),
                   Long_Long_Integer (Idx));
-      Narrow_Indexing (Long_Long_Integer (Idx), Data_Index_Range);
+      Narrow_Indexing
+        (Long_Long_Integer (Idx), Data_Index_Range);
 
-      return Arr (Idx);
+      --  Narrow Integer -> Data_Index after the PO hook.
+      declare
+         Narrowed : constant Data_Index := Idx;
+      begin
+         return Arr (Narrowed);
+      end;
    end Read_At;
 
    -------------------------------------------------------------------
@@ -102,9 +108,15 @@ is
          Safe_Index (Long_Long_Integer (Data_Index'First),
                      Long_Long_Integer (Data_Index'Last),
                      Long_Long_Integer (Idx));
-         Narrow_Indexing (Long_Long_Integer (Idx), Data_Index_Range);
+         Narrow_Indexing
+           (Long_Long_Integer (Idx), Data_Index_Range);
 
-         return Arr (Idx);
+         --  Narrow Integer -> Data_Index after the hook.
+         declare
+            Narrowed : constant Data_Index := Idx;
+         begin
+            return Arr (Narrowed);
+         end;
       else
          return Default;
       end if;

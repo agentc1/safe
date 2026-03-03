@@ -9,14 +9,14 @@ Data Dependencies                 .           .                            .    
 Flow Dependencies                 .           .                            .           .          .
 Initialization                   12          12                            .           .          .
 Non-Aliasing                      .           .                            .           .          .
-Run-time Checks                  32           .                    31 (CVC5)           1          .
+Run-time Checks                  35           .                    34 (CVC5)           1          .
 Assertions                        9           .                     9 (CVC5)           .          .
-Functional Contracts             78           .    78 (CVC5 99%, Trivial 1%)           .          .
+Functional Contracts             80           .    80 (CVC5 99%, Trivial 1%)           .          .
 LSP Verification                  .           .                            .           .          .
-Termination                      41          41                            .           .          .
+Termination                      42          42                            .           .          .
 Concurrency                       .           .                            .           .          .
 ---------------------------------------------------------------------------------------------------
-Total                           172    53 (31%)                    118 (69%)      1 (1%)          .
+Total                           178    54 (30%)                    123 (69%)      1 (1%)          .
 
 
 max steps used for successful proof: 2
@@ -88,15 +88,16 @@ in unit safe_po, 24 subprograms and packages out of 24 analyzed
   Safe_PO.Safe_Rem at safe_po.ads:168 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (3 checks)
 in unit safe_runtime, 1 subprograms and packages out of 1 analyzed
   Safe_Runtime at safe_runtime.ads:14 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
-in unit template_channel_fifo, 8 subprograms and packages out of 8 analyzed
-  Template_Channel_FIFO at template_channel_fifo.ads:32 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
-  Template_Channel_FIFO.Is_Empty at template_channel_fifo.ads:68 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
-  Template_Channel_FIFO.Is_Full at template_channel_fifo.ads:72 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
-  Template_Channel_FIFO.Is_Valid at template_channel_fifo.ads:56 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
-  Template_Channel_FIFO.Length at template_channel_fifo.ads:76 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
-  Template_Channel_FIFO.Make at template_channel_fifo.ads:62 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (2 checks)
-  Template_Channel_FIFO.Receive at template_channel_fifo.ads:87 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (4 checks)
-  Template_Channel_FIFO.Send at template_channel_fifo.ads:80 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (4 checks)
+in unit template_channel_fifo, 9 subprograms and packages out of 9 analyzed
+  Template_Channel_FIFO at template_channel_fifo.ads:34 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
+  Template_Channel_FIFO.Is_Empty at template_channel_fifo.ads:78 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
+  Template_Channel_FIFO.Is_Full at template_channel_fifo.ads:81 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
+  Template_Channel_FIFO.Is_Valid at template_channel_fifo.ads:58 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
+  Template_Channel_FIFO.Length at template_channel_fifo.ads:84 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
+  Template_Channel_FIFO.Make at template_channel_fifo.ads:72 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (2 checks)
+  Template_Channel_FIFO.Next_Index at template_channel_fifo.ads:64 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (1 checks)
+  Template_Channel_FIFO.Receive at template_channel_fifo.ads:119 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (5 checks)
+  Template_Channel_FIFO.Send at template_channel_fifo.ads:92 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (5 checks)
 in unit template_division_nonzero, 5 subprograms and packages out of 5 analyzed
   Template_Division_Nonzero at template_division_nonzero.ads:19 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
   Template_Division_Nonzero.Divide at template_division_nonzero.ads:25 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (5 checks)
@@ -130,6 +131,6 @@ in unit template_task_decl, 4 subprograms and packages out of 4 analyzed
   Template_Task_Decl.Task2_Access_Own_Var at template_task_decl.ads:33 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (4 checks)
   Template_Task_Decl.Verify_Ownership_Claim at template_task_decl.ads:38 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (4 checks)
 in unit template_wide_arithmetic, 3 subprograms and packages out of 3 analyzed
-  Template_Wide_Arithmetic at template_wide_arithmetic.ads:23 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
-  Template_Wide_Arithmetic.Add_Clamped at template_wide_arithmetic.ads:46 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (3 checks)
-  Template_Wide_Arithmetic.Average at template_wide_arithmetic.ads:40 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (11 checks)
+  Template_Wide_Arithmetic at template_wide_arithmetic.ads:25 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (0 checks)
+  Template_Wide_Arithmetic.Add_Clamped at template_wide_arithmetic.ads:50 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (4 checks)
+  Template_Wide_Arithmetic.Average at template_wide_arithmetic.ads:43 flow analyzed (0 errors, 0 checks, 0 warnings and 0 pragma Assume statements) and proved (12 checks)

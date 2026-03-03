@@ -195,6 +195,10 @@ jobs:
       - name: Prepare build directory
         run: mkdir -p obj
 
+      - name: Make scripts executable
+        working-directory: .
+        run: chmod +x scripts/*.sh
+
       - name: "Step 1: Compile (alr build)"
         run: alr build
 
@@ -204,6 +208,20 @@ jobs:
       - name: "Step 3: GNATprove proof"
         run: alr exec -- gnatprove -P templates.gpr --mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=on --checks-as-errors=on
 
+      # ----------------------------------------------------------------
+      # Step 4-5: Assumption extraction and diff (matches spark-verify)
+      # ----------------------------------------------------------------
+      - name: "Step 4: Extract assumptions"
+        working-directory: .
+        run: scripts/extract_assumptions.sh
+
+      - name: "Step 5: Diff assumptions"
+        working-directory: .
+        run: scripts/diff_assumptions.sh
+
+      # ----------------------------------------------------------------
+      # Artifacts
+      # ----------------------------------------------------------------
       - name: Upload GNATprove output on failure
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -211,6 +229,7 @@ jobs:
           name: templates-gnatprove-output
           path: |
             companion/templates/obj/gnatprove/
+            companion/assumptions_extracted.txt
           retention-days: 14
 
       - name: Upload templates proof report
@@ -219,6 +238,8 @@ jobs:
         with:
           name: templates-proof-report
           path: |
+            companion/assumptions_extracted.txt
+            companion/assumptions.yaml
             companion/templates/prove_golden.txt
             companion/templates/obj/gnatprove/gnatprove.out
           retention-days: 30
