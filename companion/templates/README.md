@@ -61,19 +61,19 @@ cd companion/templates
 alr build
 
 # GNATprove flow analysis (Bronze gate)
-alr exec -- gnatprove -P templates.gpr --mode=flow --report=all --warnings=on
+alr exec -- gnatprove -P templates.gpr --mode=flow --report=all --warnings=error
 
 # GNATprove proof (Silver gate)
 alr exec -- gnatprove -P templates.gpr \
   --mode=prove --level=2 \
   --prover=cvc5,z3,altergo \
   --steps=0 --timeout=120 \
-  --report=all --warnings=on --checks-as-errors=on
+  --report=all --warnings=error --checks-as-errors=on
 ```
 
 ## Proof status
 
-178 total VCs across 11 units, 0 unproved. The checked-in baseline is
+184 total VCs across 11 units, 0 unproved. The checked-in baseline is
 `prove_golden.txt`. CI diffs every run against this baseline and fails on
 drift.
 

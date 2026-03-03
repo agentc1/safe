@@ -30,7 +30,7 @@ The configuration is designed so that Bronze verification runs on every CI cycle
 
 **Project file:** `companion/gen/companion.gpr`
 
-The project file sets Ada 2022 mode, enables all warnings as errors, enables assertions, and configures the Prove package with `--mode=prove --level=2 --report=all`. CI invocations add `--warnings=error` to treat GNATprove warnings as gate failures (the companion.gpr default is `--warnings=on`, overridden on the command line).
+The project file sets Ada 2022 mode, enables all warnings as errors, enables assertions, and configures the Prove package with `--mode=prove --level=2 --report=all --warnings=error`.
 
 ---
 
@@ -39,7 +39,7 @@ The project file sets Ada 2022 mode, enables all warnings as errors, enables ass
 ### 3.1 Mode
 
 ```
-gnatprove -P companion/gen/companion.gpr --mode=flow --report=all --warnings=on
+gnatprove -P companion/gen/companion.gpr --mode=flow --report=all --warnings=error
 ```
 
 ### 3.2 What It Proves
@@ -100,7 +100,7 @@ gnatprove -P companion/gen/companion.gpr \
   --steps=0 \
   --timeout=120 \
   --report=all \
-  --warnings=on \
+  --warnings=error \
   --checks-as-errors=on
 ```
 
@@ -126,7 +126,7 @@ Proof mode (`--mode=prove`) includes all flow analysis checks plus formal verifi
 | `--timeout` | `120` | 120 seconds per VC. Generous for a companion of this size; ensures FP arithmetic VCs are not prematurely timed out. |
 | `--level` | `2` | Medium effort: enables loop unrolling, split VCs, and Why3 transformations beyond level 1. Sufficient for the linear contracts in this companion. |
 | `--report` | `all` | Report every VC result (proved, unproved, error) for audit trail. |
-| `--warnings` | `on` | Surface all GNATprove warnings. |
+| `--warnings` | `error` | Treat all GNATprove warnings as errors. Any warning fails the gate. |
 
 ### 4.4 Expected VCs Per Procedure
 
@@ -367,7 +367,7 @@ package Prove is
      ("--mode=prove",
       "--level=2",
       "--report=all",
-      "--warnings=on");
+      "--warnings=error");
 end Prove;
 ```
 
