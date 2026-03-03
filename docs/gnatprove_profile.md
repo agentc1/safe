@@ -30,7 +30,7 @@ The configuration is designed so that Bronze verification runs on every CI cycle
 
 **Project file:** `companion/gen/companion.gpr`
 
-The project file sets Ada 2022 mode, enables all warnings as errors, enables assertions, and configures the Prove package with `--mode=prove --level=2 --report=all --warnings=on`.
+The project file sets Ada 2022 mode, enables all warnings as errors, enables assertions, and configures the Prove package with `--mode=prove --level=2 --report=all`. CI invocations add `--warnings=error` to treat GNATprove warnings as gate failures (the companion.gpr default is `--warnings=on`, overridden on the command line).
 
 ---
 
