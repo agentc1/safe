@@ -40,6 +40,7 @@ is
 
       --  Enter borrow scope: freeze lender.
       Lender.Is_Borrowed := True;
+      pragma Assert (Lender.Is_Borrowed);
 
       --  Modify through borrower (models: *borrower = New_Value).
       Lender.Value := New_Value;
@@ -68,6 +69,7 @@ is
 
       --  Enter observe scope.
       Lender.Is_Observed := True;
+      pragma Assert (Lender.Is_Observed);
 
       --  Read through observer (models: result = *observer).
       Result := Lender.Value;

@@ -60,7 +60,7 @@ is
    is
       Select_Done : Boolean := False;
       Success     : Boolean;
-      Item        : Element_Type := 0;
+      Item        : Element_Type;
    begin
       Result    := 0;
       Timed_Out := False;
@@ -114,7 +114,7 @@ is
    is
       Select_Done : Boolean := False;
       Success     : Boolean;
-      Item        : Element_Type := 0;
+      Item        : Element_Type;
    begin
       Result := 0;
       Found  := False;

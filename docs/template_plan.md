@@ -159,7 +159,7 @@ Alire dependencies are required.
   exercising the Observed→Observed transition.
   Hooks: `Check_Borrow_Exclusive`, `Check_Observe_Shared`.
   Clauses: 2.3.3.p99b (borrow), 2.3.4a.p102a (observe).
-  Result: 13 VCs (6 flow, 7 proof) — all proved.
+  Result: 15 VCs (6 flow, 9 proof) — all proved.
 - `template_fp_safety.ads/.adb` — Demonstrates floating-point narrowing
   patterns: not-NaN check, not-infinity check, safe FP division, and a
   compound operation with intermediate narrowing. Half-range bounds on
@@ -174,10 +174,10 @@ Alire dependencies are required.
   Boolean flag (assumption T-01).
   Hooks: `Check_Channel_Not_Empty` (at each Try_Receive point).
   Clauses: 4.4.p33-p42 (select semantics, arm ordering, determinism).
-  Result: 32 VCs (10 flow, 22 proof) — all proved.
+  Result: 34 VCs (12 flow, 22 proof) — all proved.
 - New assumption T-01 added to `companion/assumptions.yaml`
-- M1-M5 templates verified: full regression passes (284 VCs, 0 unproved)
-- `prove_golden.txt` baseline updated (215 → 284 VCs)
+- M1-M5 templates verified: full regression passes (288 VCs, 0 unproved)
+- `prove_golden.txt` baseline updated (215 → 288 VCs)
 - `docs/template_inventory.md` updated with new template entries
 - Assumption count: 12 (within 13-15 budget)
 
