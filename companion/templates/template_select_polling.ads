@@ -93,10 +93,20 @@ is
      with Pre  => Is_Valid (Ch_A) and then Is_Valid (Ch_B),
           Post =>
             Is_Valid (Ch_A) and then Is_Valid (Ch_B)
-            and then (if Timed_Out then
-                        Deadline_Elapsed
-                        and then Ch_A.Count = Ch_A.Count'Old
-                        and then Ch_B.Count = Ch_B.Count'Old);
+            and then
+              (if Timed_Out then
+                 Deadline_Elapsed
+                 and then Ch_A.Count = Ch_A.Count'Old
+                 and then Ch_B.Count = Ch_B.Count'Old
+               elsif Ch_A.Count'Old > 0 then
+                 Ch_A.Count = Ch_A.Count'Old - 1
+                 and then Ch_B.Count = Ch_B.Count'Old
+               elsif Ch_B.Count'Old > 0 then
+                 Ch_A.Count = Ch_A.Count'Old
+                 and then Ch_B.Count = Ch_B.Count'Old - 1
+               else
+                 Ch_A.Count = Ch_A.Count'Old
+                 and then Ch_B.Count = Ch_B.Count'Old);
 
    --  Two-arm select without delay arm.
    --  Arms are tested in declaration order: Ch_A (Arm 1), Ch_B (Arm 2).
@@ -109,7 +119,18 @@ is
      with Pre  => Is_Valid (Ch_A) and then Is_Valid (Ch_B),
           Post =>
             Is_Valid (Ch_A) and then Is_Valid (Ch_B)
-            and then Found =
-              (Ch_A.Count'Old > 0 or else Ch_B.Count'Old > 0);
+            and then
+              (if Ch_A.Count'Old > 0 then
+                 Found
+                 and then Ch_A.Count = Ch_A.Count'Old - 1
+                 and then Ch_B.Count = Ch_B.Count'Old
+               elsif Ch_B.Count'Old > 0 then
+                 Found
+                 and then Ch_A.Count = Ch_A.Count'Old
+                 and then Ch_B.Count = Ch_B.Count'Old - 1
+               else
+                 not Found
+                 and then Ch_A.Count = Ch_A.Count'Old
+                 and then Ch_B.Count = Ch_B.Count'Old);
 
 end Template_Select_Polling;
