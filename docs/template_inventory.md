@@ -56,9 +56,10 @@ Max steps used for successful proof: 2 (well within budget).
 
 ## Assumption Ledger (Template-specific)
 
-One template-specific assumption was introduced in M6. All other
-templates prove under the existing companion assumptions
-(see `companion/assumptions.yaml`).
+One template-specific assumption (T-01) was introduced in M6, bringing
+the total from 13 to **14** tracked assumptions (within the <= 15
+budget). All other templates prove under the existing companion
+assumptions (see `companion/assumptions.yaml`).
 
 | ID   | Description | Clause | Introduced |
 |------|-------------|--------|------------|
