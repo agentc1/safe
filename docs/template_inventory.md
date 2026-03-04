@@ -17,20 +17,20 @@
 | 8 | `template_index_safety`     | M4        | `Safe_Index`, `Narrow_Indexing`                      | 14  | Proved   |
 | 9 | `template_effect_summary`   | M5        | (none -- flow-analysis template)                     | 3   | Proved   |
 | 10| `template_package_structure` | M5       | `Narrow_Parameter`                                   | 6   | Proved   |
-| 11| `template_borrow_observe`   | M6       | `Check_Borrow_Exclusive`, `Check_Observe_Shared`     | 9   | Proved   |
+| 11| `template_borrow_observe`   | M6       | `Check_Borrow_Exclusive`, `Check_Observe_Shared`     | 13  | Proved   |
 | 12| `template_fp_safety`        | M6       | `FP_Not_NaN`, `FP_Not_Infinity`, `FP_Safe_Div`       | 17  | Proved   |
 | 13| `template_select_polling`   | M6       | `Check_Channel_Not_Empty`                             | 32  | Proved   |
 
 \* VCs = proof checks discharged by SMT provers (Silver level); flow
 checks (Bronze level) are reported separately in the Proof Summary below.
 
-**Total template proof VCs: 162** (all proved)
+**Total template proof VCs: 166** (all proved)
 
 ## Proof Summary
 
-300 total VCs across 16 units (Safe_Model, Safe_PO, Safe_Runtime, 13 templates):
-- Flow (Bronze): 103 checks (34%) — all passed
-- Proof (Silver): 196 proved + 1 justified (65%) (CVC5 99%, Trivial 1%)
+305 total VCs across 16 units (Safe_Model, Safe_PO, Safe_Runtime, 13 templates):
+- Flow (Bronze): 104 checks (34%) — all passed
+- Proof (Silver): 200 proved + 1 justified (66%) (CVC5 99%, Trivial 1%)
 - Justified: 1 (FP_Safe_Div float overflow, see A-05)
 - Unproved: 0
 
@@ -46,7 +46,7 @@ checks (Bronze level) are reported separately in the Proof Summary below.
 | `template_index_safety`     | 4    | 14    | 18    | CVC5    |
 | `template_effect_summary`   | 19   | 3     | 22    | CVC5    |
 | `template_package_structure` | 3   | 6     | 9     | CVC5    |
-| `template_borrow_observe`   | 6    | 9     | 15    | CVC5    |
+| `template_borrow_observe`   | 7    | 13    | 20    | CVC5    |
 | `template_fp_safety`        | 7    | 17    | 24    | CVC5    |
 | `template_select_polling`   | 14   | 32    | 46    | CVC5    |
 
