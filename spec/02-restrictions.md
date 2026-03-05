@@ -1117,3 +1117,75 @@ end Unsafe_Scale;
 ## 2.11 No General Use Clauses
 
 144. General `use` clauses (8652:2023 §8.4 first form) are excluded (D13). `use type` clauses (§8.4 second form) are retained.
+
+---
+
+## 2.12 Recoverable Error Convention
+
+145. Safe's error model distinguishes two categories of failure:
+
+   (a) **Non-recoverable failures** terminate the program via the runtime abort handler. These include assertion failure (paragraph 68) and allocation failure (paragraph 103a). A conforming implementation shall not attempt to resume execution after an abort.
+
+   (b) **Recoverable failures** represent conditions that a caller can meaningfully respond to: parse failures, lookup misses, invalid inputs, protocol errors, resource unavailability, and similar domain-level conditions. Since exceptions are excluded (paragraph 67), recoverable failures shall be communicated through explicit return values.
+
+146. **Discriminated result convention.** The canonical Safe pattern for representing a recoverable failure is a discriminated record with a Boolean discriminant that selects between a success variant and an error variant:
+
+```ada
+type Result (OK : Boolean := False) is record
+   case OK is
+      when True  then Value : Success_Type;
+      when False then Error : Error_Type;
+   end case;
+end record;
+```
+
+The default discriminant shall be `False` so that a default-initialised result represents failure.
+
+147. **Naming convention.** A conforming program that uses the discriminated result pattern should use the following names:
+
+   (a) The discriminant shall be named `OK` (type `Boolean`, default `False`).
+
+   (b) The success variant field shall be named `Value`.
+
+   (c) The error variant field shall be named `Error`.
+
+   (d) The type name should end with `_Result` or be named `Result` when unambiguous within the enclosing package.
+
+These conventions are recommended, not required. A conforming implementation shall not reject a program solely because a discriminated result type uses different field names.
+
+148. **Discriminant-check safety.** Accessing a variant field requires that the discriminant value matches the corresponding variant (8652:2023 §4.1.3(13)). In Safe, this check is discharged statically: a conforming implementation shall reject any program where it cannot prove that the discriminant matches the selected variant at every variant field access. This is consistent with the Silver-by-construction guarantee (§2.8.6, paragraph 139f, "Discriminant" row).
+
+In practice, a conditional guard establishes the discriminant value:
+
+```ada
+R : Parse_Result = Parse (Input);
+if R.OK then
+   Process (R.Value);   -- legal: R.OK = True is established
+else
+   Log_Error (R.Error);  -- legal: R.OK = False is established
+end if;
+```
+
+A conforming implementation shall treat a conditional branch on the discriminant as sufficient to establish the discriminant value within that branch for the purpose of variant field access.
+
+149. **Coexistence with status-code parameters.** Safe's channel operations (`try_send`, `try_receive`) use Boolean out-parameters to report success or failure (Section 4, §4.3). This form is appropriate for statement-level primitives where the operation has side effects and the result is not a computed value.
+
+The discriminated result convention and the status-code convention serve different contexts:
+
+   (a) **Functions that compute a fallible value** should return a discriminated result record.
+
+   (b) **Statements or procedures with side effects** that may fail non-fatally may use a Boolean out-parameter to report success.
+
+A conforming implementation shall accept both forms.
+
+150. **Guidance on abort vs. result.** The following conditions warrant program abort rather than a result return:
+
+   (a) Assertion violations (`pragma Assert`).
+
+   (b) Allocation failure.
+
+   (c) Any condition where the program's invariants are broken and continued execution would violate the Silver guarantee.
+
+All other domain-level failures — including but not limited to invalid input, missing data, communication timeouts, and format errors — should use the discriminated result convention.
+
+151. **Future evolution.** The current convention requires each API to define its own result type, because generics are excluded (paragraph 69). A future version of Safe may introduce a built-in parametric type constructor (e.g., `Result[T, E]`) and an error-propagation operator to reduce boilerplate. Such features would be additive — programs written using the per-type discriminated result convention defined in this section would remain conforming.
