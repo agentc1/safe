@@ -1,0 +1,45 @@
+-- Test: neg_result_mutated
+-- Description: Variant field access after mutation within guarded branch.
+--   The branch on R.OK establishes the discriminant, but the subsequent
+--   assignment to R invalidates it. Accessing R.Value after mutation
+--   without re-guarding violates the discriminant-check safety rule.
+-- Clause: SAFE@468cf72:spec/02-restrictions.md#2.12.p148
+-- Clause: SAFE@468cf72:spec/02-restrictions.md#2.8.6.p139f
+-- Expected: REJECT
+
+package Neg_Result_Mutated is
+
+   type Error_Code is range 0 .. 255;
+
+   type Parse_Result (OK : Boolean = False) is record
+      case OK is
+         when True  then Value : Integer;
+         when False then Error : Error_Code;
+      end case;
+   end record;
+
+   function Try_Parse (Input : Integer) return Parse_Result is
+   begin
+      if Input >= 0 then
+         return (OK = True, Value = Input);
+      else
+         return (OK = False, Error = 1);
+      end if;
+   end Try_Parse;
+
+   --  NONCONFORMING: R.OK = True is established by the guard, but
+   --  the assignment R = Try_Parse(Other) invalidates the fact.
+   --  Accessing R.Value after mutation is rejected.
+   function Unsafe_After_Mutation (First : Integer;
+                                   Second : Integer) return Integer is
+      R : Parse_Result = Try_Parse (First);
+   begin
+      if R.OK then
+         R = Try_Parse (Second);  -- invalidates R.OK = True
+         return R.Value;          -- REJECTED: R.OK no longer established
+      else
+         return 0;
+      end if;
+   end Unsafe_After_Mutation;
+
+end Neg_Result_Mutated;
