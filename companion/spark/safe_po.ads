@@ -374,8 +374,8 @@ package Safe_PO is
    --  Check_Discriminant: Assert that the discriminant has the expected value
    --  before accessing a variant field.
    --
-   --  Clause: SAFE@468cf72:spec/02-restrictions.md#2.8.6.p139f:a1b2c3d4
-   --  Clause: SAFE@468cf72:spec/02-restrictions.md#2.12.p148:e5f6a7b8
+   --  Clause: SAFE@468cf72:spec/02-restrictions.md#2.8.6.p139f
+   --  Clause: SAFE@468cf72:spec/02-restrictions.md#2.12.p148
    ---------------------------------------------------------------------------
    procedure Check_Discriminant
      (Actual   : Boolean;

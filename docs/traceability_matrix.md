@@ -2,8 +2,8 @@
 
 **Frozen commit SHA:** `468cf72`
 **Generated:** 2026-03-05
-**Total normative clauses:** 205  
-**Spec files parsed:** 10  
+**Total normative clauses:** 205
+**Spec files parsed:** 10
 
 ---
 

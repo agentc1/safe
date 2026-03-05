@@ -343,7 +343,7 @@ package body Safe_PO is
 
    ---------------------------------------------------------------------------
    --  Check_Discriminant
-   --  Clause: SAFE@468cf72:spec/02-restrictions.md#2.8.6.p139f:a1b2c3d4
+   --  Clause: SAFE@468cf72:spec/02-restrictions.md#2.8.6.p139f
    ---------------------------------------------------------------------------
    procedure Check_Discriminant
      (Actual   : Boolean;

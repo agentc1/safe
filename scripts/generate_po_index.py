@@ -46,7 +46,7 @@ def main():
     lines.append('## Overview')
     lines.append('')
     lines.append('- **Source commit**: `468cf72332724b04b7c193b4d2a3b02f1584125d`')
-    lines.append('- **Generation date**: 2026-03-02')
+    lines.append('- **Generation date**: 2026-03-05')
     lines.append('- **Source clauses**: `clauses/clauses.yaml`')
     lines.append('- **Total clauses**: 205')
     lines.append('- **Total PO entries**: ' + str(len(entries)))
