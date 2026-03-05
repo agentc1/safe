@@ -24,9 +24,10 @@ This document defines the translation rules for lowering Safe AST nodes to Ada 2
 9. [Automatic Deallocation Emission](#9-automatic-deallocation)
 10. [Effect Summary Generation](#10-effect-summary-generation)
 11. [Package Structure Emission](#11-package-structure-emission)
-12. [Conservative Defaults for Underspecified Semantics](#12-conservative-defaults)
-13. [Reserved Word and Identifier Mapping](#13-identifier-mapping)
-14. [End-to-End Examples](#14-end-to-end-examples)
+12. [Discriminant-Check Emission](#12-discriminant-check-emission)
+13. [Conservative Defaults for Underspecified Semantics](#13-conservative-defaults)
+14. [Reserved Word and Identifier Mapping](#14-identifier-mapping)
+15. [End-to-End Examples](#15-end-to-end-examples)
 
 ---
 
@@ -917,7 +918,74 @@ end record;
 
 ---
 
-## 12. Conservative Defaults for Underspecified Semantics
+## 12. Discriminant-Check Emission
+
+**Clause:** SAFE@468cf72:spec/02-restrictions.md#2.8.6.p139f, SAFE@468cf72:spec/02-restrictions.md#2.12.p148
+
+**AST nodes:** `SelectedComponent` (with `resolved_kind=VariantField`), `AssignmentStatement` (target is discriminated record)
+
+### 12.1 Emission Rule
+
+Before every access to a variant field of a discriminated record, the emitter inserts a ghost `Check_Discriminant` call asserting that the record's discriminant matches the expected variant:
+
+```
+-- Safe source:
+R : Parse_Result = Parse (Input);
+if R.OK then
+   Process (R.Value);
+end if;
+
+-- Emitted Ada:
+R : Parse_Result := Parse (Input);
+if R.OK then
+   Check_Discriminant (R.OK, True);   -- ghost assertion
+   Process (R.Value);
+end if;
+```
+
+GNATprove proves the ghost assertion from the conditional branch. No runtime code is generated (the call is `Ghost`).
+
+### 12.2 Mutation Invalidation
+
+The emitter tracks discriminant facts per-variable. A fact established by a conditional branch is invalidated when the discriminated object is:
+
+   (a) Assigned to (`R := New_Value;`).
+
+   (b) Passed as an `out` or `in out` parameter.
+
+After invalidation, the emitter requires a new conditional guard before inserting any further variant-field access. If no guard is present, the program is rejected at compile time (the `Check_Discriminant` precondition would be unprovable).
+
+### 12.3 Precondition-Established Access
+
+When a subprogram has a precondition establishing the discriminant (e.g., `Pre => R.OK`), the emitter trusts the precondition and inserts `Check_Discriminant` at the access point. GNATprove proves it from the precondition without a branch:
+
+```
+-- Safe source:
+function Unwrap (R : Parse_Result) return Value_Type is
+begin
+   pragma Assert (R.OK);  -- or established by precondition
+   return R.Value;
+end Unwrap;
+
+-- Emitted Ada:
+function Unwrap (R : Parse_Result) return Value_Type
+  with Pre => R.OK
+is
+begin
+   Check_Discriminant (R.OK, True);
+   return R.Value;
+end Unwrap;
+```
+
+### 12.4 Mapping Table Entry
+
+| Safe Construct | Ada/SPARK Emission | Clause Reference | Notes |
+|---|---|---|---|
+| Variant field access `R.Value` | `Check_Discriminant(R.OK, True); R.Value` | SAFE@468cf72:spec/02-restrictions.md#2.12.p148 | Ghost call before every variant-field access |
+
+---
+
+## 13. Conservative Defaults for Underspecified Semantics
 
 The following table lists semantics that are underspecified or implementation-defined in the Safe spec, along with the conservative default the emitter adopts and the rationale.
 
@@ -946,7 +1014,7 @@ The following table lists semantics that are underspecified or implementation-de
 
 ---
 
-## 13. Reserved Word and Identifier Mapping
+## 14. Reserved Word and Identifier Mapping
 
 **Clause:** SAFE@468cf72:spec/08-syntax-summary.md#8.15
 
@@ -979,7 +1047,7 @@ The emitter must produce byte-identical output for the same Safe source compiled
 
 ---
 
-## 14. End-to-End Examples
+## 15. End-to-End Examples
 
 ### 14.1 Example A: Sensor Averaging with Wide Intermediate Arithmetic (D27 Rule 1)
 
