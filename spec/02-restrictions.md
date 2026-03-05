@@ -1117,3 +1117,145 @@ end Unsafe_Scale;
 ## 2.11 No General Use Clauses
 
 144. General `use` clauses (8652:2023 §8.4 first form) are excluded (D13). `use type` clauses (§8.4 second form) are retained.
+
+---
+
+## 2.12 Recoverable Error Convention
+
+145. Safe's error model distinguishes two categories of failure:
+
+   (a) **Fatal failures** invoke the runtime abort handler. These include assertion failure (paragraph 68) and allocation failure (paragraph 103a). In the current model, a fatal failure terminates the program. A future version of Safe may introduce task-level fault containment for assertion failures (see paragraph 151a), in which case an assertion failure would terminate only the failing task rather than the entire program — but the failing task's execution is never resumed from the point of failure. A supervisor may restart the task from its initial entry point (paragraph 151d), which is distinct from resumption. Allocation failure would remain a program abort unless per-task allocation budgets are introduced (paragraph 151b).
+
+   (b) **Recoverable failures** represent conditions that a caller can meaningfully respond to: parse failures, lookup misses, invalid inputs, protocol errors, resource unavailability, and similar domain-level conditions. Since exceptions are excluded (paragraph 67), recoverable failures shall be communicated through explicit program-visible values — discriminated result records (paragraph 146), status parameters (paragraph 149(b)), or channel messages (paragraph 149(c)) — and shall not rely on exceptions or hidden control flow.
+
+146. **Discriminated result convention.** The canonical Safe pattern for representing a recoverable failure is a discriminated record with a Boolean discriminant that selects between a success variant and an error variant:
+
+```ada
+type Result (OK : Boolean := False) is record
+   case OK is
+      when True  then Value : Success_Type;
+      when False then Error : Error_Type;
+   end case;
+end record;
+```
+
+The default discriminant shall be `False` so that a default-initialised result represents failure.
+
+147. **Naming convention.** A conforming program that uses the discriminated result pattern should use the following names:
+
+   (a) The discriminant shall be named `OK` (type `Boolean`, default `False`).
+
+   (b) The success variant field shall be named `Value`.
+
+   (c) The error variant field shall be named `Error`.
+
+   (d) The type name should end with `_Result` or be named `Result` when unambiguous within the enclosing package.
+
+These conventions are recommended, not required. A conforming implementation shall not reject a program solely because a discriminated result type uses different field names.
+
+148. **Discriminant-check safety.** Accessing a variant field requires that the discriminant value matches the corresponding variant (8652:2023 §4.1.3(13)). In Safe, this check is discharged statically: a conforming implementation shall reject any program where it cannot prove that the discriminant matches the selected variant at every variant field access. This is consistent with the Silver-by-construction guarantee (§2.8.6, paragraph 139f, "Discriminant" row).
+
+In practice, a conditional guard establishes the discriminant value:
+
+```ada
+R : Parse_Result = Parse (Input);
+if R.OK then
+   Process (R.Value);   -- legal: R.OK = True is established
+else
+   Log_Error (R.Error);  -- legal: R.OK = False is established
+end if;
+```
+
+A conforming implementation shall treat a conditional branch on the discriminant as sufficient to establish the discriminant value within that branch for the purpose of variant field access, **until the discriminated object is potentially modified**. The established discriminant fact is invalidated by any of:
+
+   (a) Assignment to the discriminated object (e.g., `R = other_result;`).
+
+   (b) Passing the discriminated object as an `out` or `in out` parameter.
+
+After invalidation, the discriminant must be re-established by a new conditional guard before any variant field access.
+
+**Nonconforming example — access after mutation within guarded branch:**
+
+```ada
+R : Parse_Result = Parse (Input);
+if R.OK then
+   R = Parse (Other_Input);  -- R.OK is now unknown (invalidated)
+   Process (R.Value);         -- REJECTED: R.OK = True no longer established
+end if;
+```
+
+149. **Coexistence with status-code parameters.** Safe's channel operations (`try_send`, `try_receive`) use Boolean out-parameters to report success or failure (Section 4, §4.3). This form is appropriate for statement-level primitives where the operation has side effects and the result is not a computed value.
+
+The discriminated result convention, the status-code convention, and result-typed channels serve different contexts:
+
+   (a) **Functions that compute a fallible value** should return a discriminated result record.
+
+   (b) **Statements or procedures with side effects** that may fail non-fatally may use a Boolean out-parameter to report success.
+
+   (c) **Concurrent error reporting** should use channels whose element type is a discriminated result record. This unifies the sequential and concurrent error models: the same `Result` layout represents failure in both contexts, delivered via function return in sequential code and via `send`/`receive` in concurrent code.
+
+A conforming implementation shall accept all three forms.
+
+150. **Guidance on fatal failure vs. result.** The following conditions warrant a fatal failure (runtime abort handler) rather than a result return:
+
+   (a) Assertion violations (`pragma Assert`).
+
+   (b) Allocation failure.
+
+   (c) Any condition where the program's invariants are broken and continued execution would violate the Silver guarantee.
+
+All other domain-level failures — including but not limited to invalid input, missing data, communication timeouts, and format errors — should use the discriminated result convention.
+
+151. **Future evolution: parametric result type.** The current convention requires each API to define its own result type, because generics are excluded (paragraph 69). A future version of Safe may introduce a built-in parametric type constructor (e.g., `Result[T, E]`) and an error-propagation operator to reduce boilerplate. Such features would be additive — programs written using the per-type discriminated result convention defined in this section would remain conforming.
+
+151a. **Future evolution: task-level fault containment.** Safe's ownership model guarantees that a task's mutable state is unreachable from other tasks (Section 4, §4.2). This isolation property means that a fatal failure in one task cannot corrupt another task's state. A future version of Safe may exploit this property to contain certain fatal failures to the failing task rather than aborting the entire program. The following subsections sketch the design constraints such a feature would need to satisfy.
+
+151b. **Containable vs. catastrophic failures.** Not all fatal failures are equally containable:
+
+   (a) **Assertion failure** (`pragma Assert`) is task-local: the failing task violated an invariant in its own code. Assertion failures are strong candidates for task-level containment because the failing task's state is provably isolated from other tasks.
+
+   (b) **Allocation failure** is a shared environmental resource problem: heap exhaustion affects all tasks, not just the one whose allocation failed. Allocation failure should remain catastrophic (program abort) unless a future version introduces per-task allocation budgets or arenas that make exhaustion genuinely task-local. Without such budgets, "containing" an allocation failure risks masking a system-wide resource problem behind repeated task restarts.
+
+   (c) **Hardware faults, stack overflow, and similar unrecoverable conditions** remain catastrophic and always abort the program.
+
+151c. **Notification mechanism.** A supervisor task must learn that a peer task has failed. The minimal surface syntax would be an optional aspect on the task declaration designating a typed fault channel:
+
+```ada
+channel Worker_Faults : Fault_Event capacity 4;
+
+task Worker with Priority = 5, Fault_Channel = Worker_Faults is
+   ...
+end Worker;
+```
+
+When the runtime detects a containable failure in `Worker`, it posts a fault event (identifying the failed task, the fault kind, and the source location) to the designated channel. The supervisor receives fault events through ordinary `receive` or `select` operations — no new control-flow mechanism is needed.
+
+151d. **Restart and the non-termination rule.** Tasks are syntactically required to be non-terminating (Section 4, §4.6, paragraph 53). A task-level "restart" does not violate this rule: the programmer-visible task body remains an unconditional loop with no `return` or outer `exit`. The runtime may end a failing execution instance and re-enter the task body at its initial entry point, but this is a runtime recovery mechanism, not a language-level termination. The task is never observed to have "completed" in the Ada sense.
+
+On restart, all task-local state is reset: local declarations within the task body are re-elaborated with their initial values, and package-level variables owned by the task are re-initialised to their declaration values. This ensures the task starts from a known-good state — the assertion failure may have been caused by corrupted local state, and preserving that state across a restart would defeat the purpose of recovery. If a task needs to persist state across restarts, the supervisor should hold it and send it to the restarted task via a channel.
+
+151e. **Channel state on task failure.** The existing channel and ownership semantics constrain the options:
+
+   (a) **Pending sends.** A task blocked in `send` has already evaluated the payload and transferred ownership (Section 4, §4.3, paragraph 27a: the move occurs at the point of the send statement, not at actual enqueue). The pending send shall commit: the runtime enqueues the payload when capacity becomes available, even though the sending task has been terminated. This preserves the ownership invariant — the payload is neither in the sender nor lost.
+
+   (b) **Completed receives.** A message removed from a channel by `receive` is owned by the receiving task. If the receiver then crashes, the message is not re-delivered. Owned objects in the crashed task's scope are reclaimed by automatic deallocation (paragraph 104–105), preserving memory safety.
+
+   (c) **Blocked receives.** A task blocked in `receive` that is terminated by a supervisor (or by restart) simply stops waiting. No message is consumed. Other tasks may subsequently receive from the same channel.
+
+151f. **Restart intensity and escalation.** Unrestricted restarts under persistent failures produce infinite crash loops, wasting resources and masking bugs. A future fault containment feature shall include:
+
+   (a) A **restart intensity limit**: a maximum number of restarts within a defined time period. If the limit is exceeded, the supervisor escalates rather than restarting again.
+
+   (b) An **escalation policy**: when restart intensity is exceeded, the supervisor may abort the program, shut down a subsystem, or take other corrective action defined by the program.
+
+   These mechanisms draw from Erlang/OTP's supervisor restart intensity model, adapted to Safe's static task structure.
+
+151g. **Three-tier failure model.** With fault containment, Safe's error model would have three tiers:
+
+   (a) **Recoverable failures** — domain-level conditions handled via discriminated result records in sequential code (paragraphs 146–148) and via result-typed channel messages in concurrent code. The caller or receiver inspects the result and responds.
+
+   (b) **Contained failures** — assertion failures (and, with per-task budgets, allocation failures) that terminate the failing task. A supervisor task is notified and may restart the failed task, subject to restart intensity limits. No other task's state is affected.
+
+   (c) **Catastrophic failures** — allocation exhaustion without per-task budgets, stack overflow, hardware faults, and restart-intensity-exceeded escalation. These abort the program via the runtime abort handler.
+
+This feature is under consideration and does not affect the normative status of the conventions defined in paragraphs 146–150.
