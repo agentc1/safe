@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate docs/po_index.md from clauses/po_map.yaml."""
 
+import datetime
 import yaml
 from collections import Counter, defaultdict
 
@@ -37,16 +38,20 @@ def main():
         for a in e.get('assumptions', []):
             all_assumptions.add(a)
 
+    with open('meta/commit.txt') as cf:
+        short_sha = cf.read().strip()[:7]
     def shorten(cid):
-        return cid.replace('SAFE@468cf72:', '')
+        return cid.replace('SAFE@' + short_sha + ':', '')
 
     lines = []
     lines.append('# Proof Obligation Index')
     lines.append('')
     lines.append('## Overview')
     lines.append('')
-    lines.append('- **Source commit**: `468cf72332724b04b7c193b4d2a3b02f1584125d`')
-    lines.append('- **Generation date**: 2026-03-05')
+    with open('meta/commit.txt') as cf:
+        frozen_sha = cf.read().strip()
+    lines.append('- **Source commit**: `' + frozen_sha + '`')
+    lines.append('- **Generation date**: ' + datetime.date.today().isoformat())
     lines.append('- **Source clauses**: `clauses/clauses.yaml`')
     lines.append('- **Total clauses**: 205')
     lines.append('- **Total PO entries**: ' + str(len(entries)))

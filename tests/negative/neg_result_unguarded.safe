@@ -1,0 +1,37 @@
+-- Test: neg_result_unguarded
+-- Description: Unguarded access to variant field of discriminated result.
+--   Accessing R.Value without establishing R.OK = True violates the
+--   discriminant-check safety rule. The compiler must reject this.
+-- Clause: SAFE@468cf72:spec/02-restrictions.md#2.12.p148
+-- Clause: SAFE@468cf72:spec/02-restrictions.md#2.8.6.p139f
+-- Expected: REJECT
+
+package Neg_Result_Unguarded is
+
+   type Error_Code is range 0 .. 255;
+
+   type Parse_Result (OK : Boolean = False) is record
+      case OK is
+         when True  then Value : Integer;
+         when False then Error : Error_Code;
+      end case;
+   end record;
+
+   function Try_Parse (Input : Integer) return Parse_Result is
+   begin
+      if Input >= 0 then
+         return (OK = True, Value = Input);
+      else
+         return (OK = False, Error = 1);
+      end if;
+   end Try_Parse;
+
+   --  NONCONFORMING: accesses R.Value without establishing R.OK = True.
+   --  The discriminant check cannot be discharged statically.
+   function Unsafe_Access (Input : Integer) return Integer is
+      R : Parse_Result = Try_Parse (Input);
+   begin
+      return R.Value;  -- REJECTED: R.OK not established
+   end Unsafe_Access;
+
+end Neg_Result_Unguarded;
