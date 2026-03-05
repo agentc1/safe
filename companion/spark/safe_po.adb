@@ -337,4 +337,21 @@ package body Safe_PO is
       null;
    end Check_Exclusive_Ownership;
 
+   --========================================================================
+   --  Discriminant Check
+   --========================================================================
+
+   ---------------------------------------------------------------------------
+   --  Check_Discriminant
+   --  Clause: SAFE@468cf72:spec/02-restrictions.md#2.8.6.p139f:a1b2c3d4
+   ---------------------------------------------------------------------------
+   procedure Check_Discriminant
+     (Actual   : Boolean;
+      Expected : Boolean)
+   is
+      pragma Unreferenced (Actual, Expected);
+   begin
+      null;
+   end Check_Discriminant;
+
 end Safe_PO;

@@ -362,4 +362,29 @@ package Safe_PO is
    --  owned by the same task. If a different task claims ownership, the
    --  precondition fails, corresponding to a data-race violation.
 
+   --========================================================================
+   --  Discriminant Check
+   --
+   --  Variant field access requires the discriminant to match the
+   --  selected variant.  The compiler inserts a ghost assertion before
+   --  each variant field access.
+   --========================================================================
+
+   ---------------------------------------------------------------------------
+   --  Check_Discriminant: Assert that the discriminant has the expected value
+   --  before accessing a variant field.
+   --
+   --  Clause: SAFE@468cf72:spec/02-restrictions.md#2.8.6.p139f:a1b2c3d4
+   --  Clause: SAFE@468cf72:spec/02-restrictions.md#2.12.p148:e5f6a7b8
+   ---------------------------------------------------------------------------
+   procedure Check_Discriminant
+     (Actual   : Boolean;
+      Expected : Boolean)
+   with Pre => Actual = Expected,
+        Ghost;
+   --  Verifies that the discriminant value (Actual) matches the variant
+   --  being accessed (Expected).  A conditional branch on the discriminant
+   --  establishes Actual = Expected within that branch; the fact is
+   --  invalidated by assignment or in-out calls on the discriminated object.
+
 end Safe_PO;
