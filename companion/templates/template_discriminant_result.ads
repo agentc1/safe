@@ -48,11 +48,8 @@ is
 
    --  Pattern 3: Mutation invalidation.
    --  Demonstrates that re-assignment requires re-guarding.
-   --  The procedure replaces R with a new result, then safely
-   --  accesses the new value only after re-establishing the guard.
-   procedure Replace_And_Read
-     (R       : in out Result_Model;
-      New_R   : Result_Model;
-      Output  : out Integer);
+   --  The function creates a result, assigns to a local, then safely
+   --  accesses the value only after re-establishing the guard.
+   function Parse_Then_Reparse (First, Second : Integer) return Integer;
 
 end Template_Discriminant_Result;

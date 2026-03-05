@@ -58,31 +58,36 @@ is
    --  Pattern 3: Mutation invalidation and re-guard
    --
    --  Emission pattern:
-   --    1. R is reassigned (discriminant fact invalidated)
-   --    2. New guard re-establishes the discriminant
-   --    3. Variant field access is legal after re-guard
+   --    1. Guard on R.OK establishes discriminant
+   --    2. R is reassigned (discriminant fact invalidated)
+   --    3. New guard re-establishes the discriminant
+   --    4. Variant field access is legal after re-guard
    --
    --  This demonstrates §2.12 ¶148: "The established discriminant
    --  fact is invalidated by assignment to the discriminated object."
    -------------------------------------------------------------------
-   procedure Replace_And_Read
-     (R       : in out Result_Model;
-      New_R   : Result_Model;
-      Output  : out Integer)
-   is
+   function Parse_Then_Reparse (First, Second : Integer) return Integer is
+      R : Result_Model := (OK => True, Value => First);
    begin
-      --  Assignment invalidates any prior discriminant fact on R.
-      R := New_R;
-
-      --  Must re-guard before accessing variant fields.
+      --  Guard establishes R.OK = True.
       if R.OK then
-         --  PO hook: re-established after mutation.
          Check_Discriminant (R.OK, True);
-         Output := R.Value;
+
+         --  Reassign R — discriminant fact is now invalidated.
+         R := (OK => False, Error_Code => Second);
+
+         --  Must re-guard before accessing variant fields.
+         if R.OK then
+            Check_Discriminant (R.OK, True);
+            return R.Value;
+         else
+            Check_Discriminant (R.OK, False);
+            return R.Error_Code;
+         end if;
       else
          Check_Discriminant (R.OK, False);
-         Output := R.Error_Code;
+         return R.Error_Code;
       end if;
-   end Replace_And_Read;
+   end Parse_Then_Reparse;
 
 end Template_Discriminant_Result;
