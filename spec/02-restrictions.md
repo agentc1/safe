@@ -1126,7 +1126,7 @@ end Unsafe_Scale;
 
    (a) **Fatal failures** invoke the runtime abort handler. These include assertion failure (paragraph 68) and allocation failure (paragraph 103a). In the current model, a fatal failure terminates the program. A future version of Safe may introduce task-level fault containment for assertion failures (see paragraph 151a), in which case an assertion failure would terminate only the failing task rather than the entire program — but the failing task's execution is never resumed from the point of failure. A supervisor may restart the task from its initial entry point (paragraph 151d), which is distinct from resumption. Allocation failure would remain a program abort unless per-task allocation budgets are introduced (paragraph 151b).
 
-   (b) **Recoverable failures** represent conditions that a caller can meaningfully respond to: parse failures, lookup misses, invalid inputs, protocol errors, resource unavailability, and similar domain-level conditions. Since exceptions are excluded (paragraph 67), recoverable failures shall be communicated through explicit return values.
+   (b) **Recoverable failures** represent conditions that a caller can meaningfully respond to: parse failures, lookup misses, invalid inputs, protocol errors, resource unavailability, and similar domain-level conditions. Since exceptions are excluded (paragraph 67), recoverable failures shall be communicated through explicit program-visible values — discriminated result records (paragraph 146), status parameters (paragraph 149(b)), or channel messages (paragraph 149(c)) — and shall not rely on exceptions or hidden control flow.
 
 146. **Discriminated result convention.** The canonical Safe pattern for representing a recoverable failure is a discriminated record with a Boolean discriminant that selects between a success variant and an error variant:
 
@@ -1166,7 +1166,23 @@ else
 end if;
 ```
 
-A conforming implementation shall treat a conditional branch on the discriminant as sufficient to establish the discriminant value within that branch for the purpose of variant field access.
+A conforming implementation shall treat a conditional branch on the discriminant as sufficient to establish the discriminant value within that branch for the purpose of variant field access, **until the discriminated object is potentially modified**. The established discriminant fact is invalidated by any of:
+
+   (a) Assignment to the discriminated object (e.g., `R = other_result;`).
+
+   (b) Passing the discriminated object as an `out` or `in out` parameter.
+
+After invalidation, the discriminant must be re-established by a new conditional guard before any variant field access.
+
+**Nonconforming example — access after mutation within guarded branch:**
+
+```ada
+R : Parse_Result = Parse (Input);
+if R.OK then
+   R = Parse (Other_Input);  -- R.OK is now unknown (invalidated)
+   Process (R.Value);         -- REJECTED: R.OK = True no longer established
+end if;
+```
 
 149. **Coexistence with status-code parameters.** Safe's channel operations (`try_send`, `try_receive`) use Boolean out-parameters to report success or failure (Section 4, §4.3). This form is appropriate for statement-level primitives where the operation has side effects and the result is not a computed value.
 
