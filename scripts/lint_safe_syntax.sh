@@ -15,22 +15,13 @@ echo "Linting .safe files for banned legacy syntax tokens..."
 # :=  was assignment (now =)
 # =>  was association/arm separator (now = or then)
 # /=  was inequality (now !=)
-# Tick-based attributes are banned; Safe uses dot notation (spec §2.4.1).
+# Tick-based attributes and qualified expressions are banned (spec §2.2 item 4,
+# §4.7 item 25). Safe uses dot notation for attributes and (Expr as T) for
+# qualified expressions. Tick is only legal for character literals ('A').
 BANNED_FIXED=(
   ":="
   "=>"
   "/="
-)
-
-BANNED_TICK=(
-  "'First"
-  "'Last"
-  "'Length"
-  "'Range"
-  "'Access"
-  "'Valid"
-  "'Image"
-  "'Size"
 )
 
 while IFS= read -r -d '' f; do
@@ -41,16 +32,14 @@ while IFS= read -r -d '' f; do
       FAIL=1
     fi
   done
-  for pat in "${BANNED_TICK[@]}"; do
-    if grep -nF -- "${pat}" "${f}" >/dev/null 2>&1; then
-      echo "ERROR: ${f} contains tick-attribute '${pat}' (use dot notation):"
-      grep -nF -- "${pat}" "${f}" | head -5
-      FAIL=1
-    fi
-  done
-  # Qualified expression ticks: T'( is banned (spec §2.2 item 25).
-  # Tick is only legal for character literals ('A').
-  # Match: word char followed by '( — but exclude character literals like 'A'.
+  # Tick-attribute check: catches T'First, T'Succ, T'Image, etc.
+  # Regex: word char + tick + uppercase + lowercase (avoids char literals 'A').
+  if grep -nE "[A-Za-z_0-9]'[A-Z][a-z]" "${f}" >/dev/null 2>&1; then
+    echo "ERROR: ${f} contains tick-attribute (use dot notation, spec §2.2 item 4):"
+    grep -nE "[A-Za-z_0-9]'[A-Z][a-z]" "${f}" | head -5
+    FAIL=1
+  fi
+  # Qualified expression ticks: T'( is banned (spec §4.7 item 25).
   if grep -nE "[A-Za-z_0-9]'\(" "${f}" >/dev/null 2>&1; then
     echo "ERROR: ${f} contains qualified expression tick T'(...) (use (Expr as T)):"
     grep -nE "[A-Za-z_0-9]'\(" "${f}" | head -5
