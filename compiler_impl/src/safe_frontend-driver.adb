@@ -20,6 +20,14 @@ package body Safe_Frontend.Driver is
    package FP renames Safe_Frontend.Parser;
    package FS renames Safe_Frontend.Source;
    package FT renames Safe_Frontend.Types;
+   type Lex_Result is record
+      Input       : FS.Source_File;
+      Tokens      : FL.Token_Vectors.Vector;
+      Diagnostics : FD.Diagnostic_Vectors.Vector;
+      Internal_Failure : Boolean := False;
+      Success     : Boolean := False;
+   end record;
+
    type Pipeline_Result is record
       Ast         : Safe_Frontend.Ast.Compilation_Unit;
       Typed       : Safe_Frontend.Semantics.Typed_Unit;
@@ -57,31 +65,21 @@ package body Safe_Frontend.Driver is
       return Safe_Frontend.Exit_Diagnostics;
    end Failure_Exit_Code;
 
-   function Run_Pipeline (Path : String; Include_Semantics : Boolean := True) return Pipeline_Result is
-      Result : Pipeline_Result;
+   function Failure_Exit_Code (Result : Lex_Result) return Integer is
    begin
-      declare
-         Input  : constant FS.Source_File := FS.Load (Path);
-         Tokens : constant FL.Token_Vectors.Vector := FL.Lex (Input, Result.Diagnostics);
-      begin
-         if FD.Has_Errors (Result.Diagnostics) then
-            return Result;
-         end if;
-         Result.Ast := FP.Parse (Input, Tokens, Result.Diagnostics);
-         if FD.Has_Errors (Result.Diagnostics) or else not Include_Semantics then
-            Result.Success := not FD.Has_Errors (Result.Diagnostics);
-            return Result;
-         end if;
-         Result.Typed :=
-           Safe_Frontend.Semantics.Analyze
-             (Result.Ast, Tokens, Result.Diagnostics);
-         if FD.Has_Errors (Result.Diagnostics) then
-            return Result;
-         end if;
-         Result.Mir_Unit := FM.Lower (Result.Typed);
-         Result.Success := True;
-         return Result;
-      end;
+      if Result.Internal_Failure then
+         return Safe_Frontend.Exit_Internal;
+      end if;
+      return Safe_Frontend.Exit_Diagnostics;
+   end Failure_Exit_Code;
+
+   function Run_Lexing (Path : String) return Lex_Result is
+      Result : Lex_Result;
+   begin
+      Result.Input := FS.Load (Path);
+      Result.Tokens := FL.Lex (Result.Input, Result.Diagnostics);
+      Result.Success := not FD.Has_Errors (Result.Diagnostics);
+      return Result;
    exception
       when Ada.IO_Exceptions.Name_Error =>
          FD.Add_Error
@@ -114,7 +112,44 @@ package body Safe_Frontend.Driver is
               & ": "
               & Ada.Exceptions.Exception_Message (Error));
          return Result;
+   end Run_Lexing;
+
+   function Run_Pipeline (Path : String; Include_Semantics : Boolean := True) return Pipeline_Result is
+      Result : Pipeline_Result;
+      Lexed  : constant Lex_Result := Run_Lexing (Path);
+   begin
+      Result.Diagnostics := Lexed.Diagnostics;
+      Result.Internal_Failure := Lexed.Internal_Failure;
+      if not Lexed.Success then
+         return Result;
+      end if;
+
+      Result.Ast := FP.Parse (Lexed.Input, Lexed.Tokens, Result.Diagnostics);
+      if FD.Has_Errors (Result.Diagnostics) or else not Include_Semantics then
+         Result.Success := not FD.Has_Errors (Result.Diagnostics);
+         return Result;
+      end if;
+      Result.Typed :=
+        Safe_Frontend.Semantics.Analyze
+          (Result.Ast, Lexed.Tokens, Result.Diagnostics);
+      if FD.Has_Errors (Result.Diagnostics) then
+         return Result;
+      end if;
+      Result.Mir_Unit := FM.Lower (Result.Typed);
+      Result.Success := True;
+      return Result;
    end Run_Pipeline;
+
+   function Run_Lex (Path : String) return Integer is
+      Result : constant Lex_Result := Run_Lexing (Path);
+   begin
+      if not Result.Success then
+         FD.Print (Result.Diagnostics);
+         return Failure_Exit_Code (Result);
+      end if;
+      Ada.Text_IO.Put (FL.To_Json (Result.Tokens));
+      return Safe_Frontend.Exit_Success;
+   end Run_Lex;
 
    function Run_Ast (Path : String) return Integer is
       Result : constant Pipeline_Result := Run_Pipeline (Path, Include_Semantics => False);

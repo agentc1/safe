@@ -4,6 +4,7 @@ This workspace hosts the PR00-PR04 bootstrap frontend for the Safe compiler.
 
 ## Scope
 
+- `safec lex <file.safe>` lexes a Safe source file and writes versioned token JSON to stdout.
 - `safec ast <file.safe>` lexes and parses a Safe source file and writes AST JSON to stdout.
 - `safec check <file.safe>` runs the early semantic pipeline and exits nonzero if diagnostics are emitted.
 - `safec emit <file.safe> --out-dir <dir> --interface-dir <dir>` writes the current frontend artifacts for downstream inspection and regression checks.
@@ -11,6 +12,14 @@ This workspace hosts the PR00-PR04 bootstrap frontend for the Safe compiler.
 The current frontend is intentionally an early slice. It proves out workspace layout, deterministic diagnostics, versioned JSON outputs, and the typed-AST to MIR handoff. It is not yet the D27 analyzer or the Ada/SPARK emitter.
 
 ## Output Formats
+
+`safec lex` currently writes one JSON artifact to stdout:
+
+- token dump
+  Format tag: `tokens-v0`.
+  Contents: `tokens[]`, where each token includes `kind`, `lexeme`, and `span`.
+  Notes: the synthetic EOF token is intentionally omitted so the dump remains source-derived.
+  Compatibility: incompatible changes require a new format tag.
 
 `safec emit` currently writes four JSON artifacts:
 
@@ -47,4 +56,4 @@ python3 scripts/run_frontend_smoke.py
 python3 scripts/validate_execution_state.py
 ```
 
-The smoke run checks AST validation, representative `check` runs, deterministic repeated `emit` output, and records hashes in `execution/reports/pr00-pr04-frontend-smoke.json`.
+The smoke run checks lexer regressions for current and legacy two-character operators, AST validation, representative `check` runs, deterministic repeated `emit` output, and records results in `execution/reports/pr00-pr04-frontend-smoke.json`.

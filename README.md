@@ -131,7 +131,7 @@ Five CI jobs run on every push and pull request to `main`:
 
 - **`execution-guard`** -- Ledger, dashboard, frozen-SHA, and test-distribution checks
 - **`lint-safe-syntax`** -- Surface-syntax guard across the `.safe` corpus
-- **`frontend-smoke`** -- Early frontend build, AST validation, and deterministic emit smoke checks
+- **`frontend-smoke`** -- Early frontend build, lexer regression checks, AST validation, and deterministic emit smoke checks
 - **`spark-verify`** -- Companion: 64 VCs, 0 unproved
 - **`templates-verify`** -- Templates pipeline: 320 VCs, 0 unproved
 
@@ -152,7 +152,7 @@ See [`release/COMPANION_README.md`](release/COMPANION_README.md) Section 8 for t
 | Emission templates | 14/14 proved (320 VCs, 0 unproved; M1–M7 complete) |
 | Compiler frontend | `compiler_impl/` PR00–PR04 early frontend landed |
 
-The repository now includes an early compiler frontend under `compiler_impl/`. It can lex and parse representative `.safe` inputs, emit AST/typed/MIR/interface JSON scaffolding, and run deterministic smoke checks. The translation rules and AST schema in `compiler/` remain the contract the later compiler phases must satisfy.
+The repository now includes an early compiler frontend under `compiler_impl/`. It can lex representative `.safe` inputs via `safec lex`, parse representative inputs, emit AST/typed/MIR/interface JSON scaffolding, and run deterministic smoke checks. The translation rules and AST schema in `compiler/` remain the contract the later compiler phases must satisfy.
 
 
 ---

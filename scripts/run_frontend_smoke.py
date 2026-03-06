@@ -21,6 +21,8 @@ DEFAULT_REPORT = REPO_ROOT / "execution" / "reports" / "pr00-pr04-frontend-smoke
 POSITIVE_AST = REPO_ROOT / "tests" / "positive" / "rule1_accumulate.safe"
 POSITIVE_PIPELINE = REPO_ROOT / "tests" / "positive" / "channel_pipeline.safe"
 EQUALITY_CHECK = REPO_ROOT / "tests" / "positive" / "result_equality_check.safe"
+LEGACY_TOKEN_FIXTURE = REPO_ROOT / "compiler_impl" / "tests" / "legacy_two_char_tokens.safe"
+DIAGNOSTICS_EXIT = 1
 
 
 def normalize_text(text: str, *, temp_root: Path | None = None) -> str:
@@ -62,6 +64,7 @@ def run(
     env: dict[str, str] | None = None,
     stdout_path: Path | None = None,
     temp_root: Path | None = None,
+    expected_returncode: int = 0,
 ) -> dict[str, Any]:
     if stdout_path is not None:
         stdout_path.parent.mkdir(parents=True, exist_ok=True)
@@ -93,9 +96,91 @@ def run(
         "stdout": normalize_text(stdout_text, temp_root=temp_root),
         "stderr": normalize_text(completed.stderr, temp_root=temp_root),
     }
-    if completed.returncode != 0:
+    if completed.returncode != expected_returncode:
         raise RuntimeError(json.dumps(result, indent=2))
     return result
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise RuntimeError(message)
+
+
+def find_subsequence(lexemes: list[str], expected: list[str]) -> int:
+    limit = len(lexemes) - len(expected) + 1
+    for start in range(max(limit, 0)):
+        if lexemes[start : start + len(expected)] == expected:
+            return start
+    return -1
+
+
+def assert_equality_tokens(result: dict[str, Any]) -> dict[str, Any]:
+    payload = json.loads(result["stdout"])
+    require(payload.get("format") == "tokens-v0", f"unexpected token format: {payload!r}")
+    tokens = payload.get("tokens")
+    require(isinstance(tokens, list), "token dump is missing tokens[]")
+    lexemes = [token.get("lexeme") for token in tokens]
+    require(all(isinstance(lexeme, str) for lexeme in lexemes), "token lexemes must be strings")
+
+    sequences = [
+        ["return", "S", "==", "0", ";"],
+        ["return", "S", "!=", "0", ";"],
+    ]
+    for sequence in sequences:
+        require(
+            find_subsequence(lexemes, sequence) >= 0,
+            f"missing token subsequence: {' '.join(sequence)}",
+        )
+
+    operator_counts = {
+        "==": sum(
+            1 for token in tokens if token.get("kind") == "symbol" and token.get("lexeme") == "=="
+        ),
+        "!=": sum(
+            1 for token in tokens if token.get("kind") == "symbol" and token.get("lexeme") == "!="
+        ),
+    }
+    require(operator_counts["=="] == 1, f"expected exactly one == token, got {operator_counts['==']}")
+    require(operator_counts["!="] == 1, f"expected exactly one != token, got {operator_counts['!=']}")
+
+    adjacent_equals_pairs = sum(
+        1 for left, right in zip(lexemes, lexemes[1:]) if left == "=" and right == "="
+    )
+    require(adjacent_equals_pairs == 0, "unexpected adjacent '=' '=' tokens in equality fixture")
+
+    return {
+        "format": payload["format"],
+        "required_subsequences": sequences,
+        "operator_counts": operator_counts,
+        "adjacent_equals_pairs": adjacent_equals_pairs,
+    }
+
+
+def assert_legacy_token_diagnostics(result: dict[str, Any]) -> dict[str, Any]:
+    require(result["stdout"] == "", "legacy token regression should not emit token JSON on failure")
+    stderr = result["stderr"]
+    require(
+        stderr.count("error[SC1001]") == 3,
+        f"expected exactly three SC1001 diagnostics, got {stderr.count('error[SC1001]')}",
+    )
+
+    expected = {
+        ":=": "Use current Safe syntax (`=` for assignment).",
+        "=>": "Use current Safe syntax (`=` for named associations/aggregates and `then` for select arms).",
+        "/=": "Use current Safe syntax (`!=` for inequality).",
+    }
+    for token, suggestion in expected.items():
+        require(
+            f'legacy token "{token}" is not allowed' in stderr,
+            f"missing legacy-token diagnostic for {token}",
+        )
+        require(suggestion in stderr, f"missing suggestion text for {token}")
+
+    return {
+        "sc1001_count": 3,
+        "legacy_tokens": list(expected.keys()),
+        "suggestions": expected,
+    }
 
 
 def sha256(path: Path) -> str:
@@ -144,19 +229,22 @@ def main() -> int:
             env=env,
             temp_root=temp_root,
         )
-        # Corpus inclusion: result_equality_check.safe contains == and !=
-        # in function bodies. The current parser skips bodies wholesale
-        # (Consume_Named_Executable_Item), so this check verifies only that
-        # the file is accepted at the declaration level — it does NOT yet
-        # prove that == is lexed as a single token rather than two =.
-        # A true regression test requires body-level parsing (PR05+).
-        # TODO(PR05): replace with a lexer-level or body-parsing assertion.
-        eq_check_run = run(
-            [str(safec), "check", str(EQUALITY_CHECK)],
+        equality_lex_run = run(
+            [str(safec), "lex", str(EQUALITY_CHECK)],
             cwd=REPO_ROOT,
             env=env,
             temp_root=temp_root,
         )
+        equality_assertions = assert_equality_tokens(equality_lex_run)
+
+        legacy_lex_run = run(
+            [str(safec), "lex", str(LEGACY_TOKEN_FIXTURE)],
+            cwd=REPO_ROOT,
+            env=env,
+            temp_root=temp_root,
+            expected_returncode=DIAGNOSTICS_EXIT,
+        )
+        legacy_assertions = assert_legacy_token_diagnostics(legacy_lex_run)
 
         check_accumulate = run(
             [str(safec), "check", str(POSITIVE_AST)],
@@ -217,15 +305,23 @@ def main() -> int:
 
         report = {
             "build": build,
+            "lex_equality": {
+                **equality_lex_run,
+                "assertions": equality_assertions,
+            },
+            "legacy_token_regression": {
+                **legacy_lex_run,
+                "assertions": legacy_assertions,
+            },
             "ast": ast_run,
             "ast_validation": ast_validate,
-            "equality_regression": eq_check_run,
             "check_runs": [check_accumulate, check_pipeline],
             "deterministic_outputs": file_hashes,
             "samples": {
                 "ast": str(POSITIVE_AST.relative_to(REPO_ROOT)),
                 "emit": str(POSITIVE_PIPELINE.relative_to(REPO_ROOT)),
-                "equality": str(EQUALITY_CHECK.relative_to(REPO_ROOT)),
+                "equality_lex": str(EQUALITY_CHECK.relative_to(REPO_ROOT)),
+                "legacy_lex": str(LEGACY_TOKEN_FIXTURE.relative_to(REPO_ROOT)),
             },
         }
 

@@ -8,6 +8,7 @@ procedure Safec is
    function Usage return Integer is
    begin
       Ada.Text_IO.Put_Line ("usage:");
+      Ada.Text_IO.Put_Line ("  safec lex <file.safe>");
       Ada.Text_IO.Put_Line ("  safec ast <file.safe>");
       Ada.Text_IO.Put_Line ("  safec check <file.safe>");
       Ada.Text_IO.Put_Line
@@ -40,7 +41,9 @@ begin
    declare
       Command : constant String := Argument (1);
    begin
-      if Command = "ast" and then Ada.Command_Line.Argument_Count = 2 then
+      if Command = "lex" and then Ada.Command_Line.Argument_Count = 2 then
+         Exit_Code := Safe_Frontend.Driver.Run_Lex (Argument (2));
+      elsif Command = "ast" and then Ada.Command_Line.Argument_Count = 2 then
          Exit_Code := Safe_Frontend.Driver.Run_Ast (Argument (2));
       elsif Command = "check" and then Ada.Command_Line.Argument_Count = 2 then
          Exit_Code := Safe_Frontend.Driver.Run_Check (Argument (2));

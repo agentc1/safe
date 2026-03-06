@@ -1,4 +1,5 @@
 package Safe_Frontend.Driver is
+   function Run_Lex (Path : String) return Integer;
    function Run_Ast (Path : String) return Integer;
    function Run_Check (Path : String) return Integer;
    function Run_Emit

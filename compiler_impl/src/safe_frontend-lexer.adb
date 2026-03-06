@@ -1,8 +1,33 @@
 with Ada.Characters.Handling;
 with Ada.Characters.Latin_1;
+with Ada.Strings.Unbounded;
+with Safe_Frontend.Json;
 
 package body Safe_Frontend.Lexer is
    package FD renames Safe_Frontend.Diagnostics;
+   package US renames Ada.Strings.Unbounded;
+
+   function Kind_Name (Kind : Token_Kind) return String is
+   begin
+      case Kind is
+         when Identifier =>
+            return "identifier";
+         when Keyword =>
+            return "keyword";
+         when Integer_Literal =>
+            return "integer_literal";
+         when Real_Literal =>
+            return "real_literal";
+         when String_Literal =>
+            return "string_literal";
+         when Character_Literal =>
+            return "character_literal";
+         when Symbol =>
+            return "symbol";
+         when End_Of_File =>
+            return "end_of_file";
+      end case;
+   end Kind_Name;
 
    function Is_Identifier_Start (Ch : Character) return Boolean is
    begin
@@ -286,4 +311,36 @@ package body Safe_Frontend.Lexer is
           Span   => Make_Span (Line, Column, Line, Column)));
       return Tokens;
    end Lex;
+
+   function To_Json (Tokens : Token_Vectors.Vector) return String is
+      Result : US.Unbounded_String := US.Null_Unbounded_String;
+      First  : Boolean := True;
+   begin
+      US.Append (Result, "{""format"":""tokens-v0"",""tokens"":[");
+      if not Tokens.Is_Empty then
+         for Index in Tokens.First_Index .. Tokens.Last_Index loop
+            declare
+               Item : constant Token := Tokens.Element (Index);
+            begin
+               if Item.Kind /= End_Of_File then
+                  if not First then
+                     US.Append (Result, ",");
+                  end if;
+                  First := False;
+                  US.Append
+                    (Result,
+                     "{""kind"":"
+                     & Safe_Frontend.Json.Quote (Kind_Name (Item.Kind))
+                     & ",""lexeme"":"
+                     & Safe_Frontend.Json.Quote (Item.Lexeme)
+                     & ",""span"":"
+                     & Safe_Frontend.Json.Span_Object (Item.Span)
+                     & "}");
+               end if;
+            end;
+         end loop;
+      end if;
+      US.Append (Result, "]}");
+      return US.To_String (Result);
+   end To_Json;
 end Safe_Frontend.Lexer;

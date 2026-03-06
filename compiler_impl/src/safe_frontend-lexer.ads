@@ -30,4 +30,6 @@ package Safe_Frontend.Lexer is
      (Input       : Safe_Frontend.Source.Source_File;
       Diagnostics : in out Safe_Frontend.Diagnostics.Diagnostic_Vectors.Vector)
       return Token_Vectors.Vector;
+
+   function To_Json (Tokens : Token_Vectors.Vector) return String;
 end Safe_Frontend.Lexer;
