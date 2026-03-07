@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-06T21:52:02Z",
+  "updated_at": "2026-03-07T02:26:55Z",
   "frozen_spec_sha": "468cf72332724b04b7c193b4d2a3b02f1584125d",
   "active_task_id": null,
   "next_task_id": "PR06",
@@ -150,10 +150,25 @@
       "unblock_condition": ""
     },
     {
+      "id": "PR06.5",
+      "title": "Frontend runtime decision: supported Python component vs Ada/SPARK parity port",
+      "status": "planned",
+      "depends_on": ["PR06"],
+      "acceptance": [
+        "The current Python-backed frontend runtime contract is documented, including required python3 availability and supported verification environments.",
+        "A recorded decision exists for the post-PR06 execution engine: either keep Python as a supported frontend component through later milestones or begin an Ada/SPARK parity port.",
+        "If an Ada/SPARK port is selected, the staged parity order is locked: MIR model and validator first, then MIR analyzer, then D27 renderer, then parser/resolver, with harness-based equivalence checks.",
+        "If the Python path is retained temporarily, explicit exit criteria are recorded for revisiting the decision before later Ada/SPARK emission and proof milestones."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
       "id": "PR07",
       "title": "Rule 5 and discriminant/result safety",
       "status": "planned",
-      "depends_on": ["PR06"],
+      "depends_on": ["PR06.5"],
       "acceptance": [
         "A canonical Rule 5 diagnostic golden exists and matches byte-for-byte."
       ],

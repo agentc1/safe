@@ -4,7 +4,7 @@
 - **Frozen spec SHA:** `468cf72332724b04b7c193b4d2a3b02f1584125d`
 - **Active task:** `none`
 - **Next task:** `PR06`
-- **Updated at:** `2026-03-06T21:52:02Z`
+- **Updated at:** `2026-03-07T02:26:55Z`
 
 ## Repo Facts
 
@@ -26,7 +26,8 @@
 | PR04 | done | PR03 | 5 |
 | PR05 | done | PR04 | 3 |
 | PR06 | ready | PR05 | 0 |
-| PR07 | planned | PR06 | 0 |
+| PR06.5 | planned | PR06 | 0 |
+| PR07 | planned | PR06.5 | 0 |
 | PR08 | planned | PR07 | 0 |
 | PR09 | planned | PR08 | 0 |
 | PR10 | planned | PR09 | 0 |
@@ -139,10 +140,21 @@
   - Ownership diagnostics are deterministic and diag_double_move.txt matches byte-for-byte.
   - Ownership positive/negative corpus behaves as expected.
 
-### PR07 — Rule 5 and discriminant/result safety
+### PR06.5 — Frontend runtime decision: supported Python component vs Ada/SPARK parity port
 
 - **Status:** `planned`
 - **Depends on:** PR06
+- **Blockers:** none
+- **Acceptance:**
+  - The current Python-backed frontend runtime contract is documented, including required python3 availability and supported verification environments.
+  - A recorded decision exists for the post-PR06 execution engine: either keep Python as a supported frontend component through later milestones or begin an Ada/SPARK parity port.
+  - If an Ada/SPARK port is selected, the staged parity order is locked: MIR model and validator first, then MIR analyzer, then D27 renderer, then parser/resolver, with harness-based equivalence checks.
+  - If the Python path is retained temporarily, explicit exit criteria are recorded for revisiting the decision before later Ada/SPARK emission and proof milestones.
+
+### PR07 — Rule 5 and discriminant/result safety
+
+- **Status:** `planned`
+- **Depends on:** PR06.5
 - **Blockers:** none
 - **Acceptance:**
   - A canonical Rule 5 diagnostic golden exists and matches byte-for-byte.

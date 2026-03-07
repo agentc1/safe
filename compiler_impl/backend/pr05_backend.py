@@ -203,6 +203,12 @@ class BackendError(Exception):
     pass
 
 
+class DiagnosticTextError(Exception):
+    def __init__(self, rendered: str) -> None:
+        super().__init__(rendered)
+        self.rendered = rendered
+
+
 def format_int(value: int) -> str:
     text = str(abs(value))
     chunks: list[str] = []
@@ -220,6 +226,10 @@ def simple_diag(path: str, span: Span, code: str, message: str, note: str = "") 
     if note:
         rendered += f"  note: {note}\n"
     return rendered
+
+
+def diagnostic_text(path: Path | str, span: Span, code: str, message: str, note: str = "") -> DiagnosticTextError:
+    return DiagnosticTextError(simple_diag(str(path), span, code, message, note))
 
 
 def load_tokens(path: Path, safec_binary: str) -> list[Token]:
@@ -302,28 +312,24 @@ class Parser:
     def expect(self, lexeme: str) -> Token:
         token = self.match(lexeme)
         if token is None:
-            raise BackendError(
-                simple_diag(
-                    str(self.path),
-                    self.current().span,
-                    "SC2001",
-                    f"expected `{lexeme}`",
-                    f"saw `{self.current().lexeme}`",
-                )
+            raise diagnostic_text(
+                self.path,
+                self.current().span,
+                "SC2001",
+                f"expected `{lexeme}`",
+                f"saw `{self.current().lexeme}`",
             )
         return token
 
     def expect_identifier(self) -> Token:
         token = self.current()
         if token.kind not in {"identifier", "keyword"}:
-            raise BackendError(
-                simple_diag(
-                    str(self.path),
-                    token.span,
-                    "SC2002",
-                    "expected identifier",
-                    f"saw `{token.lexeme}`",
-                )
+            raise diagnostic_text(
+                self.path,
+                token.span,
+                "SC2002",
+                "expected identifier",
+                f"saw `{token.lexeme}`",
             )
         self.advance()
         return token
@@ -457,13 +463,11 @@ class Parser:
                 span=access["span"].to_json(),
             )
         else:
-            raise BackendError(
-                simple_diag(
-                    str(self.path),
-                    self.current().span,
-                    "SC2003",
-                    "unsupported type definition in sequential subset",
-                )
+            raise diagnostic_text(
+                self.path,
+                self.current().span,
+                "SC2003",
+                "unsupported type definition in sequential subset",
             )
         node = make_node(
             "TypeDeclaration",
@@ -1102,6 +1106,14 @@ class Parser:
     def parse_simple_statement(self) -> dict[str, Any]:
         start_expr = self.parse_expression()
         if self.match("="):
+            if start_expr["tag"] not in {"ident", "select", "apply"}:
+                raise diagnostic_text(
+                    self.path,
+                    start_expr["span"],
+                    "SC2006",
+                    "assignment target must be a writable name",
+                    f"saw `{source_text_for_expr(start_expr)}`",
+                )
             value = self.parse_expression()
             semi = self.expect(";")
             raw = {
@@ -1118,22 +1130,30 @@ class Parser:
                 span=raw["span"],
             )
             return wrap_statement("AssignmentStatement", stmt, raw)
-        if start_expr["tag"] != "apply":
-            raise BackendError(
-                simple_diag(
-                    str(self.path),
-                    start_expr["span"],
-                    "SC2004",
-                    "expected assignment or procedure call",
-                )
+        if start_expr["tag"] not in {"ident", "select", "apply"}:
+            raise diagnostic_text(
+                self.path,
+                start_expr["span"],
+                "SC2004",
+                "expected assignment or procedure call",
             )
         semi = self.expect(";")
         raw = {"tag": "call_stmt", "call": start_expr, "span": span_between(start_expr["span"], semi.span)}
-        stmt = make_node(
-            "NullStatement",
-            span=raw["span"],
-        )
-        return wrap_statement("NullStatement", stmt, raw)
+        if start_expr["tag"] == "apply":
+            stmt = make_node(
+                "ProcedureCallStatement",
+                name=name_expr_to_schema(start_expr["callee"]),
+                parameters=actual_parameter_part_to_schema(start_expr["args"], start_expr["call_span"]),
+                span=raw["span"],
+            )
+        else:
+            stmt = make_node(
+                "ProcedureCallStatement",
+                name=name_expr_to_schema(start_expr),
+                parameters=None,
+                span=raw["span"],
+            )
+        return wrap_statement("ProcedureCallStatement", stmt, raw)
 
     def parse_expression(self) -> dict[str, Any]:
         return self.parse_and_then()
@@ -1210,14 +1230,12 @@ class Parser:
             return self.parse_name_expression()
         if token.lexeme == "(":
             return self.parse_parenthesized_like()
-        raise BackendError(
-            simple_diag(
-                str(self.path),
-                token.span,
-                "SC2005",
-                "unsupported primary expression",
-                f"saw `{token.lexeme}`",
-            )
+        raise diagnostic_text(
+            self.path,
+            token.span,
+            "SC2005",
+            "unsupported primary expression",
+            f"saw `{token.lexeme}`",
         )
 
     def parse_allocator(self) -> dict[str, Any]:
@@ -1320,11 +1338,23 @@ def span_between(left: Span, right: Span | dict[str, int]) -> Span | dict[str, i
     return Span(left.start_line, left.start_col, right.end_line, right.end_col)
 
 
+STATEMENT_KIND_BY_NODE = {
+    "NullStatement": "Null",
+    "AssignmentStatement": "Assignment",
+    "ProcedureCallStatement": "ProcedureCall",
+    "SimpleReturnStatement": "SimpleReturn",
+    "IfStatement": "If",
+    "LoopStatement": "Loop",
+    "BlockStatement": "Block",
+}
+
+
 def wrap_statement(kind: str, statement: dict[str, Any], raw: dict[str, Any]) -> dict[str, Any]:
+    statement_kind = STATEMENT_KIND_BY_NODE.get(kind, kind)
     stmt = make_node(
         "Statement",
         label=None,
-        kind=kind,
+        kind=statement_kind,
         statement=statement,
         span=raw["span"].to_json() if isinstance(raw["span"], Span) else raw["span"],
     )
@@ -1371,6 +1401,21 @@ def name_expr_to_schema(expr: dict[str, Any]) -> dict[str, Any]:
 
 def name_to_schema(name_expr: dict[str, Any]) -> dict[str, Any]:
     return name_expr_to_schema(name_expr)
+
+
+def actual_parameter_part_to_schema(args: list[dict[str, Any]], span: Span | dict[str, int]) -> dict[str, Any] | None:
+    if not args:
+        return None
+    associations = [
+        make_node(
+            "ParameterAssociation",
+            formal_name=None,
+            actual=expr_to_schema(arg),
+            span=arg["span"].to_json(),
+        )
+        for arg in args
+    ]
+    return make_node("ActualParameterPart", associations=associations, span=span)
 
 
 def object_decl_to_schema(decl: dict[str, Any]) -> dict[str, Any]:
@@ -1771,7 +1816,7 @@ class Resolver:
                     visible[name] = resolve_decl_type(decl, self.type_env)
                 if decl.get("initializer") is not None:
                     decl["initializer"] = normalize_expr(decl["initializer"], visible, self.functions)
-            info.body = [normalize_statement(stmt, visible, self.functions) for stmt in info.body]
+            info.body = [normalize_statement(stmt, visible, self.functions, self.path) for stmt in info.body]
 
     def register_type_decl(self, ast: dict[str, Any]) -> None:
         name = ast["name"]
@@ -3179,6 +3224,35 @@ def ensure_access_safe(expr: dict[str, Any], span: Span, state: State, var_types
         )
 
 
+def validate_assignment_target_expr(
+    expr: dict[str, Any],
+    state: State,
+    var_types: dict[str, TypeInfo],
+) -> None:
+    tag = expr["tag"]
+    if tag == "ident":
+        return
+    if tag == "select":
+        validate_assignment_target_expr(expr["prefix"], state, var_types)
+        prefix_type = expr_type(expr["prefix"], var_types)
+        if expr["selector"] == "all" or prefix_type.kind == "access":
+            ensure_access_safe(expr["prefix"], expr["prefix"]["span"], state, var_types)
+        return
+    if tag == "resolved_index":
+        validate_assignment_target_expr(expr["prefix"], state, var_types)
+        eval_index_expr(expr, state, var_types)
+        return
+    raise DiagnosticError(
+        Diagnostic(
+            "narrowing_check_failure",
+            "",
+            expr["span"],
+            highlight_span=expr["span"],
+            message="assignment target is not a writable name",
+        )
+    )
+
+
 def analyze_call_expr(expr: dict[str, Any], state: State, var_types: dict[str, TypeInfo], owner_vars: set[str], functions: dict[str, FunctionInfo]) -> Diagnostic | None:
     if expr["tag"] == "call":
         resolved = expr
@@ -3317,12 +3391,73 @@ def normalize_expr(expr: dict[str, Any], var_types: dict[str, TypeInfo], functio
     return expr
 
 
-def normalize_statement(statement: dict[str, Any], var_types: dict[str, TypeInfo], functions: dict[str, FunctionInfo]) -> dict[str, Any]:
+def is_assignable_target_expr(expr: dict[str, Any]) -> bool:
+    if expr["tag"] == "ident":
+        return True
+    if expr["tag"] == "resolved_index":
+        return True
+    if expr["tag"] == "select":
+        return expr["selector"] not in {"First", "Last", "Length"}
+    return False
+
+
+def normalize_procedure_call_expr(
+    expr: dict[str, Any],
+    functions: dict[str, FunctionInfo],
+    path: Path,
+) -> dict[str, Any]:
+    if expr["tag"] == "call":
+        callee_name = flatten_name(expr["callee"])
+        info = functions.get(callee_name)
+        if info is not None and info.kind == "procedure":
+            return expr
+        raise diagnostic_text(
+            path,
+            expr["span"],
+            "SC2004",
+            "expected assignment or procedure call",
+            f"saw `{source_text_for_expr(expr)}`",
+        )
+    if expr["tag"] in {"ident", "select"}:
+        callee_name = flatten_name(expr)
+        info = functions.get(callee_name)
+        if info is not None and info.kind == "procedure":
+            return {
+                "tag": "call",
+                "callee": expr,
+                "args": [],
+                "span": expr["span"],
+                "call_span": expr["span"],
+            }
+    raise diagnostic_text(
+        path,
+        expr["span"],
+        "SC2004",
+        "expected assignment or procedure call",
+        f"saw `{source_text_for_expr(expr)}`",
+    )
+
+
+def normalize_statement(
+    statement: dict[str, Any],
+    var_types: dict[str, TypeInfo],
+    functions: dict[str, FunctionInfo],
+    path: Path,
+) -> dict[str, Any]:
     tag = statement["tag"]
     if tag == "assign":
+        target = normalize_expr(statement["target"], var_types, functions)
+        if not is_assignable_target_expr(target):
+            raise diagnostic_text(
+                path,
+                target["span"],
+                "SC2006",
+                "assignment target must be a writable name",
+                f"saw `{source_text_for_expr(target)}`",
+            )
         return {
             "tag": "assign",
-            "target": normalize_expr(statement["target"], var_types, functions),
+            "target": target,
             "value": normalize_expr(statement["value"], var_types, functions),
             "span": statement["span"],
         }
@@ -3336,22 +3471,22 @@ def normalize_statement(statement: dict[str, Any], var_types: dict[str, TypeInfo
         return {
             "tag": "if",
             "condition": normalize_expr(statement["condition"], var_types, functions),
-            "then": [normalize_statement(item, var_types, functions) for item in statement["then"]],
+            "then": [normalize_statement(item, var_types, functions, path) for item in statement["then"]],
             "elsif": [
                 {
                     "condition": normalize_expr(item["condition"], var_types, functions),
-                    "body": [normalize_statement(body_item, var_types, functions) for body_item in item["body"]],
+                    "body": [normalize_statement(body_item, var_types, functions, path) for body_item in item["body"]],
                 }
                 for item in statement["elsif"]
             ],
-            "else": [normalize_statement(item, var_types, functions) for item in statement["else"]] if statement["else"] is not None else None,
+            "else": [normalize_statement(item, var_types, functions, path) for item in statement["else"]] if statement["else"] is not None else None,
             "span": statement["span"],
         }
     if tag == "while":
         return {
             "tag": "while",
             "condition": normalize_expr(statement["condition"], var_types, functions),
-            "body": [normalize_statement(item, var_types, functions) for item in statement["body"]],
+            "body": [normalize_statement(item, var_types, functions, path) for item in statement["body"]],
             "span": statement["span"],
         }
     if tag == "for":
@@ -3362,7 +3497,7 @@ def normalize_statement(statement: dict[str, Any], var_types: dict[str, TypeInfo
         else:
             normalized_range["name"] = normalize_expr(normalized_range["name"], var_types, functions)
         body_types = dict(var_types)
-        body = [normalize_statement(item, body_types, functions) for item in statement["body"]]
+        body = [normalize_statement(item, body_types, functions, path) for item in statement["body"]]
         return {
             "tag": "for",
             "loop_var": statement["loop_var"],
@@ -3383,11 +3518,16 @@ def normalize_statement(statement: dict[str, Any], var_types: dict[str, TypeInfo
         return {
             "tag": "block",
             "declarations": normalized_decls,
-            "body": [normalize_statement(item, local_types, functions) for item in statement["body"]],
+            "body": [normalize_statement(item, local_types, functions, path) for item in statement["body"]],
             "span": statement["span"],
         }
     if tag == "call_stmt":
-        return {"tag": "call_stmt", "call": normalize_expr(statement["call"], var_types, functions), "span": statement["span"]}
+        normalized_call = normalize_expr(statement["call"], var_types, functions)
+        return {
+            "tag": "call_stmt",
+            "call": normalize_procedure_call_expr(normalized_call, functions, path),
+            "span": statement["span"],
+        }
     return statement
 
 
@@ -4032,14 +4172,38 @@ def transfer_mir_op(
             state.relations = {pair for pair in state.relations if name not in pair}
         return
     if kind == "assign":
+        try:
+            validate_assignment_target_expr(op["target"], state, var_types)
+        except DiagnosticError as error:
+            diagnostics.append(diag_with_path(error.diagnostic, path))
+            return
         target_name = base_name(op["target"])
+        target_type = (
+            var_types[target_name]
+            if target_name is not None and target_name in var_types
+            else expr_type(op["target"], var_types)
+        )
         if target_name is None or target_name not in var_types:
+            if target_type.kind == "access":
+                fact, diag = eval_access_expr(op["value"], state, var_types, owner_vars)
+                if diag:
+                    diagnostics.append(diag_with_path(diag, path))
+            else:
+                _, diag = eval_int_expr_with_diag(
+                    op["value"],
+                    state,
+                    var_types,
+                    target_type,
+                    suppress_index_conversion=False,
+                )
+                if diag:
+                    diagnostics.append(diag_with_path(diag, path))
             return
         diag = apply_assignment(
             state,
             target_name,
             op["value"],
-            var_types[target_name],
+            target_type,
             var_types,
             owner_vars,
             var_types,
@@ -4295,6 +4459,9 @@ def main(argv: list[str]) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main(sys.argv[1:]))
+    except DiagnosticTextError as exc:
+        sys.stderr.write(exc.rendered)
+        raise SystemExit(EXIT_DIAGNOSTICS)
     except BackendError as exc:
         sys.stderr.write(str(exc))
         raise SystemExit(EXIT_INTERNAL)

@@ -13,8 +13,6 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SCHEMA = REPO_ROOT / "compiler" / "ast_schema.json"
-STRICT_NODE_FIELDS = {
-}
 PACKAGE_ITEM_TARGETS = {
     "BasicDeclaration": {
         "TypeDeclaration",
@@ -108,15 +106,32 @@ def node_contracts(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def split_targets(type_spec: str) -> list[str]:
-    match = re.search(r"<(.+)>", type_spec)
-    if not match:
-        return []
-    return [part.strip() for part in match.group(1).split("|")]
+    return [part.strip() for part in type_spec.split("|")]
+
+
+def unwrap_wrapper(type_spec: str, prefix: str) -> str | None:
+    if type_spec.startswith(prefix) and type_spec.endswith(">"):
+        return type_spec[len(prefix) : -1].strip()
+    return None
+
+
+def normalized_type_spec(type_spec: str) -> str:
+    current = type_spec.strip()
+    while True:
+        inner = unwrap_wrapper(current, "Option<")
+        if inner is None:
+            return current
+        current = inner
 
 
 def expand_targets(type_spec: str, contracts: dict[str, dict[str, Any]]) -> set[str]:
+    normalized = normalized_type_spec(type_spec)
+    for prefix in ("NodeRef<", "List<", "NonEmptyList<"):
+        inner = unwrap_wrapper(normalized, prefix)
+        if inner is not None:
+            return expand_targets(inner, contracts)
     expanded: set[str] = set()
-    for target in split_targets(type_spec):
+    for target in split_targets(normalized):
         if target in contracts:
             expanded.add(target)
         expanded.update(ABSTRACT_TARGETS.get(target, set()))
@@ -158,16 +173,19 @@ def validate_node(
             fail(f"{path}.{name} is required for node_type {node_type}")
         value = node[name]
         type_spec = field.get("type", "")
+        normalized = normalized_type_spec(type_spec)
+        if optional and value is None:
+            continue
         if name == "span":
             validate_span(value, f"{path}.{name}")
             continue
-        if type_spec.startswith("NonEmptyList<"):
+        if normalized.startswith("NonEmptyList<"):
             if not isinstance(value, list) or not value:
                 fail(f"{path}.{name} must be a non-empty list")
-        elif type_spec.startswith("List<"):
+        elif normalized.startswith("List<"):
             if not isinstance(value, list):
                 fail(f"{path}.{name} must be a list")
-        elif type_spec.startswith("NodeRef<"):
+        elif normalized.startswith("NodeRef<"):
             if value is None:
                 fail(f"{path}.{name} must not be null")
 

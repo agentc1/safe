@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +24,12 @@ def require(condition: bool, message: str) -> None:
 
 
 def read_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValidationError(f"{path}: invalid JSON: {exc.msg}") from exc
+    require(isinstance(payload, dict), f"{path}: top-level payload must be an object")
+    return payload
 
 
 def validate_span(value: Any, where: str) -> None:
@@ -62,6 +68,7 @@ def validate_operand(value: dict[str, Any], where: str) -> None:
 
 
 def validate_block(block: dict[str, Any], valid_ids: set[str], where: str) -> None:
+    require(isinstance(block, dict), f"{where}: block must be an object")
     require(isinstance(block.get("id"), str), f"{where}: missing block id")
     validate_span(block.get("span"), f"{where}.span")
     require(isinstance(block.get("ops"), list), f"{where}: ops must be a list")
@@ -93,6 +100,7 @@ def validate_block(block: dict[str, Any], valid_ids: set[str], where: str) -> No
 
 def validate_graph(graph: dict[str, Any], graph_index: int) -> None:
     where = f"graphs[{graph_index}]"
+    require(isinstance(graph, dict), f"{where}: graph must be an object")
     require(isinstance(graph.get("name"), str), f"{where}: missing graph name")
     require(isinstance(graph.get("locals"), list), f"{where}: locals must be a list")
     require(isinstance(graph.get("blocks"), list) and graph["blocks"], f"{where}: blocks must be a non-empty list")
@@ -103,6 +111,7 @@ def validate_graph(graph: dict[str, Any], graph_index: int) -> None:
     require(graph.get("entry_bb") in valid_ids, f"{where}: entry block id missing or invalid")
     for index, local in enumerate(graph["locals"]):
         local_where = f"{where}.locals[{index}]"
+        require(isinstance(local, dict), f"{local_where}: local must be an object")
         require(isinstance(local.get("id"), str), f"{local_where}: missing local id")
         require(isinstance(local.get("name"), str), f"{local_where}: missing local name")
         validate_span(local.get("span"), f"{local_where}.span")
@@ -130,5 +139,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except ValidationError as exc:
-        print(f"validate_mir_output: ERROR: {exc}")
+        print(f"validate_mir_output: ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1)
