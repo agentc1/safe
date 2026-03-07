@@ -13,16 +13,10 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SCHEMA = REPO_ROOT / "compiler" / "ast_schema.json"
-STRICT_NODE_FIELDS = {
-    "CompilationUnit": {"context_clause", "package_unit"},
-    "ContextClause": {"with_clauses"},
-    "WithClause": {"package_names"},
-    "PackageUnit": {"items"},
-    "PackageItem": {"item"},
-}
 PACKAGE_ITEM_TARGETS = {
     "BasicDeclaration": {
         "TypeDeclaration",
+        "IncompleteTypeDeclaration",
         "SubtypeDeclaration",
         "ObjectDeclaration",
         "NumberDeclaration",
@@ -38,6 +32,54 @@ PACKAGE_ITEM_TARGETS = {
     "UseTypeClause": {"UseTypeClause"},
     "RepresentationItem": {"RepresentationItem"},
     "Pragma": {"Pragma"},
+}
+ABSTRACT_TARGETS = {
+    "BasicDeclaration": {
+        "TypeDeclaration",
+        "IncompleteTypeDeclaration",
+        "SubtypeDeclaration",
+        "ObjectDeclaration",
+        "NumberDeclaration",
+        "SubprogramDeclaration",
+        "SubprogramBody",
+    },
+    "TypeDefinition": {
+        "SignedIntegerTypeDefinition",
+        "UnconstrainedArrayDefinition",
+        "ConstrainedArrayDefinition",
+        "RecordTypeDefinition",
+        "AccessToObjectDefinition",
+    },
+    "Name": {
+        "DirectName",
+        "SelectedComponent",
+        "IndexedComponent",
+        "FunctionCall",
+        "TypeConversion",
+    },
+    "Literal": {
+        "NumericLiteral",
+        "EnumerationLiteral",
+        "StringLiteral",
+        "CharacterLiteral",
+    },
+    "Aggregate": {
+        "RecordAggregate",
+    },
+    "SubprogramSpecification": {
+        "ProcedureSpecification",
+        "FunctionSpecification",
+    },
+    "SimpleStatement": {
+        "NullStatement",
+        "AssignmentStatement",
+        "SimpleReturnStatement",
+    },
+    "CompoundStatement": {
+        "IfStatement",
+        "LoopStatement",
+        "BlockStatement",
+    },
 }
 
 
@@ -64,10 +106,36 @@ def node_contracts(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def split_targets(type_spec: str) -> list[str]:
-    match = re.search(r"<(.+)>", type_spec)
-    if not match:
-        return []
-    return [part.strip() for part in match.group(1).split("|")]
+    return [part.strip() for part in type_spec.split("|")]
+
+
+def unwrap_wrapper(type_spec: str, prefix: str) -> str | None:
+    if type_spec.startswith(prefix) and type_spec.endswith(">"):
+        return type_spec[len(prefix) : -1].strip()
+    return None
+
+
+def normalized_type_spec(type_spec: str) -> str:
+    current = type_spec.strip()
+    while True:
+        inner = unwrap_wrapper(current, "Option<")
+        if inner is None:
+            return current
+        current = inner
+
+
+def expand_targets(type_spec: str, contracts: dict[str, dict[str, Any]]) -> set[str]:
+    normalized = normalized_type_spec(type_spec)
+    for prefix in ("NodeRef<", "List<", "NonEmptyList<"):
+        inner = unwrap_wrapper(normalized, prefix)
+        if inner is not None:
+            return expand_targets(inner, contracts)
+    expanded: set[str] = set()
+    for target in split_targets(normalized):
+        if target in contracts:
+            expanded.add(target)
+        expanded.update(ABSTRACT_TARGETS.get(target, set()))
+    return expanded
 
 
 def validate_span(value: Any, path: str) -> None:
@@ -105,20 +173,23 @@ def validate_node(
             fail(f"{path}.{name} is required for node_type {node_type}")
         value = node[name]
         type_spec = field.get("type", "")
+        normalized = normalized_type_spec(type_spec)
+        if optional and value is None:
+            continue
         if name == "span":
             validate_span(value, f"{path}.{name}")
             continue
-        if type_spec.startswith("NonEmptyList<"):
+        if normalized.startswith("NonEmptyList<"):
             if not isinstance(value, list) or not value:
                 fail(f"{path}.{name} must be a non-empty list")
-        elif type_spec.startswith("List<"):
+        elif normalized.startswith("List<"):
             if not isinstance(value, list):
                 fail(f"{path}.{name} must be a list")
-        elif type_spec.startswith("NodeRef<"):
+        elif normalized.startswith("NodeRef<"):
             if value is None:
                 fail(f"{path}.{name} must not be null")
 
-        target_types = [target for target in split_targets(type_spec) if target in contracts]
+        target_types = expand_targets(type_spec, contracts)
         if node_type == "PackageItem" and name == "item":
             kind = node.get("kind")
             allowed_targets = PACKAGE_ITEM_TARGETS.get(kind)
@@ -133,7 +204,7 @@ def validate_node(
                     f"does not match package-item kind {kind!r}"
                 )
             continue
-        if name not in STRICT_NODE_FIELDS.get(node_type, set()) or not target_types:
+        if not target_types:
             continue
 
         if isinstance(value, dict):
@@ -141,7 +212,7 @@ def validate_node(
             if value["node_type"] not in target_types:
                 fail(
                     f"{path}.{name}.node_type {value['node_type']!r} "
-                    f"does not match expected {target_types}"
+                    f"does not match expected {sorted(target_types)}"
                 )
         elif isinstance(value, list):
             for index, element in enumerate(value):
@@ -151,7 +222,7 @@ def validate_node(
                 if element["node_type"] not in target_types:
                     fail(
                         f"{path}.{name}[{index}].node_type {element['node_type']!r} "
-                        f"does not match expected {target_types}"
+                        f"does not match expected {sorted(target_types)}"
                     )
 
     if node_type == "PackageItem":

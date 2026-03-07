@@ -3,8 +3,8 @@
 - **Schema version:** `1`
 - **Frozen spec SHA:** `468cf72332724b04b7c193b4d2a3b02f1584125d`
 - **Active task:** `none`
-- **Next task:** `PR05`
-- **Updated at:** `2026-03-06T13:50:00Z`
+- **Next task:** `PR06`
+- **Updated at:** `2026-03-07T02:26:55Z`
 
 ## Repo Facts
 
@@ -24,9 +24,10 @@
 | PR02 | done | PR01 | 3 |
 | PR03 | done | PR02 | 4 |
 | PR04 | done | PR03 | 5 |
-| PR05 | ready | PR04 | 0 |
-| PR06 | planned | PR05 | 0 |
-| PR07 | planned | PR06 | 0 |
+| PR05 | done | PR04 | 3 |
+| PR06 | ready | PR05 | 0 |
+| PR06.5 | planned | PR06 | 0 |
+| PR07 | planned | PR06.5 | 0 |
 | PR08 | planned | PR07 | 0 |
 | PR09 | planned | PR08 | 0 |
 | PR10 | planned | PR09 | 0 |
@@ -108,26 +109,52 @@
   - `compiler_impl/src/safe_frontend-mir.adb`
   - `execution/reports/pr00-pr04-frontend-smoke.json`
 
-### PR05 — D27 Rules 1-4 diagnostics on MIR
+### PR05 — Real sequential AST/MIR and D27 Rules 1-4 with moved/freed overlap
 
-- **Status:** `ready`
+- **Status:** `done`
 - **Depends on:** PR04
 - **Blockers:** none
 - **Acceptance:**
-  - Rules 1-4 diagnostics match existing diagnostics goldens byte-for-byte.
+  - safec ast emits schema-true executable bodies and expressions for the sequential Rule 1–4 subset (no stub bodies).
+  - scripts/validate_ast_output.py enforces recursive NodeRef validation for implemented sequential nodes.
+  - safec emit produces deterministic typed-v1 and mir-v1 outputs on representative sequential Rule 1–4 inputs.
+  - All D27 Rule 1–4 analysis runs on mir-v1 only; the statement-walk semantic path is no longer used for Rule 1–4 checking.
+  - scripts/validate_mir_output.py validates representative mir-v1 outputs and the PR05 harness fails on MIR contract violations.
+  - Byte-for-byte stderr match for tests/diagnostics_golden: diag_overflow.txt, diag_index_oob.txt, diag_zero_div.txt, diag_null_deref.txt.
+  - All Rule 1–4 semantic failures use the D27 renderer for human stderr, while `safec check --diag-json` provides machine-readable diagnostics for harness and CI.
+  - Whole current Rule 1–4 corpus gating: all tests/positive/rule1*..rule4* accept; all tests/negative/neg_rule1*..neg_rule4* reject with expected primary reason mapping.
+  - Minimal ownership overlap implemented for Rule 4: neg_rule4_moved.safe and neg_rule4_freed.safe behave as expected, while other ownership legality remains PR06 scope.
+  - A committed PR05 harness evidence report exists under execution/reports/ and is referenced in tracker.json.
+- **Evidence:**
+  - `execution/reports/pr05-d27-report.json`
+  - `execution/sessions/20260306-1948-pr05.md`
+  - `execution/sessions/20260306-2358-pr05-completion.md`
 
-### PR06 — Ownership, lifetime, and deallocation planning on MIR
+### PR06 — Ownership legality and full diagnostics corpus on MIR
 
-- **Status:** `planned`
+- **Status:** `ready`
 - **Depends on:** PR05
 - **Blockers:** none
 - **Acceptance:**
-  - Ownership diagnostics are deterministic and double-move golden matches byte-for-byte.
+  - Full ownership legality (including borrow conflicts, observe restrictions, and lifetime rules beyond moved/freed) is implemented on MIR.
+  - Ownership diagnostics are deterministic and diag_double_move.txt matches byte-for-byte.
+  - Ownership positive/negative corpus behaves as expected.
+
+### PR06.5 — Frontend runtime decision: supported Python component vs Ada/SPARK parity port
+
+- **Status:** `planned`
+- **Depends on:** PR06
+- **Blockers:** none
+- **Acceptance:**
+  - The current Python-backed frontend runtime contract is documented, including required python3 availability and supported verification environments.
+  - A recorded decision exists for the post-PR06 execution engine: either keep Python as a supported frontend component through later milestones or begin an Ada/SPARK parity port.
+  - If an Ada/SPARK port is selected, the staged parity order is locked: MIR model and validator first, then MIR analyzer, then D27 renderer, then parser/resolver, with harness-based equivalence checks.
+  - If the Python path is retained temporarily, explicit exit criteria are recorded for revisiting the decision before later Ada/SPARK emission and proof milestones.
 
 ### PR07 — Rule 5 and discriminant/result safety
 
 - **Status:** `planned`
-- **Depends on:** PR06
+- **Depends on:** PR06.5
 - **Blockers:** none
 - **Acceptance:**
   - A canonical Rule 5 diagnostic golden exists and matches byte-for-byte.
