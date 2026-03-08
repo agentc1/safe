@@ -1,14 +1,30 @@
 {
   "format": "mir-v2",
+  "source_path": "tests/fixtures/invalid_scope_id.safe",
+  "package_name": "Fixture",
+  "types": [
+    {
+      "access_role": "Owner",
+      "anonymous": false,
+      "is_all": false,
+      "is_constant": false,
+      "kind": "access",
+      "name": "Node_Access",
+      "not_null": false,
+      "target": "Node"
+    }
+  ],
   "graphs": [
     {
       "name": "Fixture.Main",
       "kind": "procedure",
+      "return_type": null,
       "entry_bb": "bb0",
       "locals": [
         {
           "id": "v0",
           "kind": "local",
+          "mode": "in",
           "name": "X",
           "scope_id": "scope_missing",
           "span": {
@@ -18,8 +34,14 @@
             "end_col": 1
           },
           "type": {
+            "access_role": "Owner",
+            "anonymous": false,
+            "is_all": false,
+            "is_constant": false,
             "kind": "access",
-            "name": "Node_Access"
+            "name": "Node_Access",
+            "not_null": false,
+            "target": "Node"
           }
         }
       ],
@@ -60,6 +82,5 @@
         }
       ]
     }
-  ],
-  "package_name": "Fixture"
+  ]
 }
