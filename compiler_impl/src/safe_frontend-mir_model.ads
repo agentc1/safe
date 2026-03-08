@@ -157,7 +157,9 @@ package Safe_Frontend.Mir_Model is
       Locals           : FT.UString_Vectors.Vector;
       Target           : Expr_Access := null;
       Value            : Expr_Access := null;
-      Declaration_Init : Boolean := False;
+      Has_Declaration_Init   : Boolean := False;
+      Declaration_Init_Valid : Boolean := False;
+      Declaration_Init       : Boolean := False;
    end record;
 
    package Op_Vectors is new Ada.Containers.Indefinite_Vectors

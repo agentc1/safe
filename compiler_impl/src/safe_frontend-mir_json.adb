@@ -555,7 +555,11 @@ package body Safe_Frontend.Mir_Json is
       if Has_Field (Value, "declaration_init")
         and then Get (Value, "declaration_init").Kind = JSON_Boolean_Type
       then
+         Result.Has_Declaration_Init := True;
+         Result.Declaration_Init_Valid := True;
          Result.Declaration_Init := Get (Get (Value, "declaration_init"));
+      elsif Has_Field (Value, "declaration_init") then
+         Result.Has_Declaration_Init := True;
       end if;
 
       for Index in 1 .. Length (Locals) loop

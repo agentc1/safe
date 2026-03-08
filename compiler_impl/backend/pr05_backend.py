@@ -195,14 +195,6 @@ class FunctionInfo:
     ast_node: dict[str, Any]
 
 
-def builtins_type_env() -> dict[str, "TypeInfo"]:
-    return {
-        "Integer": TypeInfo("Integer", "integer", INT64_LOW, INT64_HIGH),
-        "Natural": TypeInfo("Natural", "integer", 0, INT64_HIGH),
-        "Boolean": TypeInfo("Boolean", "integer", 0, 1),
-    }
-
-
 @dataclass
 class State:
     ranges: dict[str, Interval]
@@ -5275,7 +5267,19 @@ def run_delegated_analysis(mir: dict[str, Any], safec_binary: str) -> list[Diagn
             if completed.stderr:
                 sys.stderr.write(completed.stderr)
             raise SystemExit(completed.returncode)
-        payload = json.loads(completed.stdout)
+        stdout = completed.stdout.strip()
+        stderr = completed.stderr.strip()
+        if completed.returncode == EXIT_DIAGNOSTICS and not stdout:
+            message = stderr or f"safec analyze-mir failed for {mir_path}"
+            raise BackendError(message + ("\n" if not message.endswith("\n") else ""))
+        try:
+            payload = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            detail = stderr or stdout or str(exc)
+            raise BackendError(
+                "backend: ERROR: invalid diagnostics output from safec analyze-mir: "
+                f"{detail}\n"
+            ) from exc
         if payload.get("format") != "diagnostics-v0":
             raise BackendError(f"unexpected diagnostics format: {payload!r}")
         return [diagnostic_from_json(item) for item in payload.get("diagnostics", [])]
@@ -5331,14 +5335,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["ast", "check", "emit"])
     parser.add_argument("source")
-    parser.add_argument("--safec-binary")
+    parser.add_argument("--safec-binary", required=True)
     parser.add_argument("--diag-json", action="store_true")
     parser.add_argument("--out-dir")
     parser.add_argument("--interface-dir")
-    args = parser.parse_args(argv)
-    if not args.safec_binary:
-        parser.error("--safec-binary is required")
-    return args
+    return parser.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:

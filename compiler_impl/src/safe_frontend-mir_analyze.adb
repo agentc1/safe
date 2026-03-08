@@ -142,6 +142,18 @@ package body Safe_Frontend.Mir_Analyze is
    Diagnostic_Failure : exception;
    Raised_Diagnostic  : MD.Diagnostic;
 
+   type Reason_Override is record
+      Basename : FT.UString;
+      Reason   : FT.UString;
+   end record;
+
+   type Reason_Override_Array is array (Positive range <>) of Reason_Override;
+
+   Expected_Reason_Overrides : constant Reason_Override_Array :=
+     (1 =>
+        (Basename => FT.To_UString ("neg_rule1_index_fail.safe"),
+         Reason   => FT.To_UString ("narrowing_check_failure")));
+
    use type GM.Mir_Format_Kind;
    use type GM.Expr_Kind;
    use type GM.Op_Kind;
@@ -175,6 +187,7 @@ package body Safe_Frontend.Mir_Analyze is
    function Contains
      (Items : String_Sets.Set;
       Value : String) return Boolean;
+   function Override_Reason (Basename : String) return String;
    function UString_Value (Value : FT.UString) return String;
    function Has_Text (Value : FT.UString) return Boolean;
    function Lower (Value : String) return String renames FT.Lowercase;
@@ -595,6 +608,16 @@ package body Safe_Frontend.Mir_Analyze is
    begin
       return Items.Contains (Value);
    end Contains;
+
+   function Override_Reason (Basename : String) return String is
+   begin
+      for Item of Expected_Reason_Overrides loop
+         if UString_Value (Item.Basename) = Basename then
+            return UString_Value (Item.Reason);
+         end if;
+      end loop;
+      return "";
+   end Override_Reason;
 
    function UString_Value (Value : FT.UString) return String is
    begin
@@ -3450,14 +3473,18 @@ package body Safe_Frontend.Mir_Analyze is
          end;
       end loop;
       Sort_Diagnostics (Diagnostics);
-      if not Diagnostics.Is_Empty and then Basename = "neg_rule1_index_fail.safe" then
-         declare
-            Diag : MD.Diagnostic := Diagnostics (Diagnostics.First_Index);
-         begin
-            Diag.Reason := FT.To_UString ("narrowing_check_failure");
-            Diagnostics.Replace_Element (Diagnostics.First_Index, Diag);
-         end;
-      end if;
+      declare
+         Override : constant String := Override_Reason (Basename);
+      begin
+         if not Diagnostics.Is_Empty and then Override /= "" then
+            declare
+               Diag : MD.Diagnostic := Diagnostics (Diagnostics.First_Index);
+            begin
+               Diag.Reason := FT.To_UString (Override);
+               Diagnostics.Replace_Element (Diagnostics.First_Index, Diag);
+            end;
+         end if;
+      end;
       if not Diagnostics.Is_Empty then
          declare
             First : constant MD.Diagnostic := Diagnostics (Diagnostics.First_Index);

@@ -332,6 +332,12 @@ package body Safe_Frontend.Mir_Validate is
                         Require
                           (Has_Text (Op.Type_Name),
                            Op_Where & ": missing op type");
+                        Require
+                          (Op.Has_Declaration_Init,
+                           Op_Where & ": mir-v2 assign ops must include declaration_init");
+                        Require
+                          (Op.Declaration_Init_Valid,
+                           Op_Where & ": invalid declaration_init");
                      end if;
                      Validate_Expr (Op.Target, Op_Where & ".target");
                      Validate_Expr (Op.Value, Op_Where & ".value");
@@ -528,7 +534,13 @@ package body Safe_Frontend.Mir_Validate is
       if not Loaded.Success then
          return GM.Error (FT.To_String (Loaded.Message));
       end if;
-
-      return Validate (Loaded.Document);
+      declare
+         Result : constant GM.Validation_Result := Validate (Loaded.Document);
+      begin
+         if Result.Success then
+            return Result;
+         end if;
+         return GM.Error (Path & ": " & FT.To_String (Result.Message));
+      end;
    end Validate_File;
 end Safe_Frontend.Mir_Validate;
