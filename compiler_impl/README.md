@@ -1,6 +1,6 @@
 # SafeC Frontend
 
-This workspace hosts the current Safe compiler frontend through PR06.8.
+This workspace hosts the current Safe compiler frontend through PR06.9.1.
 
 ## Scope
 
@@ -133,3 +133,12 @@ python3 scripts/run_pr068_ada_ast_emit_no_python.py
 That gate masks `python` and `python3` on `PATH` for direct `safec ast` and `safec emit` invocations, validates the emitted AST through the existing validator script, checks deterministic repeated `emit` output on representative samples, verifies emitted MIR stays valid and analyzable, confirms `emit` writes no artifacts when diagnostics exist, adds direct package-global lowering regressions plus CFG termination checks, and records results in `execution/reports/pr068-ada-ast-emit-no-python-report.json`.
 
 PR06.8 no-Python guarantee: Python may still run the gate script and validation helpers around the compiler, but no `safec` command may spawn Python at runtime. CI enforces this through `PATH` masking for direct compiler invocations rather than by removing Python from the runner entirely.
+
+The PR06.9.1 semantic correctness hardening gate is:
+
+```bash
+cd compiler_impl && $HOME/bin/alr build
+python3 scripts/run_pr0691_semantic_correctness.py
+```
+
+That gate revalidates range, ownership, return, and call semantics across targeted PR05 / PR06 seam cases, proves representative positive sources stay clean under both `safec check --diag-json` and emitted `safec analyze-mir --diag-json`, preserves primary reasons for representative negative sources, cross-checks committed analyzer fixtures against paired source failures, adds inline package-global semantic regressions, and records results in `execution/reports/pr0691-semantic-correctness-report.json`.

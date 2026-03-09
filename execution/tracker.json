@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-09T01:55:00Z",
+  "updated_at": "2026-03-09T03:20:00Z",
   "frozen_spec_sha": "468cf72332724b04b7c193b4d2a3b02f1584125d",
   "active_task_id": null,
-  "next_task_id": "PR07",
+  "next_task_id": "PR06.9.2",
   "repo_facts": {
     "tests": {
       "positive": 35,
@@ -233,10 +233,194 @@
       "unblock_condition": ""
     },
     {
+      "id": "PR06.9.1",
+      "title": "Semantic correctness hardening",
+      "status": "done",
+      "depends_on": ["PR06.8"],
+      "acceptance": [
+        "Range, ownership, return, and call semantics are revalidated across the current PR05/PR06 subset with targeted new regressions.",
+        "No current positive or negative corpus behavior regresses under safec check, safec emit, or safec analyze-mir.",
+        "The hardening evidence makes semantic parity the primary success criterion before PR07 begins."
+      ],
+      "evidence": [
+        "execution/reports/pr0691-semantic-correctness-report.json"
+      ],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.2",
+      "title": "Lowering and CFG integrity hardening",
+      "status": "planned",
+      "depends_on": ["PR06.9.1"],
+      "acceptance": [
+        "Lowering preserves declared types, declaration-init semantics, scope structure, and package-global visibility into MIR.",
+        "Reachable blocks are always terminated, and any unreachable structural patching is explicit and regression-covered.",
+        "Direct emit, check, and analyze-mir gates enforce CFG and lowering invariants beyond schema validity."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.3",
+      "title": "Runtime-boundary enforcement hardening",
+      "status": "planned",
+      "depends_on": ["PR06.9.2"],
+      "acceptance": [
+        "No user-facing safec path can spawn Python or reintroduce removed backend glue.",
+        "Static and dynamic guardrails catch runtime-boundary regressions early in local verification and CI.",
+        "Docs and gates clearly distinguish Ada-native runtime surfaces from Python glue."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.4",
+      "title": "Output contract stability hardening",
+      "status": "planned",
+      "depends_on": ["PR06.9.3"],
+      "acceptance": [
+        "ast, typed-v2, mir-v2, and safei-v0 remain deterministic and contract-valid on representative samples.",
+        "Contract drift is caught by dedicated validation and repeated-run comparisons.",
+        "Artifact ordering, path handling, and format-tag behavior stay stable for current consumers."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.5",
+      "title": "Diagnostic stability hardening",
+      "status": "planned",
+      "depends_on": ["PR06.9.4"],
+      "acceptance": [
+        "Human stderr and diagnostics-v0 remain stable for current goldens and reason mappings.",
+        "First-diagnostic selection, exit codes, spans, highlight spans, and source_path behavior are regression-covered.",
+        "Direct check and analyze-mir paths do not diverge in reason selection or payload shape."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.6",
+      "title": "Unsupported-feature boundary hardening",
+      "status": "planned",
+      "depends_on": ["PR06.9.5"],
+      "acceptance": [
+        "Out-of-subset constructs reject deterministically as unsupported_source_construct or source_frontend_error according to documented rules.",
+        "No unsupported construct falls through to partial lowering or an internal failure on representative fixtures.",
+        "Unsupported-feature coverage is widened across parser, resolver, and emitter entrypoints."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.7",
+      "title": "Regression coverage and gate quality",
+      "status": "planned",
+      "depends_on": ["PR06.9.6"],
+      "acceptance": [
+        "Existing gates remain the parity proof where appropriate, and direct command gates gain targeted negative and invariant cases.",
+        "Hardening checks cover lex, parse, resolve, lower, analyze, and export boundaries rather than only end-to-end happy paths.",
+        "Execution reports remain deterministic and high-signal."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.8",
+      "title": "Dormant legacy package cleanup",
+      "status": "planned",
+      "depends_on": ["PR06.9.7"],
+      "acceptance": [
+        "A reachability audit proves which legacy frontend packages are still on any live safec runtime path.",
+        "Truly dead legacy packages are removed, and any temporarily retained inactive package is explicitly marked non-runtime.",
+        "The live safec runtime path no longer references dormant parser, semantics, or MIR packages unnecessarily."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.9",
+      "title": "Build and reproducibility hardening",
+      "status": "planned",
+      "depends_on": ["PR06.9.8"],
+      "acceptance": [
+        "alr build, project wiring, and report generation remain deterministic across repeated local and CI runs.",
+        "No milestone evidence depends on transient timing, unordered JSON, or host-specific file layout.",
+        "Repeated command runs produce byte-stable outputs where the contract requires determinism."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.10",
+      "title": "Portability and environment assumptions",
+      "status": "planned",
+      "depends_on": ["PR06.9.9"],
+      "acceptance": [
+        "PATH lookup, temp-dir use, SDK or tool discovery, and shell assumptions are explicit and documented.",
+        "The supported-platform policy for compiler and glue gates is written down and tested where practical.",
+        "No-Python runtime enforcement covers the documented interpreter names and invocation patterns."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.11",
+      "title": "Glue-script safety",
+      "status": "planned",
+      "depends_on": ["PR06.9.10"],
+      "acceptance": [
+        "Python glue remains argv-based, shell-free by default, and limited to orchestration and validation duties.",
+        "Temporary files, subprocess handling, and report writes follow deterministic and safe patterns.",
+        "No glue script becomes a second semantic source of truth for Safe source or compiler decisions."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.12",
+      "title": "Performance and scale sanity",
+      "status": "planned",
+      "depends_on": ["PR06.9.11"],
+      "acceptance": [
+        "Representative repeated check, emit, and analyze-mir runs are measured enough to catch obvious regression cliffs.",
+        "Serialization and analysis paths avoid pathological behavior on current corpus sizes.",
+        "Any known scale limits for the current frontend subset are documented."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
+      "id": "PR06.9.13",
+      "title": "Documentation and architectural clarity",
+      "status": "planned",
+      "depends_on": ["PR06.9.12"],
+      "acceptance": [
+        "Runtime path, supported subset, no-Python doctrine, and legacy-versus-live package ownership are documented consistently.",
+        "The roadmap, dashboard, and frontend docs agree on the current compiler boundary before PR07 begins.",
+        "PR07 starts from the cleaned architectural baseline established by the PR06.9 hardening series."
+      ],
+      "evidence": [],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
       "id": "PR07",
       "title": "Rule 5 and discriminant/result safety",
       "status": "planned",
-      "depends_on": ["PR06.8"],
+      "depends_on": ["PR06.9.13"],
       "acceptance": [
         "A canonical Rule 5 diagnostic golden exists and matches byte-for-byte."
       ],

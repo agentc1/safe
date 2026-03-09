@@ -3,8 +3,8 @@
 - **Schema version:** `1`
 - **Frozen spec SHA:** `468cf72332724b04b7c193b4d2a3b02f1584125d`
 - **Active task:** `none`
-- **Next task:** `PR07`
-- **Updated at:** `2026-03-09T01:55:00Z`
+- **Next task:** `PR06.9.2`
+- **Updated at:** `2026-03-09T03:20:00Z`
 
 ## Repo Facts
 
@@ -30,7 +30,20 @@
 | PR06.6 | done | PR06.5 | 1 |
 | PR06.7 | done | PR06.6 | 1 |
 | PR06.8 | done | PR06.7 | 2 |
-| PR07 | planned | PR06.8 | 0 |
+| PR06.9.1 | done | PR06.8 | 1 |
+| PR06.9.2 | planned | PR06.9.1 | 0 |
+| PR06.9.3 | planned | PR06.9.2 | 0 |
+| PR06.9.4 | planned | PR06.9.3 | 0 |
+| PR06.9.5 | planned | PR06.9.4 | 0 |
+| PR06.9.6 | planned | PR06.9.5 | 0 |
+| PR06.9.7 | planned | PR06.9.6 | 0 |
+| PR06.9.8 | planned | PR06.9.7 | 0 |
+| PR06.9.9 | planned | PR06.9.8 | 0 |
+| PR06.9.10 | planned | PR06.9.9 | 0 |
+| PR06.9.11 | planned | PR06.9.10 | 0 |
+| PR06.9.12 | planned | PR06.9.11 | 0 |
+| PR06.9.13 | planned | PR06.9.12 | 0 |
+| PR07 | planned | PR06.9.13 | 0 |
 | PR08 | planned | PR07 | 0 |
 | PR09 | planned | PR08 | 0 |
 | PR10 | planned | PR09 | 0 |
@@ -210,10 +223,142 @@
   - `release/frontend_runtime_decision.md`
   - `execution/reports/pr068-ada-ast-emit-no-python-report.json`
 
+### PR06.9.1 — Semantic correctness hardening
+
+- **Status:** `done`
+- **Depends on:** PR06.8
+- **Blockers:** none
+- **Acceptance:**
+  - Range, ownership, return, and call semantics are revalidated across the current PR05/PR06 subset with targeted new regressions.
+  - No current positive or negative corpus behavior regresses under safec check, safec emit, or safec analyze-mir.
+  - The hardening evidence makes semantic parity the primary success criterion before PR07 begins.
+- **Evidence:**
+  - `execution/reports/pr0691-semantic-correctness-report.json`
+
+### PR06.9.2 — Lowering and CFG integrity hardening
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.1
+- **Blockers:** none
+- **Acceptance:**
+  - Lowering preserves declared types, declaration-init semantics, scope structure, and package-global visibility into MIR.
+  - Reachable blocks are always terminated, and any unreachable structural patching is explicit and regression-covered.
+  - Direct emit, check, and analyze-mir gates enforce CFG and lowering invariants beyond schema validity.
+
+### PR06.9.3 — Runtime-boundary enforcement hardening
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.2
+- **Blockers:** none
+- **Acceptance:**
+  - No user-facing safec path can spawn Python or reintroduce removed backend glue.
+  - Static and dynamic guardrails catch runtime-boundary regressions early in local verification and CI.
+  - Docs and gates clearly distinguish Ada-native runtime surfaces from Python glue.
+
+### PR06.9.4 — Output contract stability hardening
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.3
+- **Blockers:** none
+- **Acceptance:**
+  - ast, typed-v2, mir-v2, and safei-v0 remain deterministic and contract-valid on representative samples.
+  - Contract drift is caught by dedicated validation and repeated-run comparisons.
+  - Artifact ordering, path handling, and format-tag behavior stay stable for current consumers.
+
+### PR06.9.5 — Diagnostic stability hardening
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.4
+- **Blockers:** none
+- **Acceptance:**
+  - Human stderr and diagnostics-v0 remain stable for current goldens and reason mappings.
+  - First-diagnostic selection, exit codes, spans, highlight spans, and source_path behavior are regression-covered.
+  - Direct check and analyze-mir paths do not diverge in reason selection or payload shape.
+
+### PR06.9.6 — Unsupported-feature boundary hardening
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.5
+- **Blockers:** none
+- **Acceptance:**
+  - Out-of-subset constructs reject deterministically as unsupported_source_construct or source_frontend_error according to documented rules.
+  - No unsupported construct falls through to partial lowering or an internal failure on representative fixtures.
+  - Unsupported-feature coverage is widened across parser, resolver, and emitter entrypoints.
+
+### PR06.9.7 — Regression coverage and gate quality
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.6
+- **Blockers:** none
+- **Acceptance:**
+  - Existing gates remain the parity proof where appropriate, and direct command gates gain targeted negative and invariant cases.
+  - Hardening checks cover lex, parse, resolve, lower, analyze, and export boundaries rather than only end-to-end happy paths.
+  - Execution reports remain deterministic and high-signal.
+
+### PR06.9.8 — Dormant legacy package cleanup
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.7
+- **Blockers:** none
+- **Acceptance:**
+  - A reachability audit proves which legacy frontend packages are still on any live safec runtime path.
+  - Truly dead legacy packages are removed, and any temporarily retained inactive package is explicitly marked non-runtime.
+  - The live safec runtime path no longer references dormant parser, semantics, or MIR packages unnecessarily.
+
+### PR06.9.9 — Build and reproducibility hardening
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.8
+- **Blockers:** none
+- **Acceptance:**
+  - alr build, project wiring, and report generation remain deterministic across repeated local and CI runs.
+  - No milestone evidence depends on transient timing, unordered JSON, or host-specific file layout.
+  - Repeated command runs produce byte-stable outputs where the contract requires determinism.
+
+### PR06.9.10 — Portability and environment assumptions
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.9
+- **Blockers:** none
+- **Acceptance:**
+  - PATH lookup, temp-dir use, SDK or tool discovery, and shell assumptions are explicit and documented.
+  - The supported-platform policy for compiler and glue gates is written down and tested where practical.
+  - No-Python runtime enforcement covers the documented interpreter names and invocation patterns.
+
+### PR06.9.11 — Glue-script safety
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.10
+- **Blockers:** none
+- **Acceptance:**
+  - Python glue remains argv-based, shell-free by default, and limited to orchestration and validation duties.
+  - Temporary files, subprocess handling, and report writes follow deterministic and safe patterns.
+  - No glue script becomes a second semantic source of truth for Safe source or compiler decisions.
+
+### PR06.9.12 — Performance and scale sanity
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.11
+- **Blockers:** none
+- **Acceptance:**
+  - Representative repeated check, emit, and analyze-mir runs are measured enough to catch obvious regression cliffs.
+  - Serialization and analysis paths avoid pathological behavior on current corpus sizes.
+  - Any known scale limits for the current frontend subset are documented.
+
+### PR06.9.13 — Documentation and architectural clarity
+
+- **Status:** `planned`
+- **Depends on:** PR06.9.12
+- **Blockers:** none
+- **Acceptance:**
+  - Runtime path, supported subset, no-Python doctrine, and legacy-versus-live package ownership are documented consistently.
+  - The roadmap, dashboard, and frontend docs agree on the current compiler boundary before PR07 begins.
+  - PR07 starts from the cleaned architectural baseline established by the PR06.9 hardening series.
+
 ### PR07 — Rule 5 and discriminant/result safety
 
 - **Status:** `planned`
-- **Depends on:** PR06.8
+- **Depends on:** PR06.9.13
 - **Blockers:** none
 - **Acceptance:**
   - A canonical Rule 5 diagnostic golden exists and matches byte-for-byte.
