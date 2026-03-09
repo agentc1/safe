@@ -138,6 +138,7 @@ Eleven CI jobs run on every push and pull request to `main`:
 - **`pr066-ada-mir-analyzer`** -- MIR analyzer fixtures, emitted-MIR checks, and unchanged PR05 / PR06 harness reruns
 - **`pr067-ada-check-no-python`** -- Ada-native `safec check` cutover proof with Python masked for direct check invocations
 - **`pr068-ada-ast-emit-no-python`** -- Ada-native `safec ast` / `safec emit` proof with Python masked for direct compiler invocations
+- **`pr0691-semantic-correctness`** -- Cross-surface semantic parity checks for range, ownership, return, and call seams
 - **`spark-verify`** -- Companion: 64 VCs, 0 unproved
 - **`templates-verify`** -- Templates pipeline: 320 VCs, 0 unproved
 
@@ -156,9 +157,9 @@ See [`release/COMPANION_README.md`](release/COMPANION_README.md) Section 8 for t
 | Generator | spec2spark v0.1.0 |
 | Companion status | All 13 companion tasks complete |
 | Emission templates | 14/14 proved (320 VCs, 0 unproved; M1–M7 complete) |
-| Compiler frontend | `compiler_impl/` PR00–PR06.8 sequential frontend landed, with Ada-native `safec lex` / `ast` / `check` / `emit` / `validate-mir` / `analyze-mir` for the current PR05/PR06 subset |
+| Compiler frontend | `compiler_impl/` PR00–PR06.9.1 sequential frontend landed, with Ada-native `safec lex` / `ast` / `check` / `emit` / `validate-mir` / `analyze-mir` for the current PR05/PR06 subset |
 
-The repository now includes a sequential compiler frontend under `compiler_impl/`. It can lex `.safe` inputs via `safec lex`, emit schema-true AST via `safec ast`, validate emitted MIR via `safec validate-mir`, analyze `mir-v2` payloads via `safec analyze-mir`, emit validated `typed-v2`, self-sufficient `mir-v2`, and `safei-v0` artifacts via `safec emit`, run D27 Rule 1–4 checking over the current sequential corpus, run the sequential ownership corpus and ownership diagnostics goldens, and expose machine-readable semantic diagnostics via `safec check --diag-json`. After PR06.8 no user-facing `safec` command depends on Python at runtime; Python remains in the repository only as glue around the Ada-native compiler. The translation rules and AST schema in `compiler/` remain the contract the later compiler phases must satisfy.
+The repository now includes a sequential compiler frontend under `compiler_impl/`. It can lex `.safe` inputs via `safec lex`, emit schema-true AST via `safec ast`, validate emitted MIR via `safec validate-mir`, analyze `mir-v2` payloads via `safec analyze-mir`, emit validated `typed-v2`, self-sufficient `mir-v2`, and `safei-v0` artifacts via `safec emit`, run D27 Rule 1–4 checking over the current sequential corpus, run the sequential ownership corpus and ownership diagnostics goldens, and expose machine-readable semantic diagnostics via `safec check --diag-json`. After PR06.8 no user-facing `safec` command depends on Python at runtime, and PR06.9.1 adds a dedicated cross-surface semantic parity gate before PR07. Python remains in the repository only as glue around the Ada-native compiler. The translation rules and AST schema in `compiler/` remain the contract the later compiler phases must satisfy.
 
 
 ---
