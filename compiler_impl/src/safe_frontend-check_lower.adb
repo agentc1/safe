@@ -14,7 +14,6 @@ package body Safe_Frontend.Check_Lower is
    use type CM.Expr_Access;
    use type CM.Expr_Kind;
    use type CM.Statement_Kind;
-   use type FT.UString;
    use type GM.Terminator_Kind;
 
    package Type_Maps is new Ada.Containers.Indefinite_Hashed_Maps
@@ -432,6 +431,22 @@ package body Safe_Frontend.Check_Lower is
    begin
       return Work.Blocks (Block_Index (Work, Id)).Terminator.Kind /= GM.Terminator_Unknown;
    end Block_Terminated;
+
+   procedure Finalize_Unknown_Terminators (Work : in out Builder) is
+      Terminator : GM.Terminator_Entry;
+   begin
+      if not Work.Blocks.Is_Empty then
+         for Index in Work.Blocks.First_Index .. Work.Blocks.Last_Index loop
+            if Work.Blocks (Index).Terminator.Kind = GM.Terminator_Unknown then
+               Terminator := (others => <>);
+               Terminator.Kind := GM.Terminator_Jump;
+               Terminator.Span := Work.Blocks (Index).Span;
+               Terminator.Target := Work.Blocks (Index).Id;
+               Work.Blocks (Index).Terminator := Terminator;
+            end if;
+         end loop;
+      end if;
+   end Finalize_Unknown_Terminators;
 
    procedure Add_Op
      (Work : in out Builder;
@@ -1284,7 +1299,7 @@ package body Safe_Frontend.Check_Lower is
       Visible      : Type_Maps.Map := Type_Env;
       Work         : Builder;
       Root_Locals  : constant FT.UString_Vectors.Vector := Local_Names (Subprogram.Declarations);
-      Root_Scope   : GM.Scope_Entry := New_Scope ("scope0", "", "subprogram");
+      Root_Scope   : constant GM.Scope_Entry := New_Scope ("scope0", "", "subprogram");
       Entry_Id     : FT.UString;
       End_Id       : FT.UString;
       Assign_Op    : GM.Op_Entry;
@@ -1406,6 +1421,7 @@ package body Safe_Frontend.Check_Lower is
          Register_Scope_Exit (Work, "scope0", UString_Value (End_Id));
       end if;
 
+      Finalize_Unknown_Terminators (Work);
       Result.Scopes := Work.Scopes;
       Result.Blocks := Work.Blocks;
       return Result;

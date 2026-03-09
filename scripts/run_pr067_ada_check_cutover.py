@@ -178,16 +178,9 @@ def make_masked_env(real_python: str, temp_root: Path, *, mode: str) -> tuple[di
     else:
         script_lines.extend(
             [
-                'case "$1" in',
-                '  *pr05_backend.py)',
-                '    if [ "$2" = "check" ]; then',
-                '      echo "blocked python3 backend spawn for safec check: $*" >> "$BLOCKED_LOG"',
-                '      echo "python3 masked for PR06.7 check cutover" >&2',
-                "      exit 97",
-                "    fi",
-                "    ;;",
-                "esac",
-                'exec "$REAL_PYTHON" "$@"',
+                'echo "blocked python3 spawn during PR06.7 harness rerun: $*" >> "$BLOCKED_LOG"',
+                'echo "python3 masked for PR06.7 check cutover" >&2',
+                "exit 97",
             ]
         )
     script_lines.append("")

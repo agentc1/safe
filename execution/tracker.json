@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-08T14:55:18Z",
+  "updated_at": "2026-03-09T01:55:00Z",
   "frozen_spec_sha": "468cf72332724b04b7c193b4d2a3b02f1584125d",
   "active_task_id": null,
   "next_task_id": "PR07",
@@ -201,7 +201,7 @@
       "status": "done",
       "depends_on": ["PR06.6"],
       "acceptance": [
-        "safec check and safec check --diag-json are Ada-native for the currently supported PR05 and PR06 subset, while ast and emit remain Python-backed.",
+        "PR06.7 made safec check and safec check --diag-json Ada-native for the currently supported PR05 and PR06 subset; PR06.8 later removed the remaining Python runtime dependency from ast and emit.",
         "Human stderr rendering and diagnostics-v0 output stay compatible with the existing PR05 and PR06 goldens and corpus harnesses.",
         "Source constructs outside the current PR05 and PR06 subset are rejected deterministically by the Ada check path.",
         "A dedicated pr067-ada-check-no-python CI job passes with python3 intentionally unavailable to the check command.",
@@ -214,10 +214,29 @@
       "unblock_condition": ""
     },
     {
+      "id": "PR06.8",
+      "title": "Ada-native safec ast/emit cutover and Python-as-glue doctrine",
+      "status": "done",
+      "depends_on": ["PR06.7"],
+      "acceptance": [
+        "The runtime policy explicitly states that Python is allowed only as glue/orchestration and may not own parser, lowering, semantic, diagnostic-selection, or emitted-artifact behavior for user-facing safec commands.",
+        "safec ast is Ada-native for the current PR05/PR06 subset and emits deterministic schema-true AST JSON for representative corpus inputs.",
+        "safec emit is Ada-native for the current PR05/PR06 subset and writes deterministic .ast.json, typed-v2, mir-v2, and safei-v0 artifacts without spawning Python.",
+        "safec emit fails before writing artifacts when source or MIR diagnostics exist.",
+        "A dedicated pr068-ada-ast-emit-no-python CI job passes with python3 intentionally unavailable to direct ast/emit command invocations, and a committed execution/reports/pr068-ada-ast-emit-no-python-report.json artifact is listed in PR06.8 evidence."
+      ],
+      "evidence": [
+        "release/frontend_runtime_decision.md",
+        "execution/reports/pr068-ada-ast-emit-no-python-report.json"
+      ],
+      "blockers": [],
+      "unblock_condition": ""
+    },
+    {
       "id": "PR07",
       "title": "Rule 5 and discriminant/result safety",
       "status": "planned",
-      "depends_on": ["PR06.7"],
+      "depends_on": ["PR06.8"],
       "acceptance": [
         "A canonical Rule 5 diagnostic golden exists and matches byte-for-byte."
       ],

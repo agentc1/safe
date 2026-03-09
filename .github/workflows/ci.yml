@@ -225,6 +225,38 @@ jobs:
         working-directory: .
         run: python3 scripts/run_pr067_ada_check_cutover.py
 
+  pr068-ada-ast-emit-no-python:
+    name: PR06.8 Ada AST Emit No Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # Python remains allowed as repo glue. This job uses it only for the gate
+      # script and AST validator around Ada-native `safec ast` / `safec emit`.
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+
+      - name: Install Alire
+        uses: alire-project/setup-alire@b607671067a8ca5d7b7f4a12dadb4dc009cd2cc7 # v3
+        with:
+          version: 2.1.0
+          toolchain: gnat_native gprbuild
+
+      - name: Build compiler frontend
+        working-directory: .
+        run: cd compiler_impl && alr build
+
+      # The gate masks python3 for direct compiler invocations and fails if
+      # `safec ast` or `safec emit` attempt to spawn a Python backend.
+      - name: Run PR06.8 Ada ast/emit cutover gate
+        working-directory: .
+        run: python3 scripts/run_pr068_ada_ast_emit_no_python.py
+
   spark-verify:
     name: Build & Verify SPARK Companion
     runs-on: ubuntu-latest

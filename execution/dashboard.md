@@ -4,7 +4,7 @@
 - **Frozen spec SHA:** `468cf72332724b04b7c193b4d2a3b02f1584125d`
 - **Active task:** `none`
 - **Next task:** `PR07`
-- **Updated at:** `2026-03-08T14:55:18Z`
+- **Updated at:** `2026-03-09T01:55:00Z`
 
 ## Repo Facts
 
@@ -29,7 +29,8 @@
 | PR06.5 | done | PR06 | 3 |
 | PR06.6 | done | PR06.5 | 1 |
 | PR06.7 | done | PR06.6 | 1 |
-| PR07 | planned | PR06.7 | 0 |
+| PR06.8 | done | PR06.7 | 2 |
+| PR07 | planned | PR06.8 | 0 |
 | PR08 | planned | PR07 | 0 |
 | PR09 | planned | PR08 | 0 |
 | PR10 | planned | PR09 | 0 |
@@ -186,7 +187,7 @@
 - **Depends on:** PR06.6
 - **Blockers:** none
 - **Acceptance:**
-  - safec check and safec check --diag-json are Ada-native for the currently supported PR05 and PR06 subset, while ast and emit remain Python-backed.
+  - PR06.7 made safec check and safec check --diag-json Ada-native for the currently supported PR05 and PR06 subset; PR06.8 later removed the remaining Python runtime dependency from ast and emit.
   - Human stderr rendering and diagnostics-v0 output stay compatible with the existing PR05 and PR06 goldens and corpus harnesses.
   - Source constructs outside the current PR05 and PR06 subset are rejected deterministically by the Ada check path.
   - A dedicated pr067-ada-check-no-python CI job passes with python3 intentionally unavailable to the check command.
@@ -194,10 +195,25 @@
 - **Evidence:**
   - `execution/reports/pr067-ada-check-cutover-report.json`
 
+### PR06.8 — Ada-native safec ast/emit cutover and Python-as-glue doctrine
+
+- **Status:** `done`
+- **Depends on:** PR06.7
+- **Blockers:** none
+- **Acceptance:**
+  - The runtime policy explicitly states that Python is allowed only as glue/orchestration and may not own parser, lowering, semantic, diagnostic-selection, or emitted-artifact behavior for user-facing safec commands.
+  - safec ast is Ada-native for the current PR05/PR06 subset and emits deterministic schema-true AST JSON for representative corpus inputs.
+  - safec emit is Ada-native for the current PR05/PR06 subset and writes deterministic .ast.json, typed-v2, mir-v2, and safei-v0 artifacts without spawning Python.
+  - safec emit fails before writing artifacts when source or MIR diagnostics exist.
+  - A dedicated pr068-ada-ast-emit-no-python CI job passes with python3 intentionally unavailable to direct ast/emit command invocations, and a committed execution/reports/pr068-ada-ast-emit-no-python-report.json artifact is listed in PR06.8 evidence.
+- **Evidence:**
+  - `release/frontend_runtime_decision.md`
+  - `execution/reports/pr068-ada-ast-emit-no-python-report.json`
+
 ### PR07 — Rule 5 and discriminant/result safety
 
 - **Status:** `planned`
-- **Depends on:** PR06.7
+- **Depends on:** PR06.8
 - **Blockers:** none
 - **Acceptance:**
   - A canonical Rule 5 diagnostic golden exists and matches byte-for-byte.

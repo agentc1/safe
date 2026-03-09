@@ -1,6 +1,6 @@
 # SafeC Frontend
 
-This workspace hosts the current Safe compiler frontend through PR06.7.
+This workspace hosts the current Safe compiler frontend through PR06.8.
 
 ## Scope
 
@@ -15,7 +15,9 @@ This workspace hosts the current Safe compiler frontend through PR06.7.
 
 The current frontend implements the sequential Rule 1-4 subset plus the sequential ownership model used by the current PR06 corpus. It parses executable bodies, emits schema-true AST for the implemented subset, emits `typed-v2` and self-sufficient `mir-v2`, checks the current Rule 1-4 corpus, and checks the sequential ownership corpus through `safec check`. It is still not the concurrency frontend or the Ada/SPARK emitter.
 
-Python remains the runtime for `safec ast` and `safec emit`. MIR validation, MIR analysis, and `safec check` are now Ada-native for the current PR05/PR06 subset.
+All current `safec` commands are now Ada-native for the implemented PR05/PR06 subset. Python remains allowed in the repository only as glue around the compiler, such as validation helpers, harness scripts, and CI/report orchestration.
+
+PR06.8 runtime doctrine: Python may be used as glue/orchestration, but it may not own any user-facing compiler command and may not participate in parsing, lowering, semantic decisions, diagnostic selection, or emitted compiler artifacts.
 
 ## Dependency Policy
 
@@ -39,7 +41,7 @@ dependency explicitly rather than allowing it to spread by default.
 
 - `<stem>.ast.json`
   Format: parser AST shaped to the contract in `compiler/ast_schema.json`.
-  Validation path: `python3 scripts/validate_ast_output.py`.
+  Validation path: `python3 scripts/validate_ast_output.py` as repo glue around the Ada-native `safec ast` / `safec emit` path.
 
 - `<stem>.typed.json`
   Format tag: `typed-v2`.
@@ -120,3 +122,14 @@ python3 scripts/run_pr067_ada_check_cutover.py
 That gate masks `python3` specifically for accidental `safec check` backend spawns, proves representative direct PR05 / PR06 checks still pass, reruns the existing PR05 / PR06 harnesses with that masked check path, verifies deterministic `unsupported_source_construct` rejection for out-of-subset sources, and records results in `execution/reports/pr067-ada-check-cutover-report.json`.
 
 PR06.7 no-Python guarantee: Python may still run the gate script and the unchanged harnesses around `safec check`, but `safec check` itself must stay Ada-native and must not spawn the Python backend.
+
+The PR06.8 Ada `ast` / `emit` cutover gate is:
+
+```bash
+cd compiler_impl && $HOME/bin/alr build
+python3 scripts/run_pr068_ada_ast_emit_no_python.py
+```
+
+That gate masks `python3` for direct `safec ast` and `safec emit` invocations, validates the emitted AST through the existing validator script, checks deterministic repeated `emit` output on representative samples, verifies emitted MIR stays valid and analyzable, confirms `emit` writes no artifacts when diagnostics exist, and records results in `execution/reports/pr068-ada-ast-emit-no-python-report.json`.
+
+PR06.8 no-Python guarantee: Python may still run the gate script and validation helpers around the compiler, but no `safec` command may spawn Python at runtime.

@@ -771,6 +771,7 @@ package body Safe_Frontend.Check_Resolve is
    is
       Type_Env   : Type_Maps.Map;
       Functions  : Function_Maps.Map;
+      Package_Vars : Type_Maps.Map;
       Result     : CM.Resolved_Unit;
    begin
       Add_Builtins (Type_Env);
@@ -830,13 +831,42 @@ package body Safe_Frontend.Check_Resolve is
          end case;
       end loop;
 
+      Package_Vars := Type_Env;
+      for Item of Unit.Items loop
+         if Item.Kind = CM.Item_Object_Decl then
+            declare
+               Decl_Type  : constant GM.Type_Descriptor :=
+                 Resolve_Decl_Type (Item.Obj_Data, Package_Vars, UString_Value (Unit.Path));
+               Local_Decl : CM.Resolved_Object_Decl;
+            begin
+               Local_Decl.Names := Item.Obj_Data.Names;
+               Local_Decl.Type_Info := Decl_Type;
+               Local_Decl.Has_Initializer := Item.Obj_Data.Has_Initializer;
+               Local_Decl.Span := Item.Obj_Data.Span;
+               Local_Decl.Initializer := null;
+               if Item.Obj_Data.Has_Initializer and then Item.Obj_Data.Initializer /= null then
+                  Local_Decl.Initializer :=
+                    Normalize_Expr
+                      (Item.Obj_Data.Initializer,
+                       Package_Vars,
+                       Functions,
+                       Type_Env);
+               end if;
+               Result.Objects.Append (Local_Decl);
+               for Name of Item.Obj_Data.Names loop
+                  Package_Vars.Include (UString_Value (Name), Decl_Type);
+               end loop;
+            end;
+         end if;
+      end loop;
+
       for Item of Unit.Items loop
          if Item.Kind = CM.Item_Subprogram then
             declare
                Info         : constant Function_Info :=
                  Functions.Element (UString_Value (Item.Subp_Data.Spec.Name));
                Subprogram   : CM.Resolved_Subprogram;
-               Visible      : Type_Maps.Map := Type_Env;
+               Visible      : Type_Maps.Map := Package_Vars;
                Decl_Type    : GM.Type_Descriptor;
                Local_Decl   : CM.Resolved_Object_Decl;
             begin
