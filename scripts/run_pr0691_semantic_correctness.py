@@ -412,7 +412,15 @@ def emit_inline_source_case(
     safec: Path,
     env: dict[str, str],
     temp_root: Path,
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
+) -> tuple[
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+]:
     source = temp_root / f"{name}.safe"
     source.write_text(text, encoding="utf-8")
 

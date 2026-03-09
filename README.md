@@ -127,7 +127,7 @@ safe/
 
 ## Continuous Integration
 
-Eleven CI jobs run on every push and pull request to `main`:
+Twelve CI jobs run on every push and pull request to `main`:
 
 - **`execution-guard`** -- Ledger, dashboard, frozen-SHA, and test-distribution checks
 - **`lint-safe-syntax`** -- Surface-syntax guard across the `.safe` corpus
