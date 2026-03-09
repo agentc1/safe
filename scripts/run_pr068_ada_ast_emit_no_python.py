@@ -273,7 +273,7 @@ def assert_runtime_boundary() -> dict[str, Any]:
             scanned_files.append(str(path.relative_to(REPO_ROOT)))
             text = path.read_text(encoding="utf-8")
             for token in denylist:
-                if re.search(token, text):
+                if re.search(token, text, flags=re.IGNORECASE):
                     violations.append(f"{path.relative_to(REPO_ROOT)}:{token}")
     require(not violations, f"runtime boundary violations: {violations}")
     return {
@@ -332,11 +332,13 @@ def assert_cfg_invariants(mir_payload: dict[str, Any], *, source: str) -> list[d
             block_id = block["id"]
             terminator = block["terminator"]
             kind = terminator["kind"]
-            require(kind != "<unknown>", f"{source}: graph {graph['name']} still contains unknown terminator at {block_id}")
-            if block_id in reachable:
-                require(
-                    kind != "<unknown>",
-                    f"{source}: graph {graph['name']} has reachable unterminated block {block_id}",
+            if kind == "<unknown>":
+                if block_id in reachable:
+                    raise RuntimeError(
+                        f"{source}: graph {graph['name']} has reachable unterminated block {block_id}"
+                    )
+                raise RuntimeError(
+                    f"{source}: graph {graph['name']} still contains unknown terminator at {block_id}"
                 )
             if kind == "jump" and terminator["target"] == block_id:
                 patched_dead_blocks.append(block_id)

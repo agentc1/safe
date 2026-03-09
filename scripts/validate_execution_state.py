@@ -18,20 +18,16 @@ ALLOWED_STATUSES = {"planned", "ready", "in_progress", "blocked", "done"}
 LEGACY_RUNTIME_BACKEND = REPO_ROOT / "compiler_impl" / "backend" / "pr05_backend.py"
 RUNTIME_BOUNDARY_PATTERNS = [
     (
-        "compiler_impl/src/safe_frontend-driver.adb",
-        [r"\bRun_Backend\b", r"\bBackend_Script\b", r"\bGNAT\.OS_Lib\b", r"pr05_backend\.py", r"\bPython3\b"],
-    ),
-    (
         "compiler_impl/src/safe_frontend-*.adb",
-        [r"\bRun_Backend\b", r"\bBackend_Script\b", r"\bGNAT\.OS_Lib\b", r"pr05_backend\.py", r"\b[Pp]ython3\b", r"\b[Pp]ython\b"],
+        [r"\bRun_Backend\b", r"\bBackend_Script\b", r"\bGNAT\.OS_Lib\b", r"pr05_backend\.py", r"\bpython3\b", r"\bpython\b"],
     ),
     (
         "compiler_impl/src/safe_frontend-*.ads",
-        [r"\bRun_Backend\b", r"\bBackend_Script\b", r"\bGNAT\.OS_Lib\b", r"pr05_backend\.py", r"\b[Pp]ython3\b", r"\b[Pp]ython\b"],
+        [r"\bRun_Backend\b", r"\bBackend_Script\b", r"\bGNAT\.OS_Lib\b", r"pr05_backend\.py", r"\bpython3\b", r"\bpython\b"],
     ),
     (
         "compiler_impl/src/safec.adb",
-        [r"\bRun_Backend\b", r"\bBackend_Script\b", r"pr05_backend\.py", r"\b[Pp]ython3\b", r"\b[Pp]ython\b"],
+        [r"\bRun_Backend\b", r"\bBackend_Script\b", r"pr05_backend\.py", r"\bpython3\b", r"\bpython\b"],
     ),
 ]
 
@@ -181,7 +177,7 @@ def check_runtime_boundary() -> None:
         for path in sorted(REPO_ROOT.glob(pattern)):
             text = path.read_text(encoding="utf-8")
             for token in denylist:
-                if re.search(token, text):
+                if re.search(token, text, flags=re.IGNORECASE):
                     violations.append(f"{path.relative_to(REPO_ROOT)}:{token}")
 
     if violations:
