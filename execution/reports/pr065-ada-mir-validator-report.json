@@ -129,7 +129,7 @@
           ],
           "cwd": "$REPO_ROOT",
           "returncode": 1,
-          "stderr": "validate-mir: ERROR: $REPO_ROOT/compiler_impl/tests/mir_validation/invalid_missing_terminator.json: graphs[0].blocks[0]: every block must have a terminator\n",
+          "stderr": "validate-mir: ERROR: $REPO_ROOT/compiler_impl/tests/mir_validation/invalid_missing_terminator.json: graphs[0].blocks[0]: missing or invalid terminator\n",
           "stdout": ""
         }
       },
@@ -148,6 +148,20 @@
         }
       },
       {
+        "fixture": "compiler_impl/tests/mir_validation/invalid_missing_declaration_init.json",
+        "result": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "validate-mir",
+            "compiler_impl/tests/mir_validation/invalid_missing_declaration_init.json"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 1,
+          "stderr": "validate-mir: ERROR: $REPO_ROOT/compiler_impl/tests/mir_validation/invalid_missing_declaration_init.json: graphs[0].blocks[0].ops[0]: mir-v2 assign ops must include declaration_init\n",
+          "stdout": ""
+        }
+      },
+      {
         "fixture": "compiler_impl/tests/mir_validation/invalid_high_level_op.json",
         "result": {
           "command": [
@@ -157,7 +171,7 @@
           ],
           "cwd": "$REPO_ROOT",
           "returncode": 1,
-          "stderr": "validate-mir: ERROR: $REPO_ROOT/compiler_impl/tests/mir_validation/invalid_high_level_op.json: graphs[0].blocks[0].ops[0]: high-level control op `while` leaked into MIR\n",
+          "stderr": "validate-mir: ERROR: $REPO_ROOT/compiler_impl/tests/mir_validation/invalid_high_level_op.json: graphs[0].blocks[0].ops[0]: unsupported op kind\n",
           "stdout": ""
         }
       },

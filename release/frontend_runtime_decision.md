@@ -2,34 +2,37 @@
 
 ## Decision
 
-Python is transitional only. The Safe reference compiler must remove the Python execution dependency and converge back to an Ada/SPARK frontend in staged replacement slices.
+Python is transitional only in the compiler runtime. The Safe reference compiler must converge back to an Ada/SPARK frontend in staged replacement slices while permitting Python to remain only as glue/orchestration around the compiler.
 
-PR06.5 and PR06.6 removed the MIR validator and MIR analyzer from the Python runtime path, and PR06.7 cut `safec check` over to Ada for the current PR05/PR06 subset.
+PR06.5 and PR06.6 removed the MIR validator and MIR analyzer from the Python runtime path, PR06.7 cut `safec check` over to Ada for the current PR05/PR06 subset, and PR06.8 cuts `safec ast` and `safec emit` over to Ada for that same subset.
 
 ## Current Runtime Split
 
-- Ada-native:
+- Ada-native compiler commands:
   - `safec lex`
+  - `safec ast`
   - `safec validate-mir`
   - `safec analyze-mir`
   - `safec check` for the current PR05/PR06 subset
-- Python-backed reference frontend:
-  - `safec ast`
-  - `safec emit`
+  - `safec emit` for the current PR05/PR06 subset
+- Python glue still allowed in-repo:
+  - harness scripts
+  - output validators
+  - CI/report orchestration
 
 ## Locked Replacement Order
 
 1. MIR model and validator
 2. MIR analyzer parity
 3. Ada-native `safec check` cutover for the current PR05/PR06 subset, including the D27 and ownership renderer
-4. Parser, resolver, typed model, and emit pipeline parity
+4. Ada-native `safec ast` / `safec emit` cutover and removal of the backend spawn path
 
 ## Rule for Later Milestones
 
-Each later milestone must remove a concrete Python-owned slice. Parity scaffolding without a runtime cutover is not enough to close the Python dependency.
+Python may remain as glue/orchestration, but no later milestone may move parser, lowering, semantic analysis, diagnostic selection, or emitted artifact ownership back into Python. Every later milestone must preserve the rule that user-facing `safec` commands are Ada-native runtime surfaces.
 
 ## Immediate Follow-On
 
-With PR06.7 complete, Python remains required only for `ast` and `emit`. Current `PR07` Rule 5 and discriminant/result safety work follows these runtime-reduction milestones.
+With PR06.8 complete, no user-facing `safec` command requires Python at runtime. `PR07` Rule 5 and discriminant/result safety work now follows a fully Ada-native compiler command surface for the current PR05/PR06 subset.
 
-CI enforcement note: the PR06.7 job still uses Python to run the gate script and harnesses, but that gate masks Python for `safec check` itself and fails if the check path attempts to spawn the Python backend.
+CI enforcement note: the PR06.7 and PR06.8 jobs still use Python to run gate scripts and validators, but those gates mask Python for direct `safec` invocations and fail if `check`, `ast`, or `emit` attempt to spawn a Python backend.

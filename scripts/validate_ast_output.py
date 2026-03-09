@@ -74,8 +74,18 @@ ABSTRACT_TARGETS = {
         "NullStatement",
         "AssignmentStatement",
         "SimpleReturnStatement",
+        "ProcedureCallStatement",
     },
     "CompoundStatement": {
+        "IfStatement",
+        "LoopStatement",
+        "BlockStatement",
+    },
+    "Statement": {
+        "NullStatement",
+        "AssignmentStatement",
+        "ProcedureCallStatement",
+        "SimpleReturnStatement",
         "IfStatement",
         "LoopStatement",
         "BlockStatement",
