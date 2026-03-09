@@ -84,6 +84,11 @@ def validate_typed_payload(payload: Any, *, path: str, ast_payload: dict[str, An
 
     require_string(typed.get("package_name"), f"{path}.package_name")
     require_string(typed.get("package_end_name"), f"{path}.package_end_name")
+    if typed["package_end_name"] != typed["package_name"]:
+        fail(
+            f"{path}.package_end_name must match package_name: "
+            f"{typed['package_end_name']!r} != {typed['package_name']!r}"
+        )
     require_list(typed.get("types"), f"{path}.types")
     validate_decl_list(typed.get("executables"), f"{path}.executables")
     validate_decl_list(typed.get("public_declarations"), f"{path}.public_declarations")

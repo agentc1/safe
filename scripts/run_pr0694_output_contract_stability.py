@@ -181,6 +181,14 @@ def assert_emitted_file_set(root: Path, sample_name: str) -> dict[str, Path]:
     return expected_files
 
 
+def observed_emitted_files(root: Path) -> set[str]:
+    return {
+        str(path.relative_to(root))
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+
+
 def run_emit_case(
     *,
     name: str,
@@ -213,7 +221,11 @@ def run_emit_case(
         )
 
     left_paths = assert_emitted_file_set(emit_a, name)
-    right_paths = emitted_paths(emit_b, name)
+    right_paths = assert_emitted_file_set(emit_b, name)
+    require(
+        observed_emitted_files(emit_a) == observed_emitted_files(emit_b),
+        f"{name}: emit runs produced different file sets",
+    )
 
     file_hashes: dict[str, str] = {}
     format_tags: dict[str, str] = {}
