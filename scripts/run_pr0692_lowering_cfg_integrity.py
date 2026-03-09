@@ -187,6 +187,12 @@ def find_command(name: str, fallback: Path | None = None) -> str:
     raise FileNotFoundError(f"required command not found: {name}")
 
 
+def require_repo_command(path: Path, name: str) -> Path:
+    if path.exists():
+        return path
+    raise FileNotFoundError(f"required repo-local command not found: {name} ({path})")
+
+
 def run(
     argv: list[str],
     *,
@@ -737,7 +743,7 @@ def main() -> int:
 
     python = find_command("python3")
     alr = find_command("alr", Path.home() / "bin" / "alr")
-    safec = Path(find_command("safec", COMPILER_ROOT / "bin" / "safec"))
+    safec = require_repo_command(COMPILER_ROOT / "bin" / "safec", "safec")
 
     env = ensure_sdkroot(os.environ.copy())
 
