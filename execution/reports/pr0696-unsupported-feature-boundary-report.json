@@ -170,6 +170,9 @@
       "source": "compiler_impl/tests/legacy_two_char_tokens.safe"
     }
   },
+  "deterministic": true,
+  "repeat_sha256": "2f87b16c07ab222859df9be21299322d23f9e9c79030099fe5891f16c248add0",
+  "report_sha256": "2f87b16c07ab222859df9be21299322d23f9e9c79030099fe5891f16c248add0",
   "status": "ok",
   "task": "PR06.9.6",
   "tool_versions": {
