@@ -16,7 +16,6 @@ from _lib.harness_common import (
     finalize_deterministic_report,
     find_command,
     require,
-    require_repo_command,
     run,
     write_report,
 )
