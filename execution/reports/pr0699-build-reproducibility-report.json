@@ -1,0 +1,72 @@
+{
+  "build_reproducibility": {
+    "binary_deterministic": true,
+    "binary_path": "compiler_impl/bin/safec",
+    "command": [
+      "alr",
+      "build"
+    ],
+    "cwd": "$REPO_ROOT/compiler_impl",
+    "first_binary_sha256": "96d381bd47f8e8851e519fd447e350f2f869799f8a2c6b19f530c292e1137158",
+    "returncodes": [
+      0,
+      0
+    ],
+    "second_binary_sha256": "96d381bd47f8e8851e519fd447e350f2f869799f8a2c6b19f530c292e1137158"
+  },
+  "delegated_reports": {
+    "frontend_smoke": {
+      "binary_deterministic": true,
+      "first_binary_sha256": "96d381bd47f8e8851e519fd447e350f2f869799f8a2c6b19f530c292e1137158",
+      "repeat_sha256": "1bc219fb52fcdc23f596c4da4137fc2869af4daa7fd7dab3627d56c3862cea65",
+      "report_path": "execution/reports/pr00-pr04-frontend-smoke.json",
+      "report_sha256": "1bc219fb52fcdc23f596c4da4137fc2869af4daa7fd7dab3627d56c3862cea65",
+      "run": {
+        "command": [
+          "python3",
+          "scripts/run_frontend_smoke.py"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "frontend smoke: OK (execution/reports/pr00-pr04-frontend-smoke.json)\n"
+      },
+      "second_binary_sha256": "96d381bd47f8e8851e519fd447e350f2f869799f8a2c6b19f530c292e1137158"
+    },
+    "gate_quality": {
+      "repeat_sha256": "74febf7cd23943f5212ce0517ecc13ef2c8c12069b84915e2681db669d7c2190",
+      "report_path": "execution/reports/pr0697-gate-quality-report.json",
+      "report_sha256": "74febf7cd23943f5212ce0517ecc13ef2c8c12069b84915e2681db669d7c2190",
+      "run": {
+        "command": [
+          "python3",
+          "scripts/run_pr0697_gate_quality.py"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "pr0697 gate quality: OK (execution/reports/pr0697-gate-quality-report.json)\n"
+      }
+    },
+    "legacy_package_cleanup": {
+      "repeat_sha256": "1248e3f5d1f76dbaca16f194f2d86bc809f0f3587060179526b8e8ba5a2e2b3c",
+      "report_path": "execution/reports/pr0698-legacy-package-cleanup-report.json",
+      "report_sha256": "1248e3f5d1f76dbaca16f194f2d86bc809f0f3587060179526b8e8ba5a2e2b3c",
+      "run": {
+        "command": [
+          "python3",
+          "scripts/run_pr0698_legacy_package_cleanup.py"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "pr0698 legacy package cleanup: OK (execution/reports/pr0698-legacy-package-cleanup-report.json)\n"
+      }
+    }
+  },
+  "deterministic": true,
+  "repeat_sha256": "d289ac563d9b46e5c360be11a264caeabbdd9e4a22f778bd3785538ec133001b",
+  "report_sha256": "d289ac563d9b46e5c360be11a264caeabbdd9e4a22f778bd3785538ec133001b",
+  "status": "ok",
+  "task": "PR06.9.9"
+}

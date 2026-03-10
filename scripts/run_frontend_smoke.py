@@ -16,6 +16,7 @@ from _lib.gate_expectations import REPRESENTATIVE_EMIT_SAMPLES
 from _lib.harness_common import (
     display_path,
     ensure_sdkroot,
+    finalize_deterministic_report,
     find_command,
     normalize_text,
     require,
@@ -123,6 +124,10 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def build_frontend(alr: str, env: dict[str, str]) -> dict[str, Any]:
+    return run([alr, "build"], cwd=COMPILER_ROOT, env=env)
+
+
 def emitted_paths(root: Path, sample: Path) -> dict[str, Path]:
     stem = sample.stem.lower()
     return {
@@ -133,22 +138,15 @@ def emitted_paths(root: Path, sample: Path) -> dict[str, Path]:
     }
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
-    args = parser.parse_args()
-
-    alr = find_command("alr", Path.home() / "bin" / "alr")
-    python = find_command("python3")
-
-    env = ensure_sdkroot(os.environ.copy())
-
-    build_cmd = [alr, "build"]
-    build = run(build_cmd, cwd=COMPILER_ROOT, env=env)
-
-    safec = COMPILER_ROOT / "bin" / "safec"
-    if not safec.exists():
-        raise RuntimeError(f"expected compiled binary at {safec}")
+def generate_report(*, alr: str, python: str, safec: Path, env: dict[str, str]) -> dict[str, Any]:
+    first_build = build_frontend(alr, env)
+    first_binary_sha256 = sha256(safec)
+    second_build = build_frontend(alr, env)
+    second_binary_sha256 = sha256(safec)
+    require(
+        first_binary_sha256 == second_binary_sha256,
+        "frontend build is non-deterministic: compiler_impl/bin/safec hash drifted",
+    )
 
     with tempfile.TemporaryDirectory(prefix="safec-smoke-") as temp_root_str:
         temp_root = Path(temp_root_str)
@@ -238,8 +236,16 @@ def main() -> int:
                 file_hashes[relative] = sha256(left)
             deterministic_outputs[str(sample.relative_to(REPO_ROOT))] = file_hashes
 
-        report = {
-            "build": build,
+        return {
+            "build": {
+                "command": first_build["command"],
+                "cwd": first_build["cwd"],
+                "returncodes": [first_build["returncode"], second_build["returncode"]],
+                "binary_path": display_path(safec, repo_root=REPO_ROOT),
+                "first_binary_sha256": first_binary_sha256,
+                "second_binary_sha256": second_binary_sha256,
+                "binary_deterministic": True,
+            },
             "lex_equality": {
                 **equality_lex_run,
                 "assertions": equality_assertions,
@@ -260,6 +266,25 @@ def main() -> int:
                 "legacy_lex": str(LEGACY_TOKEN_FIXTURE.relative_to(REPO_ROOT)),
             },
         }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
+    args = parser.parse_args()
+
+    alr = find_command("alr", Path.home() / "bin" / "alr")
+    python = find_command("python3")
+
+    env = ensure_sdkroot(os.environ.copy())
+
+    safec = COMPILER_ROOT / "bin" / "safec"
+    if not safec.exists():
+        raise RuntimeError(f"expected compiled binary at {safec}")
+    report = finalize_deterministic_report(
+        lambda: generate_report(alr=alr, python=python, safec=safec, env=env),
+        label="PR00-PR04 frontend smoke",
+    )
 
     write_report(args.report, report)
     print(f"frontend smoke: OK ({display_path(args.report, repo_root=REPO_ROOT)})")

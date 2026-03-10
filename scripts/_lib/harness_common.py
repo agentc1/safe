@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -119,26 +119,6 @@ def ensure_sdkroot(
     return env
 
 
-def tool_versions(*, python: str | None = None, alr: str | None = None) -> dict[str, str]:
-    versions: dict[str, str] = {}
-    if python is not None:
-        versions["python3"] = (
-            subprocess.run([python, "--version"], text=True, capture_output=True, check=False).stdout.strip()
-            or subprocess.run([python, "--version"], text=True, capture_output=True, check=False).stderr.strip()
-        )
-    if alr is not None:
-        versions["alr"] = subprocess.run(
-            [alr, "--version"], text=True, capture_output=True, check=False
-        ).stdout.strip()
-    gprbuild = shutil.which("gprbuild")
-    if gprbuild:
-        versions["gprbuild"] = (
-            subprocess.run([gprbuild, "--version"], text=True, capture_output=True, check=False)
-            .stdout.splitlines()[0]
-        )
-    return versions
-
-
 def read_diag_json(stdout: str, label: str) -> dict[str, Any]:
     payload = json.loads(stdout)
     require(payload.get("format") == "diagnostics-v0", f"{label}: unexpected diagnostics format")
@@ -164,6 +144,25 @@ def serialize_report(report: dict[str, Any]) -> str:
 def write_report(path: Path, report: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(serialize_report(report), encoding="utf-8")
+
+
+def finalize_deterministic_report(
+    generator: Callable[[], dict[str, Any]],
+    *,
+    label: str,
+) -> dict[str, Any]:
+    report = generator()
+    repeat_report = generator()
+    serialized = serialize_report(report)
+    repeat_serialized = serialize_report(repeat_report)
+    report_sha256 = sha256_text(serialized)
+    repeat_sha256 = sha256_text(repeat_serialized)
+    require(serialized == repeat_serialized, f"{label} report generation is non-deterministic")
+    finalized = dict(report)
+    finalized["deterministic"] = True
+    finalized["report_sha256"] = report_sha256
+    finalized["repeat_sha256"] = repeat_sha256
+    return finalized
 
 
 def extract_expected_block(path: Path) -> str:

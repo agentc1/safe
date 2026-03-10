@@ -90,6 +90,25 @@ class HarnessCommonTests(unittest.TestCase):
         self.assertEqual(hc.display_path(inside), "scripts/run_frontend_smoke.py")
         self.assertEqual(hc.display_path(outside), "/tmp/report.json")
 
+    def test_finalize_deterministic_report_adds_hashes(self) -> None:
+        report = hc.finalize_deterministic_report(
+            lambda: {"task": "PR06.9.X", "status": "ok"},
+            label="test",
+        )
+        self.assertTrue(report["deterministic"])
+        self.assertEqual(report["report_sha256"], report["repeat_sha256"])
+        self.assertNotIn("tool_versions", report)
+
+    def test_finalize_deterministic_report_rejects_drift(self) -> None:
+        counter = {"value": 0}
+
+        def generator() -> dict[str, int]:
+            counter["value"] += 1
+            return {"value": counter["value"]}
+
+        with self.assertRaises(RuntimeError):
+            hc.finalize_deterministic_report(generator, label="drift")
+
 
 if __name__ == "__main__":
     unittest.main()
