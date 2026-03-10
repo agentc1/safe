@@ -43,7 +43,7 @@ def normalize_argv(
 def find_command(name: str, fallback: Path | None = None) -> str:
     found = shutil.which(name)
     if found:
-        return found
+        return name
     if fallback and fallback.exists():
         return str(fallback)
     raise FileNotFoundError(f"required command not found: {name}")

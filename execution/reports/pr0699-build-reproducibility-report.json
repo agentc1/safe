@@ -7,20 +7,17 @@
       "build"
     ],
     "cwd": "$REPO_ROOT/compiler_impl",
-    "first_binary_sha256": "96d381bd47f8e8851e519fd447e350f2f869799f8a2c6b19f530c292e1137158",
     "returncodes": [
       0,
       0
-    ],
-    "second_binary_sha256": "96d381bd47f8e8851e519fd447e350f2f869799f8a2c6b19f530c292e1137158"
+    ]
   },
   "delegated_reports": {
     "frontend_smoke": {
       "binary_deterministic": true,
-      "first_binary_sha256": "96d381bd47f8e8851e519fd447e350f2f869799f8a2c6b19f530c292e1137158",
-      "repeat_sha256": "1bc219fb52fcdc23f596c4da4137fc2869af4daa7fd7dab3627d56c3862cea65",
+      "repeat_sha256": "26f1f5e571dde19fb05f6704ce4d92cdef814b88bc8af74207176a39e399746e",
       "report_path": "execution/reports/pr00-pr04-frontend-smoke.json",
-      "report_sha256": "1bc219fb52fcdc23f596c4da4137fc2869af4daa7fd7dab3627d56c3862cea65",
+      "report_sha256": "26f1f5e571dde19fb05f6704ce4d92cdef814b88bc8af74207176a39e399746e",
       "run": {
         "command": [
           "python3",
@@ -30,13 +27,12 @@
         "returncode": 0,
         "stderr": "",
         "stdout": "frontend smoke: OK (execution/reports/pr00-pr04-frontend-smoke.json)\n"
-      },
-      "second_binary_sha256": "96d381bd47f8e8851e519fd447e350f2f869799f8a2c6b19f530c292e1137158"
+      }
     },
     "gate_quality": {
-      "repeat_sha256": "74febf7cd23943f5212ce0517ecc13ef2c8c12069b84915e2681db669d7c2190",
+      "repeat_sha256": "08e94519eaff8435b042299964a02c350e4bf94d4f9e269c995434efa9837a55",
       "report_path": "execution/reports/pr0697-gate-quality-report.json",
-      "report_sha256": "74febf7cd23943f5212ce0517ecc13ef2c8c12069b84915e2681db669d7c2190",
+      "report_sha256": "08e94519eaff8435b042299964a02c350e4bf94d4f9e269c995434efa9837a55",
       "run": {
         "command": [
           "python3",
@@ -65,8 +61,8 @@
     }
   },
   "deterministic": true,
-  "repeat_sha256": "d289ac563d9b46e5c360be11a264caeabbdd9e4a22f778bd3785538ec133001b",
-  "report_sha256": "d289ac563d9b46e5c360be11a264caeabbdd9e4a22f778bd3785538ec133001b",
+  "repeat_sha256": "c1a843db724f683b596412bbd89bce7f549551dc86783f7b91bbbbb238652517",
+  "report_sha256": "c1a843db724f683b596412bbd89bce7f549551dc86783f7b91bbbbb238652517",
   "status": "ok",
   "task": "PR06.9.9"
 }

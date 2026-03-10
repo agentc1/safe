@@ -40,6 +40,9 @@ class HarnessCommonTests(unittest.TestCase):
             fallback.chmod(0o755)
             self.assertEqual(hc.find_command("clearly-missing-tool", fallback), str(fallback))
 
+    def test_find_command_returns_name_for_path_discovered_tool(self) -> None:
+        self.assertEqual(hc.find_command("sh"), "sh")
+
     def test_run_enforces_return_code_and_captures_stdout_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_root = Path(temp_dir)

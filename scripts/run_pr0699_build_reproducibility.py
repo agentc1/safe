@@ -75,8 +75,6 @@ def run_build_reproducibility(*, alr: str, safec: Path, env: dict[str, str]) -> 
         "cwd": first_build["cwd"],
         "returncodes": [first_build["returncode"], second_build["returncode"]],
         "binary_path": display_path(safec, repo_root=REPO_ROOT),
-        "first_binary_sha256": first_binary_sha256,
-        "second_binary_sha256": second_binary_sha256,
         "binary_deterministic": True,
     }
 
@@ -140,8 +138,6 @@ def generate_report(*, python: str, alr: str, safec: Path, env: dict[str, str]) 
             "frontend_smoke": {
                 **frontend_smoke,
                 "binary_deterministic": frontend_smoke_report["build"]["binary_deterministic"],
-                "first_binary_sha256": frontend_smoke_report["build"]["first_binary_sha256"],
-                "second_binary_sha256": frontend_smoke_report["build"]["second_binary_sha256"],
             },
             "gate_quality": gate_quality,
             "legacy_package_cleanup": legacy_cleanup,
@@ -157,7 +153,7 @@ def main() -> int:
     python = find_command("python3")
     alr = find_command("alr", Path.home() / "bin" / "alr")
     env = ensure_sdkroot(os.environ.copy())
-    safec = require_repo_command(COMPILER_ROOT / "bin" / "safec", "safec")
+    safec = COMPILER_ROOT / "bin" / "safec"
     report_paths = [
         FRONTEND_SMOKE_REPORT,
         GATE_QUALITY_REPORT,

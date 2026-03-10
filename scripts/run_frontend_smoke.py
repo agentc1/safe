@@ -242,8 +242,6 @@ def generate_report(*, alr: str, python: str, safec: Path, env: dict[str, str]) 
                 "cwd": first_build["cwd"],
                 "returncodes": [first_build["returncode"], second_build["returncode"]],
                 "binary_path": display_path(safec, repo_root=REPO_ROOT),
-                "first_binary_sha256": first_binary_sha256,
-                "second_binary_sha256": second_binary_sha256,
                 "binary_deterministic": True,
             },
             "lex_equality": {
@@ -279,8 +277,6 @@ def main() -> int:
     env = ensure_sdkroot(os.environ.copy())
 
     safec = COMPILER_ROOT / "bin" / "safec"
-    if not safec.exists():
-        raise RuntimeError(f"expected compiled binary at {safec}")
     report = finalize_deterministic_report(
         lambda: generate_report(alr=alr, python=python, safec=safec, env=env),
         label="PR00-PR04 frontend smoke",
