@@ -52,5 +52,8 @@ PR06.9.10 makes the platform policy explicit:
 - Ubuntu/Linux CI and local macOS are the supported environments for the current frontend.
 - Windows is explicitly unsupported for PR06.9.x.
 - On macOS, repo glue assumes an SDK is discoverable through `xcrun --show-sdk-path` or `SDKROOT`.
+- Portability-sensitive repo glue uses PATH-based command discovery instead of hard-coded tool paths.
+- Portability-sensitive gates use deterministic TemporaryDirectory prefixes for stable temp roots and evidence.
+- Portability-sensitive glue scripts remain shell-free and do not rely on `shell=True` or `os.system`.
 - The note in `docs/macos_alire_toolchain_repair.md` is a developer recovery procedure, not a compiler runtime dependency.
 - No-Python runtime enforcement covers `python`, `python3`, `python3.11`, `python3.<minor>`, and path-qualified Python invocations in compiler runtime sources.

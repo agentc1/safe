@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 import sys
@@ -15,9 +16,12 @@ from _lib.platform_assumptions import (
     DOCUMENTED_PYTHON_FORMS,
     MACOS_SDK_DISCOVERY_FORMS,
     MASKED_PYTHON_INTERPRETERS,
+    PATH_LOOKUP_POLICY_TEXT,
+    SHELL_POLICY_TEXT,
     STATIC_PYTHON_INVOCATION_PATTERNS,
     SUPPORTED_FRONTEND_ENVIRONMENTS,
     SUPPORTED_PLATFORM_POLICY_TEXT,
+    TEMPDIR_POLICY_TEXT,
     UNSUPPORTED_FRONTEND_ENVIRONMENTS,
     UNSUPPORTED_PLATFORM_POLICY_TEXT,
 )
@@ -132,12 +136,18 @@ ENVIRONMENT_DOC_REQUIREMENTS = {
     "compiler_impl/README.md": [
         SUPPORTED_PLATFORM_POLICY_TEXT,
         UNSUPPORTED_PLATFORM_POLICY_TEXT,
+        PATH_LOOKUP_POLICY_TEXT,
+        TEMPDIR_POLICY_TEXT,
+        SHELL_POLICY_TEXT,
         *MACOS_SDK_DISCOVERY_FORMS,
         *DOCUMENTED_PYTHON_FORMS,
     ],
     "release/frontend_runtime_decision.md": [
         SUPPORTED_PLATFORM_POLICY_TEXT,
         UNSUPPORTED_PLATFORM_POLICY_TEXT,
+        PATH_LOOKUP_POLICY_TEXT,
+        TEMPDIR_POLICY_TEXT,
+        SHELL_POLICY_TEXT,
         *MACOS_SDK_DISCOVERY_FORMS,
         *DOCUMENTED_PYTHON_FORMS,
     ],
@@ -589,6 +599,29 @@ def environment_assumptions_report(
         if "find_command(" not in text:
             path_lookup_violations.append(relative_path)
 
+    shell_assumption_violations: List[str] = []
+    for relative_path in scripts_scanned:
+        path = repo_root / relative_path
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        try:
+            tree = ast.parse(text, filename=str(path))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                for keyword in node.keywords:
+                    if keyword.arg == "shell" and isinstance(keyword.value, ast.Constant) and keyword.value.value is True:
+                        shell_assumption_violations.append(f"{relative_path}:shell=True")
+                if (
+                    isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "os"
+                    and node.func.attr == "system"
+                ):
+                    shell_assumption_violations.append(f"{relative_path}:os.system")
+
     return {
         "supported_platforms": list(SUPPORTED_FRONTEND_ENVIRONMENTS),
         "unsupported_platforms": list(UNSUPPORTED_FRONTEND_ENVIRONMENTS),
@@ -603,6 +636,7 @@ def environment_assumptions_report(
         "portability_module_violations": portability_module_violations,
         "tempdir_convention_violations": tempdir_convention_violations,
         "path_lookup_violations": path_lookup_violations,
+        "shell_assumption_violations": shell_assumption_violations,
     }
 
 
@@ -648,6 +682,11 @@ def check_environment_assumptions(
         fail(
             "portability-sensitive scripts must use PATH-based command discovery: "
             f"{report['path_lookup_violations']}"
+        )
+    if report["shell_assumption_violations"]:
+        fail(
+            "portability-sensitive scripts must remain shell-free: "
+            f"{report['shell_assumption_violations']}"
         )
 
 

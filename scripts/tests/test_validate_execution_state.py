@@ -264,6 +264,9 @@ class ValidateExecutionStateTests(unittest.TestCase):
                     "docs/policy.md": [
                         "Ubuntu/Linux CI and local macOS",
                         "Windows is explicitly unsupported",
+                        "PATH-based command discovery",
+                        "deterministic TemporaryDirectory prefixes",
+                        "shell-free",
                     ]
                 },
                 runtime_source_globs=(),
@@ -281,6 +284,53 @@ class ValidateExecutionStateTests(unittest.TestCase):
             )
             self.assertIn("scripts/runtime_gate.py", report["tempdir_convention_violations"])
             self.assertIn("scripts/runtime_gate.py", report["path_lookup_violations"])
+            self.assertFalse(report["shell_assumption_violations"])
+
+    def test_environment_assumptions_report_detects_shell_usage(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            docs_dir = repo_root / "docs"
+            docs_dir.mkdir()
+            (docs_dir / "policy.md").write_text(
+                "Ubuntu/Linux CI and local macOS\n"
+                "Windows is explicitly unsupported\n"
+                "PATH-based command discovery\n"
+                "deterministic TemporaryDirectory prefixes\n"
+                "shell-free\n",
+                encoding="utf-8",
+            )
+            scripts_dir = repo_root / "scripts"
+            scripts_dir.mkdir()
+            (scripts_dir / "runtime_gate.py").write_text(
+                "from _lib.platform_assumptions import MASKED_PYTHON_INTERPRETERS\n"
+                "from tempfile import TemporaryDirectory\n"
+                "import subprocess\n"
+                "with TemporaryDirectory(prefix='ok-'):\n"
+                "    pass\n"
+                "find_command('python3')\n"
+                "subprocess.run('echo hi', shell=True)\n",
+                encoding="utf-8",
+            )
+            report = environment_assumptions_report(
+                repo_root=repo_root,
+                doc_requirements={
+                    "docs/policy.md": [
+                        "Ubuntu/Linux CI and local macOS",
+                        "Windows is explicitly unsupported",
+                        "PATH-based command discovery",
+                        "deterministic TemporaryDirectory prefixes",
+                        "shell-free",
+                    ]
+                },
+                runtime_source_globs=(),
+                module_requirements={"scripts/runtime_gate.py": ["MASKED_PYTHON_INTERPRETERS"]},
+                tempdir_scripts=("scripts/runtime_gate.py",),
+                path_lookup_scripts=("scripts/runtime_gate.py",),
+            )
+            self.assertIn(
+                "scripts/runtime_gate.py:shell=True",
+                report["shell_assumption_violations"],
+            )
 
     def test_check_environment_assumptions_accepts_valid_repo(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -288,7 +338,12 @@ class ValidateExecutionStateTests(unittest.TestCase):
             docs_dir = repo_root / "docs"
             docs_dir.mkdir()
             (docs_dir / "policy.md").write_text(
-                "Ubuntu/Linux CI and local macOS\nWindows is explicitly unsupported\n`python`\n",
+                "Ubuntu/Linux CI and local macOS\n"
+                "Windows is explicitly unsupported\n"
+                "PATH-based command discovery\n"
+                "deterministic TemporaryDirectory prefixes\n"
+                "shell-free\n"
+                "`python`\n",
                 encoding="utf-8",
             )
             source_dir = repo_root / "compiler_impl" / "src"
@@ -306,7 +361,15 @@ class ValidateExecutionStateTests(unittest.TestCase):
             )
             report = environment_assumptions_report(
                 repo_root=repo_root,
-                doc_requirements={"docs/policy.md": ["Ubuntu/Linux CI and local macOS", "Windows is explicitly unsupported"]},
+                doc_requirements={
+                    "docs/policy.md": [
+                        "Ubuntu/Linux CI and local macOS",
+                        "Windows is explicitly unsupported",
+                        "PATH-based command discovery",
+                        "deterministic TemporaryDirectory prefixes",
+                        "shell-free",
+                    ]
+                },
                 runtime_source_globs=("compiler_impl/src/*.adb",),
                 module_requirements={"scripts/runtime_gate.py": ["MASKED_PYTHON_INTERPRETERS"]},
                 tempdir_scripts=("scripts/runtime_gate.py",),
@@ -315,7 +378,15 @@ class ValidateExecutionStateTests(unittest.TestCase):
             self.assertFalse(report["runtime_source_violations"])
             check_environment_assumptions(
                 repo_root=repo_root,
-                doc_requirements={"docs/policy.md": ["Ubuntu/Linux CI and local macOS", "Windows is explicitly unsupported"]},
+                doc_requirements={
+                    "docs/policy.md": [
+                        "Ubuntu/Linux CI and local macOS",
+                        "Windows is explicitly unsupported",
+                        "PATH-based command discovery",
+                        "deterministic TemporaryDirectory prefixes",
+                        "shell-free",
+                    ]
+                },
                 runtime_source_globs=("compiler_impl/src/*.adb",),
                 module_requirements={"scripts/runtime_gate.py": ["MASKED_PYTHON_INTERPRETERS"]},
                 tempdir_scripts=("scripts/runtime_gate.py",),

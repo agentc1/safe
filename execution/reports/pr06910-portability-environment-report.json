@@ -70,6 +70,7 @@
       "scripts/run_pr0693_runtime_boundary.py",
       "scripts/validate_execution_state.py"
     ],
+    "shell_assumption_violations": [],
     "supported_platforms": [
       "linux",
       "macos"
@@ -87,8 +88,8 @@
     "execution/reports/pr068-ada-ast-emit-no-python-report.json",
     "execution/reports/pr06910-portability-environment-report.json"
   ],
-  "repeat_sha256": "0d1c2f84fbe8bafe9c8dbf7acb1507eec18521b9b19cdd088afa600d8db92439",
-  "report_sha256": "0d1c2f84fbe8bafe9c8dbf7acb1507eec18521b9b19cdd088afa600d8db92439",
+  "repeat_sha256": "506734f3fd4eeded02c89e36013eaf7aa8867f2c630cc30f2853268ab2f7384b",
+  "report_sha256": "506734f3fd4eeded02c89e36013eaf7aa8867f2c630cc30f2853268ab2f7384b",
   "reruns": {
     "ast_emit_no_python": {
       "command": [
@@ -137,6 +138,6 @@
     "cwd": "$REPO_ROOT",
     "result": "OK",
     "returncode": 0,
-    "tests_ran": 26
+    "tests_ran": 27
   }
 }

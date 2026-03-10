@@ -47,9 +47,9 @@ def repo_relative_paths(paths: list[Path]) -> list[str]:
     return [str(path.relative_to(REPO_ROOT)) for path in paths]
 
 
-def current_dirty_paths(*, paths: list[Path], env: dict[str, str]) -> list[str]:
+def current_dirty_paths(*, git: str, paths: list[Path], env: dict[str, str]) -> list[str]:
     relative_paths = repo_relative_paths(paths)
-    result = run(["git", "status", "--short", "--", *relative_paths], cwd=REPO_ROOT, env=env)
+    result = run([git, "status", "--short", "--", *relative_paths], cwd=REPO_ROOT, env=env)
     dirty: list[str] = []
     for line in result["stdout"].splitlines():
         if not line.strip():
@@ -58,9 +58,9 @@ def current_dirty_paths(*, paths: list[Path], env: dict[str, str]) -> list[str]:
     return dirty
 
 
-def current_dirty_diff(*, paths: list[Path], env: dict[str, str]) -> str:
+def current_dirty_diff(*, git: str, paths: list[Path], env: dict[str, str]) -> str:
     relative_paths = repo_relative_paths(paths)
-    return run(["git", "diff", "--", *relative_paths], cwd=REPO_ROOT, env=env)["stdout"]
+    return run([git, "diff", "--", *relative_paths], cwd=REPO_ROOT, env=env)["stdout"]
 
 
 def check_environment_report(report: dict[str, Any]) -> None:
@@ -87,7 +87,12 @@ def check_environment_report(report: dict[str, Any]) -> None:
         not report["path_lookup_violations"],
         "portability-sensitive scripts must use PATH-based command discovery: "
         f"{report['path_lookup_violations']}",
-        )
+    )
+    require(
+        not report["shell_assumption_violations"],
+        "portability-sensitive scripts must remain shell-free: "
+        f"{report['shell_assumption_violations']}",
+    )
 
 
 def summarize_unittest_run(result: dict[str, Any]) -> dict[str, Any]:
@@ -137,11 +142,12 @@ def main() -> int:
     args = parser.parse_args()
 
     python = find_command("python3")
+    git = find_command("git")
     env = ensure_sdkroot(os.environ.copy())
     monitored_paths = [path if path != DEFAULT_REPORT else args.report for path in MONITORED_PATHS]
-    initial_dirty = current_dirty_paths(paths=monitored_paths, env=env)
+    initial_dirty = current_dirty_paths(git=git, paths=monitored_paths, env=env)
     compare_paths = [path for path in monitored_paths if path != args.report]
-    initial_diff = current_dirty_diff(paths=compare_paths, env=env)
+    initial_diff = current_dirty_diff(git=git, paths=compare_paths, env=env)
 
     report = finalize_deterministic_report(
         lambda: generate_report(python=python, env=env),
@@ -149,9 +155,9 @@ def main() -> int:
     )
     write_report(args.report, report)
 
-    final_dirty = current_dirty_paths(paths=monitored_paths, env=env)
+    final_dirty = current_dirty_paths(git=git, paths=monitored_paths, env=env)
     if initial_dirty:
-        final_diff = current_dirty_diff(paths=compare_paths, env=env)
+        final_diff = current_dirty_diff(git=git, paths=compare_paths, env=env)
         allowed_dirty = set(initial_dirty)
         allowed_dirty.add(display_path(args.report, repo_root=REPO_ROOT))
         require(
@@ -164,7 +170,7 @@ def main() -> int:
             "PR06.9.10 monitored diffs changed further from an already-dirty baseline",
         )
     else:
-        run(["git", "diff", "--exit-code", "--", *repo_relative_paths(monitored_paths)], cwd=REPO_ROOT, env=env)
+        run([git, "diff", "--exit-code", "--", *repo_relative_paths(monitored_paths)], cwd=REPO_ROOT, env=env)
 
     print(f"pr06910 portability environment: OK ({display_path(args.report, repo_root=REPO_ROOT)})")
     return 0

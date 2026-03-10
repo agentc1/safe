@@ -7,6 +7,9 @@ UNSUPPORTED_FRONTEND_ENVIRONMENTS = ("windows",)
 
 SUPPORTED_PLATFORM_POLICY_TEXT = "Ubuntu/Linux CI and local macOS"
 UNSUPPORTED_PLATFORM_POLICY_TEXT = "Windows is explicitly unsupported"
+PATH_LOOKUP_POLICY_TEXT = "PATH-based command discovery"
+TEMPDIR_POLICY_TEXT = "deterministic TemporaryDirectory prefixes"
+SHELL_POLICY_TEXT = "shell-free"
 
 MASKED_PYTHON_INTERPRETERS = ("python", "python3", "python3.11")
 DOCUMENTED_PYTHON_FORMS = (
