@@ -47,3 +47,10 @@ PR06.9.6 makes the unsupported-feature boundary explicit across the Ada-native f
 - `check`, `ast`, and `emit` are all regression-covered so unsupported inputs fail consistently and never leak into partial lowering or emitted artifacts.
 
 PR06.9.8 removes the old shallow `Safe_Frontend.Ast` / `Parser` / `Semantics` / `Mir` chain from the tree entirely. The only live compiler frontend path is the Ada-native `Check_*` plus `Mir_*` pipeline, and later milestones must extend that live path instead of reintroducing the deleted legacy chain.
+
+PR06.9.10 makes the platform policy explicit:
+- Ubuntu/Linux CI and local macOS are the supported environments for the current frontend.
+- Windows is explicitly unsupported for PR06.9.x.
+- On macOS, repo glue assumes an SDK is discoverable through `xcrun --show-sdk-path` or `SDKROOT`.
+- The note in `docs/macos_alire_toolchain_repair.md` is a developer recovery procedure, not a compiler runtime dependency.
+- No-Python runtime enforcement covers `python`, `python3`, `python3.11`, `python3.<minor>`, and path-qualified Python invocations in compiler runtime sources.

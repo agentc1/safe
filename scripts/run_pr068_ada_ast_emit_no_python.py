@@ -25,6 +25,10 @@ from _lib.harness_common import (
     run,
     write_report,
 )
+from _lib.platform_assumptions import (
+    MASKED_PYTHON_INTERPRETERS,
+    STATIC_PYTHON_INVOCATION_PATTERNS,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -100,9 +104,18 @@ BANNED_DRIVER_TOKENS = [
     "Python3 :",
 ]
 RUNTIME_SOURCE_PATTERNS = [
-    ("compiler_impl/src/safe_frontend-*.adb", [r"\bRun_Backend\b", r"\bBackend_Script\b", r"\bpython3\b", r"\bpython\b", r"pr05_backend\.py", r"\bGNAT\.OS_Lib\b"]),
-    ("compiler_impl/src/safe_frontend-*.ads", [r"\bRun_Backend\b", r"\bBackend_Script\b", r"\bpython3\b", r"\bpython\b", r"pr05_backend\.py", r"\bGNAT\.OS_Lib\b"]),
-    ("compiler_impl/src/safec.adb", [r"\bRun_Backend\b", r"\bBackend_Script\b", r"\bpython3\b", r"\bpython\b", r"pr05_backend\.py"]),
+    (
+        "compiler_impl/src/safe_frontend-*.adb",
+        [r"\bRun_Backend\b", r"\bBackend_Script\b", r"pr05_backend\.py", r"\bGNAT\.OS_Lib\b", *STATIC_PYTHON_INVOCATION_PATTERNS],
+    ),
+    (
+        "compiler_impl/src/safe_frontend-*.ads",
+        [r"\bRun_Backend\b", r"\bBackend_Script\b", r"pr05_backend\.py", r"\bGNAT\.OS_Lib\b", *STATIC_PYTHON_INVOCATION_PATTERNS],
+    ),
+    (
+        "compiler_impl/src/safec.adb",
+        [r"\bRun_Backend\b", r"\bBackend_Script\b", r"pr05_backend\.py", *STATIC_PYTHON_INVOCATION_PATTERNS],
+    ),
 ]
 
 
@@ -132,7 +145,7 @@ def make_masked_env(temp_root: Path) -> tuple[dict[str, str], dict[str, Path], P
     stub_dir.mkdir(parents=True, exist_ok=True)
     blocked_log = temp_root / "blocked-python.log"
     stub_paths: dict[str, Path] = {}
-    for interpreter in ("python3", "python"):
+    for interpreter in MASKED_PYTHON_INTERPRETERS:
         stub_path = stub_dir / interpreter
         stub_path.write_text(
             "\n".join(
