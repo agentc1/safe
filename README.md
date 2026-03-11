@@ -47,7 +47,7 @@ The `companion/templates/` directory contains 14 templates (M1–M7 complete) de
 | Companion VCs (flow / proved / justified / unproved) | 29 / 34 / 1 / 0 (64 total) |
 | Template VCs (flow / proved / justified / unproved) | 107 / 217 / 1 / 0 (325 total, 17 units) |
 | Tracked assumptions | 14 (4 critical, 4 major, 5 minor, 1 template) |
-| Test files | 100 |
+| Test files | 103 |
 
 ---
 
