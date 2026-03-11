@@ -141,6 +141,8 @@ def measure_emit_scenarios(*, safec: Path, env: dict[str, str]) -> tuple[list[di
             temp_root = Path(temp_root_str)
             for repetition in range(EMIT_REPETITIONS):
                 root = temp_root / f"rep-{repetition + 1}"
+                (root / "out").mkdir(parents=True, exist_ok=True)
+                (root / "iface").mkdir(parents=True, exist_ok=True)
                 _, elapsed_ms = measure_run(
                     argv=[
                         str(safec),
