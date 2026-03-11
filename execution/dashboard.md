@@ -3,7 +3,7 @@
 - **Schema version:** `1`
 - **Frozen spec SHA:** `468cf72332724b04b7c193b4d2a3b02f1584125d`
 - **Active task:** `none`
-- **Next task:** `PR06.9.12`
+- **Next task:** `PR06.9.13`
 - **Updated at:** `2026-03-09T22:47:56Z`
 
 ## Repo Facts
@@ -41,7 +41,7 @@
 | PR06.9.9 | done | PR06.9.8 | 1 |
 | PR06.9.10 | done | PR06.9.9 | 1 |
 | PR06.9.11 | done | PR06.9.10 | 1 |
-| PR06.9.12 | planned | PR06.9.11 | 0 |
+| PR06.9.12 | done | PR06.9.11 | 1 |
 | PR06.9.13 | planned | PR06.9.12 | 0 |
 | PR07 | planned | PR06.9.13 | 0 |
 | PR08 | planned | PR07 | 0 |
@@ -357,13 +357,15 @@
 
 ### PR06.9.12 — Performance and scale sanity
 
-- **Status:** `planned`
+- **Status:** `done`
 - **Depends on:** PR06.9.11
 - **Blockers:** none
 - **Acceptance:**
   - Representative repeated check, emit, and analyze-mir runs are measured enough to catch obvious regression cliffs.
   - Serialization and analysis paths avoid pathological behavior on current corpus sizes.
   - Any known scale limits for the current frontend subset are documented.
+- **Evidence:**
+  - `execution/reports/pr06912-performance-scale-sanity-report.json`
 
 ### PR06.9.13 — Documentation and architectural clarity
 

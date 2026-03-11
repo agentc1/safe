@@ -64,3 +64,9 @@ PR06.9.11 turns that glue policy into an audited invariant:
 - active Python glue stays argv-based and shell-free
 - tempdir, subprocess, tool lookup, and report-writing paths are centralized and deterministic
 - Python glue may orchestrate and validate, but it may not become a second semantic source of truth for Safe source
+
+PR06.9.12 adds a cliff-detection gate, not a benchmark commitment:
+- the documented scale envelope is the current PR05/PR06 supported subset only
+- Rule 5, result safety, channels/tasks/concurrency, and other unsupported surfaces are out of scope for performance claims
+- raw timings are intentionally kept out of committed evidence
+- the current policy and scope live in `docs/frontend_scale_limits.md`
