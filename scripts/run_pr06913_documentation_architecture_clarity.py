@@ -92,7 +92,11 @@ def run_gate_script(*, python: str, script: Path, report_path: Path, env: dict[s
         f"{report_path.name}: deterministic hashes must match",
     )
     return {
-        "run": result,
+        "run": {
+            "command": result["command"],
+            "cwd": result["cwd"],
+            "returncode": result["returncode"],
+        },
         "report_path": display_path(report_path, repo_root=REPO_ROOT),
         "report_sha256": report["report_sha256"],
         "repeat_sha256": report["repeat_sha256"],
