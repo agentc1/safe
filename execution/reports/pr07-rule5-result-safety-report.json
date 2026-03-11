@@ -312,6 +312,82 @@
       "source": "tests/negative/neg_result_mutated.safe"
     }
   ],
+  "inline_regressions": [
+    {
+      "check": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "check",
+          "--diag-json",
+          "$TMPDIR/result_wrong_boolean_flag.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 1,
+        "stderr": "",
+        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"discriminant_check_not_established\",\"message\":\"access to variant field 'Value' requires established discriminant 'OK'\",\"path\":\"$TMPDIR/result_wrong_boolean_flag.safe\",\"span\":{\"start_line\":17,\"start_col\":17,\"end_line\":17,\"end_col\":23},\"highlight_span\":{\"start_line\":17,\"start_col\":17,\"end_line\":17,\"end_col\":23},\"notes\":[\"the discriminant 'OK' was not established on all paths before this access.\"],\"suggestions\":[]}]}\n"
+      },
+      "diagnostic": {
+        "highlight_span": {
+          "end_col": 23,
+          "end_line": 17,
+          "start_col": 17,
+          "start_line": 17
+        },
+        "message": "access to variant field 'Value' requires established discriminant 'OK'",
+        "notes": [
+          "the discriminant 'OK' was not established on all paths before this access."
+        ],
+        "path": "$TMPDIR/result_wrong_boolean_flag.safe",
+        "reason": "discriminant_check_not_established",
+        "span": {
+          "end_col": 23,
+          "end_line": 17,
+          "start_col": 17,
+          "start_line": 17
+        },
+        "suggestions": []
+      },
+      "expected_reason": "discriminant_check_not_established",
+      "name": "result_wrong_boolean_flag"
+    },
+    {
+      "check": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "check",
+          "--diag-json",
+          "$TMPDIR/result_partial_guard_join.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 1,
+        "stderr": "",
+        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"discriminant_check_not_established\",\"message\":\"access to variant field 'Value' requires established discriminant 'OK'\",\"path\":\"$TMPDIR/result_partial_guard_join.safe\",\"span\":{\"start_line\":29,\"start_col\":14,\"end_line\":29,\"end_col\":20},\"highlight_span\":{\"start_line\":29,\"start_col\":14,\"end_line\":29,\"end_col\":20},\"notes\":[\"the discriminant 'OK' was not established on all paths before this access.\"],\"suggestions\":[]}]}\n"
+      },
+      "diagnostic": {
+        "highlight_span": {
+          "end_col": 20,
+          "end_line": 29,
+          "start_col": 14,
+          "start_line": 29
+        },
+        "message": "access to variant field 'Value' requires established discriminant 'OK'",
+        "notes": [
+          "the discriminant 'OK' was not established on all paths before this access."
+        ],
+        "path": "$TMPDIR/result_partial_guard_join.safe",
+        "reason": "discriminant_check_not_established",
+        "span": {
+          "end_col": 20,
+          "end_line": 29,
+          "start_col": 14,
+          "start_line": 29
+        },
+        "suggestions": []
+      },
+      "expected_reason": "discriminant_check_not_established",
+      "name": "result_partial_guard_join"
+    }
+  ],
   "parity": [
     {
       "analyze_mir": {
@@ -512,8 +588,8 @@
       "source": "tests/negative/neg_result_mutated.safe"
     }
   ],
-  "repeat_sha256": "12f4af3ba81cb1ba3f472706106836c42c95823f0a059fb4fc83e805f3674f4c",
-  "report_sha256": "12f4af3ba81cb1ba3f472706106836c42c95823f0a059fb4fc83e805f3674f4c",
+  "repeat_sha256": "9249e3c3eb204a8713a9458f0f36bfe375e54e2c3147a99dd1b2cb1734eff80b",
+  "report_sha256": "9249e3c3eb204a8713a9458f0f36bfe375e54e2c3147a99dd1b2cb1734eff80b",
   "source_corpus": {
     "negatives": [
       {

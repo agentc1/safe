@@ -477,9 +477,10 @@ package body Safe_Frontend.Mir_Analyze is
       Var_Types : Type_Maps.Map;
       Type_Env  : Type_Maps.Map);
    procedure Apply_Discriminant_Refinement
-     (Current : in out State;
-      Expr    : GM.Expr_Access;
-      Truthy  : Boolean;
+     (Current   : in out State;
+      Expr      : GM.Expr_Access;
+      Var_Types : Type_Maps.Map;
+      Truthy    : Boolean;
       Type_Env : Type_Maps.Map);
    function Refine_Condition
      (Current   : State;
@@ -1009,11 +1010,12 @@ package body Safe_Frontend.Mir_Analyze is
 
    function Parse_Real
      (Text : String) return Real_Value is
+      Normalized : constant String := Normalize_Real_Text (Text);
    begin
-      return Real_Value'Value (Normalize_Real_Text (Text));
+      return Real_Value'Value (Normalized);
    exception
       when others =>
-         return 0.0;
+         raise Constraint_Error with "invalid real text: " & Normalized;
    end Parse_Real;
 
    function Float_Interval_For
@@ -3353,13 +3355,24 @@ package body Safe_Frontend.Mir_Analyze is
    procedure Apply_Discriminant_Refinement
      (Current  : in out State;
       Expr     : GM.Expr_Access;
+      Var_Types : Type_Maps.Map;
       Truthy   : Boolean;
       Type_Env : Type_Maps.Map)
    is
-      pragma Unreferenced (Type_Env);
       Base_Name_Text : constant String := Root_Name (Expr);
+      Prefix_Type    : GM.Type_Descriptor;
    begin
-      if Expr = null or else Expr.Kind /= GM.Expr_Select or else Base_Name_Text = "" then
+      if Expr = null
+        or else Expr.Kind /= GM.Expr_Select
+        or else Expr.Prefix = null
+        or else Base_Name_Text = ""
+      then
+         return;
+      end if;
+      Prefix_Type := Expr_Type (Expr.Prefix, Var_Types, Type_Env, Function_Maps.Empty_Map);
+      if not Prefix_Type.Has_Discriminant
+        or else UString_Value (Prefix_Type.Discriminant_Name) /= UString_Value (Expr.Selector)
+      then
          return;
       end if;
       Current.Discriminants.Include
@@ -3385,7 +3398,7 @@ package body Safe_Frontend.Mir_Analyze is
       if Expr.Kind = GM.Expr_Unary and then UString_Value (Expr.Operator) = "not" then
          return Refine_Condition (Result, Expr.Inner, not Truthy, Var_Types, Type_Env);
       elsif Expr.Kind = GM.Expr_Select then
-         Apply_Discriminant_Refinement (Result, Expr, Truthy, Type_Env);
+         Apply_Discriminant_Refinement (Result, Expr, Var_Types, Truthy, Type_Env);
       elsif Expr.Kind = GM.Expr_Binary then
          Op := Expr.Operator;
          if UString_Value (Op) = "and then" then
@@ -3629,31 +3642,55 @@ package body Safe_Frontend.Mir_Analyze is
          end;
       end loop;
 
+      Result.Discriminants.Clear;
+      Discriminant_Cursor := Left.Discriminants.First;
+      while Discriminant_Maps.Has_Element (Discriminant_Cursor) loop
+         declare
+            Name   : constant String := Discriminant_Maps.Key (Discriminant_Cursor);
+            L_Item : constant Discriminant_Fact := Discriminant_Maps.Element (Discriminant_Cursor);
+            Merged : Discriminant_Fact;
+         begin
+            if Right.Discriminants.Contains (Name) then
+               declare
+                  R_Item : constant Discriminant_Fact := Right.Discriminants.Element (Name);
+               begin
+                  if L_Item.Known
+                    and then R_Item.Known
+                    and then L_Item.Value = R_Item.Value
+                    and then not L_Item.Invalidated
+                    and then not R_Item.Invalidated
+                  then
+                     Merged := L_Item;
+                  else
+                     Merged :=
+                       (Known       => False,
+                        Value       => False,
+                        Invalidated => L_Item.Invalidated or else R_Item.Invalidated);
+                  end if;
+               end;
+            else
+               Merged :=
+                 (Known       => False,
+                  Value       => False,
+                  Invalidated => L_Item.Invalidated);
+            end if;
+            Result.Discriminants.Include (Name, Merged);
+            Discriminant_Maps.Next (Discriminant_Cursor);
+         end;
+      end loop;
+
       Discriminant_Cursor := Right.Discriminants.First;
       while Discriminant_Maps.Has_Element (Discriminant_Cursor) loop
          declare
             Name : constant String := Discriminant_Maps.Key (Discriminant_Cursor);
             Item : constant Discriminant_Fact := Discriminant_Maps.Element (Discriminant_Cursor);
-            Merged : Discriminant_Fact;
          begin
-            if Result.Discriminants.Contains (Name) then
-               Merged := Result.Discriminants.Element (Name);
-               if Merged.Known
-                 and then Item.Known
-                 and then Merged.Value = Item.Value
-                 and then not Merged.Invalidated
-                 and then not Item.Invalidated
-               then
-                  null;
-               else
-                  Merged :=
-                    (Known       => False,
-                     Value       => False,
-                     Invalidated => Merged.Invalidated or else Item.Invalidated);
-               end if;
-               Result.Discriminants.Include (Name, Merged);
-            else
-               Result.Discriminants.Include (Name, Item);
+            if not Left.Discriminants.Contains (Name) then
+               Result.Discriminants.Include
+                 (Name,
+                  (Known       => False,
+                   Value       => False,
+                   Invalidated => Item.Invalidated));
             end if;
             Discriminant_Maps.Next (Discriminant_Cursor);
          end;

@@ -238,7 +238,7 @@ def extract_expected_block(path: Path) -> str:
     match = re.search(r"Expected diagnostic output:\n-+\n(.*)\n-+\n", text, flags=re.DOTALL)
     if match:
         return match.group(1).rstrip() + "\n"
-    return text.rstrip() + "\n"
+    raise RuntimeError(f"missing expected diagnostic output block in {path}")
 
 
 def read_expected_reason(path: Path) -> str:

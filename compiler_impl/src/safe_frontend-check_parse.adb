@@ -366,7 +366,6 @@ package body Safe_Frontend.Check_Parse is
             declare
                Case_Token  : constant FL.Token := Expect (State, "case");
                Name_Expr   : constant CM.Expr_Access := Parse_Name_Expression (State);
-               Variant_End : FL.Token;
             begin
                if not Result.Has_Discriminant then
                   Reject_Unsupported

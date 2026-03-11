@@ -51,6 +51,74 @@ GOLDEN_CASES = [
     (REPO_ROOT / "tests" / "negative" / "neg_result_mutated.safe", REPO_ROOT / "tests" / "diagnostics_golden" / "diag_result_mutated.txt"),
 ]
 
+INLINE_NEGATIVE_CASES = [
+    {
+        "name": "result_wrong_boolean_flag",
+        "expected_reason": "discriminant_check_not_established",
+        "source": """package Result_Wrong_Boolean_Flag is
+
+   type Error_Code is range 0 .. 255;
+
+   type Parse_Result (OK : Boolean = False) is record
+      Ready : Boolean;
+      case OK is
+         when True  then Value : Integer;
+         when False then Error : Error_Code;
+      end case;
+   end record;
+
+   function Unsafe return Integer is
+      R : Parse_Result = (OK = True, Ready = True, Value = 7);
+   begin
+      if R.Ready then
+         return R.Value;
+      else
+         return 0;
+      end if;
+   end Unsafe;
+
+end Result_Wrong_Boolean_Flag;
+""",
+    },
+    {
+        "name": "result_partial_guard_join",
+        "expected_reason": "discriminant_check_not_established",
+        "source": """package Result_Partial_Guard_Join is
+
+   type Error_Code is range 0 .. 255;
+
+   type Parse_Result (OK : Boolean = False) is record
+      case OK is
+         when True  then Value : Integer;
+         when False then Error : Error_Code;
+      end case;
+   end record;
+
+   function Try_Parse (Input : Integer) return Parse_Result is
+   begin
+      if Input >= 0 then
+         return (OK = True, Value = Input);
+      else
+         return (OK = False, Error = 1);
+      end if;
+   end Try_Parse;
+
+   function Unsafe (Input : Integer; Guard : Boolean) return Integer is
+      R : Parse_Result = Try_Parse (Input);
+   begin
+      if Guard then
+         if R.OK then
+            null;
+         end if;
+      end if;
+      return R.Value;
+   end Unsafe;
+
+end Result_Partial_Guard_Join;
+""",
+    },
+]
+
 EXPECTED_GOLDEN_MAP_ENTRIES = {
     ("tests/negative/neg_rule5_nan.safe", "tests/diagnostics_golden/diag_rule5_nan.txt"),
     ("tests/negative/neg_result_unguarded.safe", "tests/diagnostics_golden/diag_result_unguarded.txt"),
@@ -221,16 +289,41 @@ def run_goldens(safec: Path, env: dict[str, str], temp_root: Path) -> list[dict[
             temp_root=temp_root,
             expected_returncode=1,
         )
-        golden_text = golden_path.read_text(encoding="utf-8")
-        if "Expected diagnostic output:" in golden_text:
-            expected = normalize_text(extract_expected_block(golden_path), temp_root=temp_root)
-        else:
-            expected = normalize_text(golden_text, temp_root=temp_root)
+        expected = normalize_text(extract_expected_block(golden_path), temp_root=temp_root)
         require(result["stderr"] == expected, f"golden mismatch for {source_path.name}")
         results.append(
             {
                 "source": repo_arg(source_path),
                 "golden": repo_arg(golden_path),
+                "check": result,
+            }
+        )
+    return results
+
+
+def run_inline_negative_cases(safec: Path, env: dict[str, str], temp_root: Path) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    for case in INLINE_NEGATIVE_CASES:
+        source_path = temp_root / f"{case['name']}.safe"
+        source_path.write_text(case["source"], encoding="utf-8")
+        result = run(
+            [str(safec), "check", "--diag-json", str(source_path)],
+            cwd=REPO_ROOT,
+            env=env,
+            temp_root=temp_root,
+            expected_returncode=1,
+        )
+        payload = read_diag_json(result["stdout"], str(source_path))
+        diag = first_diag(payload, case["name"])
+        require(
+            diag["reason"] == case["expected_reason"],
+            f"{case['name']}: expected {case['expected_reason']}, saw {diag['reason']}",
+        )
+        results.append(
+            {
+                "name": case["name"],
+                "expected_reason": case["expected_reason"],
+                "diagnostic": diag_signature(diag),
                 "check": result,
             }
         )
@@ -429,6 +522,7 @@ def build_report(*, safec: Path, python: str, env: dict[str, str]) -> dict[str, 
             },
             "source_corpus": run_source_corpus(safec, env, temp_root),
             "goldens": run_goldens(safec, env, temp_root),
+            "inline_regressions": run_inline_negative_cases(safec, env, temp_root),
             "parity": run_parity_cases(safec, env, temp_root),
             "emitted_outputs": [
                 validate_emitted_output(safec=safec, python=python, sample=sample, env=env, temp_root=temp_root)
