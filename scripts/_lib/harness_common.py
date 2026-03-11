@@ -236,9 +236,9 @@ def finalize_deterministic_report(
 def extract_expected_block(path: Path) -> str:
     text = path.read_text(encoding="utf-8")
     match = re.search(r"Expected diagnostic output:\n-+\n(.*)\n-+\n", text, flags=re.DOTALL)
-    if not match:
-        raise RuntimeError(f"could not extract expected block from {path}")
-    return match.group(1).rstrip() + "\n"
+    if match:
+        return match.group(1).rstrip() + "\n"
+    return text.rstrip() + "\n"
 
 
 def read_expected_reason(path: Path) -> str:
