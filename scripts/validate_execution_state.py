@@ -132,6 +132,24 @@ EVIDENCE_FORBIDDEN_MARKERS = [
     "/Users/",
     "/home/runner/",
 ]
+PERFORMANCE_DOC_REQUIREMENTS = {
+    "docs/frontend_scale_limits.md": [
+        "PR05/PR06 supported subset only",
+        "cliff-detection gate, not a benchmark commitment",
+        "raw timings are intentionally kept out of committed evidence",
+        "Rule 5, result safety, channels/tasks/concurrency, and other unsupported surfaces are out of scope",
+    ],
+    "compiler_impl/README.md": [
+        "docs/frontend_scale_limits.md",
+        "PR06.9.12",
+        "cliff-detection gate, not a benchmark commitment",
+    ],
+    "release/frontend_runtime_decision.md": [
+        "docs/frontend_scale_limits.md",
+        "PR06.9.12",
+        "cliff-detection gate, not a benchmark commitment",
+    ],
+}
 ENVIRONMENT_DOC_REQUIREMENTS = {
     "compiler_impl/README.md": [
         SUPPORTED_PLATFORM_POLICY_TEXT,
@@ -789,6 +807,46 @@ def check_environment_assumptions(
         )
 
 
+def performance_scale_sanity_report(
+    *,
+    repo_root: Path = REPO_ROOT,
+    doc_requirements: Dict[str, Sequence[str]] = PERFORMANCE_DOC_REQUIREMENTS,
+) -> Dict[str, Any]:
+    docs_scanned: List[str] = []
+    missing_doc_files: List[str] = []
+    doc_policy_violations: List[str] = []
+    for relative_path, markers in doc_requirements.items():
+        docs_scanned.append(relative_path)
+        path = repo_root / relative_path
+        if not path.exists():
+            missing_doc_files.append(relative_path)
+            continue
+        text = path.read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                doc_policy_violations.append(f"{relative_path}:{marker}")
+    return {
+        "docs_scanned": docs_scanned,
+        "missing_doc_files": missing_doc_files,
+        "doc_policy_violations": doc_policy_violations,
+    }
+
+
+def check_performance_scale_sanity(
+    *,
+    repo_root: Path = REPO_ROOT,
+    doc_requirements: Dict[str, Sequence[str]] = PERFORMANCE_DOC_REQUIREMENTS,
+) -> None:
+    report = performance_scale_sanity_report(
+        repo_root=repo_root,
+        doc_requirements=doc_requirements,
+    )
+    if report["missing_doc_files"]:
+        fail(f"missing performance/scale docs: {report['missing_doc_files']}")
+    if report["doc_policy_violations"]:
+        fail(f"missing performance/scale policy markers: {report['doc_policy_violations']}")
+
+
 def glue_script_safety_report(
     *,
     repo_root: Path = REPO_ROOT,
@@ -1085,6 +1143,7 @@ def main() -> int:
     check_environment_assumptions()
     check_legacy_frontend_cleanup()
     check_glue_script_safety()
+    check_performance_scale_sanity()
     print("execution state: OK")
     return 0
 

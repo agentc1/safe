@@ -15,6 +15,7 @@ from validate_execution_state import (
     check_environment_assumptions,
     check_evidence_reproducibility,
     check_glue_script_safety,
+    check_performance_scale_sanity,
     check_status_rules,
     check_test_distribution,
     count_test_files,
@@ -22,6 +23,7 @@ from validate_execution_state import (
     evidence_reproducibility_report,
     glue_script_safety_report,
     legacy_frontend_cleanup_report,
+    performance_scale_sanity_report,
     runtime_boundary_report,
 )
 
@@ -587,6 +589,73 @@ class ValidateExecutionStateTests(unittest.TestCase):
                 report_scripts=(),
             )
             self.assertIn("scripts/runtime_gate.py:read_text", report["unauthorized_safe_source_readers"])
+
+    def test_performance_scale_sanity_report_detects_missing_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            docs_dir = repo_root / "docs"
+            docs_dir.mkdir()
+            (docs_dir / "frontend_scale_limits.md").write_text(
+                "PR05/PR06 supported subset only\n",
+                encoding="utf-8",
+            )
+            compiler_dir = repo_root / "compiler_impl"
+            compiler_dir.mkdir()
+            (compiler_dir / "README.md").write_text(
+                "PR06.9.12\n",
+                encoding="utf-8",
+            )
+            release_dir = repo_root / "release"
+            release_dir.mkdir()
+            (release_dir / "frontend_runtime_decision.md").write_text(
+                "PR06.9.12\n",
+                encoding="utf-8",
+            )
+
+            report = performance_scale_sanity_report(repo_root=repo_root)
+            self.assertIn(
+                "docs/frontend_scale_limits.md:cliff-detection gate, not a benchmark commitment",
+                report["doc_policy_violations"],
+            )
+            self.assertIn(
+                "compiler_impl/README.md:docs/frontend_scale_limits.md",
+                report["doc_policy_violations"],
+            )
+            self.assertIn(
+                "release/frontend_runtime_decision.md:docs/frontend_scale_limits.md",
+                report["doc_policy_violations"],
+            )
+
+    def test_check_performance_scale_sanity_accepts_valid_docs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            docs_dir = repo_root / "docs"
+            docs_dir.mkdir()
+            (docs_dir / "frontend_scale_limits.md").write_text(
+                "PR05/PR06 supported subset only\n"
+                "cliff-detection gate, not a benchmark commitment\n"
+                "raw timings are intentionally kept out of committed evidence\n"
+                "Rule 5, result safety, channels/tasks/concurrency, and other unsupported surfaces are out of scope\n",
+                encoding="utf-8",
+            )
+            compiler_dir = repo_root / "compiler_impl"
+            compiler_dir.mkdir()
+            (compiler_dir / "README.md").write_text(
+                "PR06.9.12\n"
+                "docs/frontend_scale_limits.md\n"
+                "cliff-detection gate, not a benchmark commitment\n",
+                encoding="utf-8",
+            )
+            release_dir = repo_root / "release"
+            release_dir.mkdir()
+            (release_dir / "frontend_runtime_decision.md").write_text(
+                "PR06.9.12\n"
+                "docs/frontend_scale_limits.md\n"
+                "cliff-detection gate, not a benchmark commitment\n",
+                encoding="utf-8",
+            )
+
+            check_performance_scale_sanity(repo_root=repo_root)
 
 
 if __name__ == "__main__":

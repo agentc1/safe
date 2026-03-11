@@ -1,6 +1,6 @@
 # SafeC Frontend
 
-This workspace hosts the current Safe compiler frontend through PR06.9.8.
+This workspace hosts the current Safe compiler frontend through PR06.9.12.
 
 ## Scope
 
@@ -34,6 +34,7 @@ PR06.9.6 hardens the unsupported-feature boundary across `check`, `ast`, and `em
 PR06.9.8 removes the old shallow `Ast` / `Parser` / `Semantics` / `Mir` chain entirely. The only live frontend path is now the Ada-native `Check_*` plus `Mir_*` pipeline, and later work must extend that path rather than revive the deleted legacy chain.
 PR06.9.10 hardens portability assumptions around that same live path. No-Python runtime enforcement now documents `python`, `python3`, `python3.11`, `python3.<minor>`, and path-qualified Python invocations, and the repo glue gates share that same source of truth.
 PR06.9.11 hardens the active Python glue layer: subprocess execution stays centralized in `scripts/_lib/harness_common.py`, report-producing gates use deterministic shared helpers, and raw `.safe` source reads are limited to fixture metadata rather than semantic interpretation.
+PR06.9.12 adds a cliff-detection gate, not a benchmark commitment. The current scale policy is documented in `docs/frontend_scale_limits.md`: it applies only to the PR05/PR06 supported subset, keeps raw timings out of committed evidence, and treats Rule 5, result safety, and concurrency features as out of scope for performance claims.
 
 Unsupported-feature classification rule:
 - `unsupported_source_construct` means the Ada-native frontend recognized a construct that is outside the current PR05/PR06 subset.

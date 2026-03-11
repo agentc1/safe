@@ -1,0 +1,222 @@
+{
+  "aggregate_sweeps": {
+    "full_mir": {
+      "budget_ms": 10000.0,
+      "budget_pass": true,
+      "count": 17,
+      "largest_sample": {
+        "bytes": 11351,
+        "lines": 402,
+        "path": "compiler_impl/tests/mir_analysis/pr0695_anonymous_access_reassign_parity.json"
+      }
+    },
+    "supported_positive_check": {
+      "budget_ms": 15000.0,
+      "budget_pass": true,
+      "count": 26,
+      "largest_sample": {
+        "bytes": 1781,
+        "lines": 51,
+        "path": "tests/positive/rule2_binary_search.safe"
+      }
+    }
+  },
+  "artifact_size_ratio_caps": {
+    "ast": 32.0,
+    "mir": 16.0,
+    "safei": 2.0,
+    "total": 64.0,
+    "typed": 32.0
+  },
+  "budgets_ms": {
+    "analyze_median": 500.0,
+    "check_median": 500.0,
+    "emit_median": 1000.0,
+    "full_mir_sweep": 10000.0,
+    "supported_positive_check_sweep": 15000.0
+  },
+  "deterministic": true,
+  "growth_ratio_caps": {
+    "analyze_reassign_vs_valid": 8.0,
+    "check_rule2_vs_rule1": 8.0,
+    "emit_rule2_vs_rule1": 8.0
+  },
+  "growth_ratio_results": [
+    {
+      "cap": 8.0,
+      "name": "check_rule2_vs_rule1",
+      "pass": true
+    },
+    {
+      "cap": 8.0,
+      "name": "emit_rule2_vs_rule1",
+      "pass": true
+    },
+    {
+      "cap": 8.0,
+      "name": "analyze_reassign_vs_valid",
+      "pass": true
+    }
+  ],
+  "performance_scale_policy": {
+    "doc_policy_violations": [],
+    "docs_scanned": [
+      "docs/frontend_scale_limits.md",
+      "compiler_impl/README.md",
+      "release/frontend_runtime_decision.md"
+    ],
+    "missing_doc_files": []
+  },
+  "repeat_sha256": "5cd5ed56a99510f2bfaed406ebbc34ae4d8a8e0c0b2e97001163845a35afaba8",
+  "repeated_scenarios": {
+    "analyze_mir": [
+      {
+        "budget_pass": true,
+        "median_budget_ms": 500.0,
+        "repetitions": 5,
+        "sample": {
+          "bytes": 3420,
+          "lines": 143,
+          "path": "compiler_impl/tests/mir_validation/valid_mir_v2.json"
+        }
+      },
+      {
+        "budget_pass": true,
+        "median_budget_ms": 500.0,
+        "repetitions": 5,
+        "sample": {
+          "bytes": 7883,
+          "lines": 297,
+          "path": "compiler_impl/tests/mir_analysis/pr06_double_move.json"
+        }
+      },
+      {
+        "budget_pass": true,
+        "median_budget_ms": 500.0,
+        "repetitions": 5,
+        "sample": {
+          "bytes": 11351,
+          "lines": 402,
+          "path": "compiler_impl/tests/mir_analysis/pr0695_anonymous_access_reassign_parity.json"
+        }
+      }
+    ],
+    "check": [
+      {
+        "budget_pass": true,
+        "median_budget_ms": 500.0,
+        "repetitions": 5,
+        "sample": {
+          "bytes": 1366,
+          "lines": 35,
+          "path": "tests/positive/rule1_accumulate.safe"
+        }
+      },
+      {
+        "budget_pass": true,
+        "median_budget_ms": 500.0,
+        "repetitions": 5,
+        "sample": {
+          "bytes": 1781,
+          "lines": 51,
+          "path": "tests/positive/rule2_binary_search.safe"
+        }
+      },
+      {
+        "budget_pass": true,
+        "median_budget_ms": 500.0,
+        "repetitions": 5,
+        "sample": {
+          "bytes": 1527,
+          "lines": 42,
+          "path": "tests/positive/ownership_borrow.safe"
+        }
+      }
+    ],
+    "emit": [
+      {
+        "artifact_bytes": {
+          "ast": 17810,
+          "mir": 6500,
+          "safei": 267,
+          "total": 42963,
+          "typed": 18386
+        },
+        "artifact_ratio_caps": {
+          "ast": 32.0,
+          "mir": 16.0,
+          "safei": 2.0,
+          "total": 64.0,
+          "typed": 32.0
+        },
+        "artifact_ratio_pass": true,
+        "budget_pass": true,
+        "median_budget_ms": 1000.0,
+        "repetitions": 3,
+        "sample": {
+          "bytes": 1366,
+          "lines": 35,
+          "path": "tests/positive/rule1_accumulate.safe"
+        }
+      },
+      {
+        "artifact_bytes": {
+          "ast": 39533,
+          "mir": 13691,
+          "safei": 293,
+          "total": 93597,
+          "typed": 40080
+        },
+        "artifact_ratio_caps": {
+          "ast": 32.0,
+          "mir": 16.0,
+          "safei": 2.0,
+          "total": 64.0,
+          "typed": 32.0
+        },
+        "artifact_ratio_pass": true,
+        "budget_pass": true,
+        "median_budget_ms": 1000.0,
+        "repetitions": 3,
+        "sample": {
+          "bytes": 1781,
+          "lines": 51,
+          "path": "tests/positive/rule2_binary_search.safe"
+        }
+      },
+      {
+        "artifact_bytes": {
+          "ast": 19120,
+          "mir": 7389,
+          "safei": 418,
+          "total": 46733,
+          "typed": 19806
+        },
+        "artifact_ratio_caps": {
+          "ast": 32.0,
+          "mir": 16.0,
+          "safei": 2.0,
+          "total": 64.0,
+          "typed": 32.0
+        },
+        "artifact_ratio_pass": true,
+        "budget_pass": true,
+        "median_budget_ms": 1000.0,
+        "repetitions": 3,
+        "sample": {
+          "bytes": 1527,
+          "lines": 42,
+          "path": "tests/positive/ownership_borrow.safe"
+        }
+      }
+    ]
+  },
+  "repetitions": {
+    "analyze_mir": 5,
+    "check": 5,
+    "emit": 3
+  },
+  "report_sha256": "5cd5ed56a99510f2bfaed406ebbc34ae4d8a8e0c0b2e97001163845a35afaba8",
+  "status": "ok",
+  "task": "PR06.9.12"
+}

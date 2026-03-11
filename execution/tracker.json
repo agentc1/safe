@@ -3,7 +3,7 @@
   "updated_at": "2026-03-09T22:47:56Z",
   "frozen_spec_sha": "468cf72332724b04b7c193b4d2a3b02f1584125d",
   "active_task_id": null,
-  "next_task_id": "PR06.9.12",
+  "next_task_id": "PR06.9.13",
   "repo_facts": {
     "tests": {
       "positive": 35,
@@ -403,14 +403,16 @@
     {
       "id": "PR06.9.12",
       "title": "Performance and scale sanity",
-      "status": "planned",
+      "status": "done",
       "depends_on": ["PR06.9.11"],
       "acceptance": [
         "Representative repeated check, emit, and analyze-mir runs are measured enough to catch obvious regression cliffs.",
         "Serialization and analysis paths avoid pathological behavior on current corpus sizes.",
         "Any known scale limits for the current frontend subset are documented."
       ],
-      "evidence": [],
+      "evidence": [
+        "execution/reports/pr06912-performance-scale-sanity-report.json"
+      ],
       "blockers": [],
       "unblock_condition": ""
     },
