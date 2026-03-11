@@ -24,8 +24,8 @@
     "execution/dashboard.md",
     "execution/reports/pr06913-documentation-architecture-clarity-report.json"
   ],
-  "repeat_sha256": "1d120ebf26d5e6c7dcd85cc4776d880e42b3d72d9b10e03e1b17a052ad75fca2",
-  "report_sha256": "1d120ebf26d5e6c7dcd85cc4776d880e42b3d72d9b10e03e1b17a052ad75fca2",
+  "repeat_sha256": "1eb6f5a7ce40b9f5c29fedff73b065fe6cc9ffac5c875fb23b16d61b887daf24",
+  "report_sha256": "1eb6f5a7ce40b9f5c29fedff73b065fe6cc9ffac5c875fb23b16d61b887daf24",
   "reruns": {
     "gate_quality": {
       "repeat_sha256": "c0ae0b745e8970845774e82536a1a8ed18afa111163c9533224b64a7c973af7f",
@@ -104,6 +104,16 @@
         "cwd": "$REPO_ROOT",
         "returncode": 0
       }
+    },
+    "validate_execution_state": {
+      "command": [
+        "python3",
+        "scripts/validate_execution_state.py"
+      ],
+      "cwd": "$REPO_ROOT",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "execution state: OK\n"
     }
   },
   "status": "ok",

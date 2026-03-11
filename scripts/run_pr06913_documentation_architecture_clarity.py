@@ -114,7 +114,7 @@ def build_report(
     glue_script_safety: dict[str, Any],
     performance_scale_sanity: dict[str, Any],
 ) -> dict[str, Any]:
-    return {
+    report = {
         "task": "PR06.9.13",
         "status": "ok",
         "documentation_architecture_clarity": clarity_report,
