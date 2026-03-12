@@ -21,6 +21,7 @@
       "scripts/run_pr06910_portability_environment.py",
       "scripts/run_pr06911_glue_script_safety.py",
       "scripts/run_pr06912_performance_scale_sanity.py",
+      "scripts/run_pr081_local_concurrency_frontend.py",
       "scripts/validate_execution_state.py",
       "scripts/validate_ast_output.py",
       "scripts/validate_output_contracts.py",
@@ -53,7 +54,8 @@
       "scripts/run_pr0699_build_reproducibility.py",
       "scripts/run_pr06910_portability_environment.py",
       "scripts/run_pr06911_glue_script_safety.py",
-      "scripts/run_pr06912_performance_scale_sanity.py"
+      "scripts/run_pr06912_performance_scale_sanity.py",
+      "scripts/run_pr081_local_concurrency_frontend.py"
     ],
     "safe_source_readers": [
       {
@@ -67,6 +69,10 @@
       {
         "category": "fixture metadata extraction via read_expected_reason",
         "script": "scripts/run_pr0691_semantic_correctness.py"
+      },
+      {
+        "category": "fixture metadata extraction via read_expected_reason",
+        "script": "scripts/run_pr081_local_concurrency_frontend.py"
       }
     ],
     "shell_assumption_violations": [],
@@ -95,8 +101,8 @@
       "report_sha256": "9d99f32c9402c477a3eb335ad9edb897155de324a6fb68949677e162611ebc4c"
     }
   },
-  "repeat_sha256": "82f54ccdfb939b77f776f30920813a7cd79e0abf8fb0fc45d91e8cc65930c72d",
-  "report_sha256": "82f54ccdfb939b77f776f30920813a7cd79e0abf8fb0fc45d91e8cc65930c72d",
+  "repeat_sha256": "d720581ba33f06eefd6139247bc06a0a841e6d28cd991b6e5ff65b1b8962b174",
+  "report_sha256": "d720581ba33f06eefd6139247bc06a0a841e6d28cd991b6e5ff65b1b8962b174",
   "reruns": {
     "gate_quality": {
       "repeat_sha256": "4318d5d379732e26bb68556476a494e9d3718de540f6fd7ed57d36028ef2c0da",
@@ -114,9 +120,9 @@
       }
     },
     "portability_environment": {
-      "repeat_sha256": "8ff735e5ca1df491bbd4ec9525380d48be284512675203c3fe8ef455d057289d",
+      "repeat_sha256": "cf0161db422e0d6ddd001c0b7c383f23d1ae88add9f31b15c9d465c90ecd9b24",
       "report_path": "execution/reports/pr06910-portability-environment-report.json",
-      "report_sha256": "8ff735e5ca1df491bbd4ec9525380d48be284512675203c3fe8ef455d057289d",
+      "report_sha256": "cf0161db422e0d6ddd001c0b7c383f23d1ae88add9f31b15c9d465c90ecd9b24",
       "run": {
         "command": [
           "python3",
