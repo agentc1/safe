@@ -56,6 +56,8 @@ NEGATIVE_CASES = [
     REPO_ROOT / "tests" / "negative" / "neg_send_use_after_move.safe",
     REPO_ROOT / "tests" / "negative" / "neg_try_send_use_after_move.safe",
     REPO_ROOT / "tests" / "negative" / "neg_try_send_reassign_without_check.safe",
+    REPO_ROOT / "tests" / "negative" / "neg_try_send_success_overwrite.safe",
+    REPO_ROOT / "tests" / "negative" / "neg_try_send_compound_else_use.safe",
 ]
 
 SEQUENTIAL_PARITY_CASES = [
@@ -73,6 +75,29 @@ SEQUENTIAL_PARITY_CASES = [
         "name": "division_by_zero_regression",
         "source": REPO_ROOT / "tests" / "negative" / "neg_rule3_expression.safe",
         "fixture": REPO_ROOT / "compiler_impl" / "tests" / "mir_analysis" / "pr0695_division_by_zero_parity.json",
+    },
+]
+
+SEQUENTIAL_POSITIVE_TEMP_CASES = [
+    {
+        "name": "not_null_owner_decl_init",
+        "text": (
+            "package Not_Null_Owner_Decl_Init is\n"
+            "\n"
+            "   type Payload is record\n"
+            "      Value : Integer;\n"
+            "   end record;\n"
+            "\n"
+            "   type Payload_Ptr is not null access Payload;\n"
+            "\n"
+            "   procedure Run is\n"
+            "      Owner : Payload_Ptr = new ((Value = 1) as Payload);\n"
+            "   begin\n"
+            "      Owner.all.Value = Owner.all.Value + 1;\n"
+            "   end Run;\n"
+            "\n"
+            "end Not_Null_Owner_Decl_Init;\n"
+        ),
     },
 ]
 
@@ -1266,6 +1291,11 @@ def write_temp_mir(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def write_temp_source(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
 def run_concurrency_parity_case(
     *,
     safec: Path,
@@ -1353,6 +1383,31 @@ def run_existing_parity_case(
         "fixture": repo_arg(fixture),
         "check_first": normalized_diag(check_diag),
         "analyze_first": normalized_diag(analyze_diag),
+    }
+
+
+def run_temp_positive_check_case(
+    *,
+    safec: Path,
+    env: dict[str, str],
+    temp_root: Path,
+    name: str,
+    text: str,
+) -> dict[str, Any]:
+    source_path = temp_root / "sources" / f"{name}.safe"
+    write_temp_source(source_path, text)
+    check_result = run(
+        [str(safec), "check", "--diag-json", str(source_path)],
+        cwd=REPO_ROOT,
+        env=env,
+        temp_root=temp_root,
+    )
+    check_payload = read_diag_json(check_result["stdout"], str(source_path))
+    require(not check_payload["diagnostics"], f"{name}: expected clean check diagnostics")
+    return {
+        "name": name,
+        "source": str(source_path.relative_to(temp_root)),
+        "check": check_result,
     }
 
 
@@ -1499,6 +1554,17 @@ def build_report(*, safec: Path, python: str, env: dict[str, str]) -> dict[str, 
             for case in SEQUENTIAL_PARITY_CASES
         ]
 
+        sequential_positive_regressions = [
+            run_temp_positive_check_case(
+                safec=safec,
+                env=env,
+                temp_root=temp_root,
+                name=case["name"],
+                text=case["text"],
+            )
+            for case in SEQUENTIAL_POSITIVE_TEMP_CASES
+        ]
+
         return {
             "task": "PR08.2",
             "status": "ok",
@@ -1506,6 +1572,7 @@ def build_report(*, safec: Path, python: str, env: dict[str, str]) -> dict[str, 
             "negative_cases": negative_results,
             "concurrency_parity_cases": concurrency_parity,
             "sequential_regression_cases": sequential_regression,
+            "sequential_positive_regression_cases": sequential_positive_regressions,
             "bronze_evidence": evidence,
         }
 

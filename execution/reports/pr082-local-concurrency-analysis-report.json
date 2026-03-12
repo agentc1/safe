@@ -463,6 +463,48 @@
         "reason": "move_target_not_null"
       },
       "source": "tests/negative/neg_try_send_reassign_without_check.safe"
+    },
+    {
+      "check": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "check",
+          "--diag-json",
+          "tests/negative/neg_try_send_success_overwrite.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 1,
+        "stderr": "",
+        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"move_target_not_null\",\"message\":\"move target 'Source' is not provably null\",\"path\":\"tests/negative/neg_try_send_success_overwrite.safe\",\"span\":{\"start_line\":22,\"start_col\":7,\"end_line\":22,\"end_col\":44},\"highlight_span\":{\"start_line\":22,\"start_col\":7,\"end_line\":22,\"end_col\":44},\"notes\":[\"static analysis determined state 'Moved' for the move target.\",\"rule: Safe \u00a72.3.2 (target of move must be provably null)\"],\"suggestions\":[]}]}\n"
+      },
+      "expected_reason": "move_target_not_null",
+      "first_diagnostic": {
+        "message": "move target 'Source' is not provably null",
+        "path": "tests/negative/neg_try_send_success_overwrite.safe",
+        "reason": "move_target_not_null"
+      },
+      "source": "tests/negative/neg_try_send_success_overwrite.safe"
+    },
+    {
+      "check": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "check",
+          "--diag-json",
+          "tests/negative/neg_try_send_compound_else_use.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 1,
+        "stderr": "",
+        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"move_source_not_nonnull\",\"message\":\"move source 'Source' is not provably non-null\",\"path\":\"tests/negative/neg_try_send_compound_else_use.safe\",\"span\":{\"start_line\":27,\"start_col\":10,\"end_line\":27,\"end_col\":30},\"highlight_span\":{\"start_line\":27,\"start_col\":10,\"end_line\":27,\"end_col\":30},\"notes\":[\"static analysis determined state 'MaybeNull' at this move site.\",\"rule: Safe \u00a72.3.2 (source of move must be provably non-null)\"],\"suggestions\":[]}]}\n"
+      },
+      "expected_reason": "move_source_not_nonnull",
+      "first_diagnostic": {
+        "message": "move source 'Source' is not provably non-null",
+        "path": "tests/negative/neg_try_send_compound_else_use.safe",
+        "reason": "move_source_not_nonnull"
+      },
+      "source": "tests/negative/neg_try_send_compound_else_use.safe"
     }
   ],
   "positive_cases": [
@@ -1559,8 +1601,26 @@
       }
     }
   ],
-  "repeat_sha256": "f027b8156b187f903d9c4f6b1f194e6658b75550d18dab5209ccadcdc4b905f7",
-  "report_sha256": "f027b8156b187f903d9c4f6b1f194e6658b75550d18dab5209ccadcdc4b905f7",
+  "repeat_sha256": "82c3c5a4dbd1a93a5bbf4cdd2545ecf627522158970422199ee1c04f1bd3095b",
+  "report_sha256": "82c3c5a4dbd1a93a5bbf4cdd2545ecf627522158970422199ee1c04f1bd3095b",
+  "sequential_positive_regression_cases": [
+    {
+      "check": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "check",
+          "--diag-json",
+          "$TMPDIR/sources/not_null_owner_decl_init.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[]}\n"
+      },
+      "name": "not_null_owner_decl_init",
+      "source": "sources/not_null_owner_decl_init.safe"
+    }
+  ],
   "sequential_regression_cases": [
     {
       "analyze_first": {

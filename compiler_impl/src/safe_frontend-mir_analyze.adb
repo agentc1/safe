@@ -417,7 +417,8 @@ package body Safe_Frontend.Mir_Analyze is
       Target_Name : String;
       Current     : State;
       Var_Types   : Type_Maps.Map;
-      Span        : FT.Source_Span) return MD.Diagnostic;
+      Span        : FT.Source_Span;
+      Require_Null_Target : Boolean := True) return MD.Diagnostic;
    function Channel_Send_Precondition
      (Source_Name : String;
       Current     : State;
@@ -532,7 +533,8 @@ package body Safe_Frontend.Mir_Analyze is
       Expr      : GM.Expr_Access;
       Truthy    : Boolean;
       Var_Types : Type_Maps.Map;
-      Type_Env  : Type_Maps.Map) return State;
+      Type_Env  : Type_Maps.Map;
+      Allow_Pending_Move_Refinement : Boolean := True) return State;
 
    procedure Initialize_Symbol
      (Current : in out State;
@@ -2080,7 +2082,8 @@ package body Safe_Frontend.Mir_Analyze is
       Target_Name : String;
       Current     : State;
       Var_Types   : Type_Maps.Map;
-      Span        : FT.Source_Span) return MD.Diagnostic
+      Span        : FT.Source_Span;
+      Require_Null_Target : Boolean := True) return MD.Diagnostic
    is
       Diag        : constant MD.Diagnostic := Owner_Write_Conflict (Source_Name, Current, Span);
       Source_Fact : Access_Fact;
@@ -2105,14 +2108,16 @@ package body Safe_Frontend.Mir_Analyze is
               "move source '" & Source_Name & "' is not provably non-null",
               "static analysis determined state '" & Image (Source_Fact.State) & "' at this move site.");
       end if;
-      Target_Fact := Access_Fact_For_Name (Target_Name, Current, Var_Types);
-      if not Target_Is_Provably_Null (Current, Target_Name, Var_Types) then
-         return
-           Ownership_Diagnostic
-             ("move_target_not_null",
-              Span,
-              "move target '" & Target_Name & "' is not provably null",
-              "static analysis determined state '" & Image (Target_Fact.State) & "' for the move target.");
+      if Require_Null_Target then
+         Target_Fact := Access_Fact_For_Name (Target_Name, Current, Var_Types);
+         if not Target_Is_Provably_Null (Current, Target_Name, Var_Types) then
+            return
+              Ownership_Diagnostic
+                ("move_target_not_null",
+                 Span,
+                 "move target '" & Target_Name & "' is not provably null",
+                 "static analysis determined state '" & Image (Target_Fact.State) & "' for the move target.");
+         end if;
       end if;
       return Null_Diagnostic;
    end Owner_Move_Precondition;
@@ -3584,7 +3589,8 @@ package body Safe_Frontend.Mir_Analyze is
       Expr      : GM.Expr_Access;
       Truthy    : Boolean;
       Var_Types : Type_Maps.Map;
-      Type_Env  : Type_Maps.Map) return State
+      Type_Env  : Type_Maps.Map;
+      Allow_Pending_Move_Refinement : Boolean := True) return State
    is
       Result : State := Current;
       Op     : FT.UString := FT.To_UString ("");
@@ -3593,7 +3599,14 @@ package body Safe_Frontend.Mir_Analyze is
          return Result;
       end if;
       if Expr.Kind = GM.Expr_Unary and then UString_Value (Expr.Operator) = "not" then
-         return Refine_Condition (Result, Expr.Inner, not Truthy, Var_Types, Type_Env);
+         return
+           Refine_Condition
+             (Result,
+              Expr.Inner,
+              not Truthy,
+              Var_Types,
+              Type_Env,
+              Allow_Pending_Move_Refinement);
       elsif Expr.Kind = GM.Expr_Ident
         and then Var_Types.Contains (UString_Value (Expr.Name))
         and then UString_Value (Var_Types.Element (UString_Value (Expr.Name)).Name) = "Boolean"
@@ -3603,19 +3616,34 @@ package body Safe_Frontend.Mir_Analyze is
             (Low => (if Truthy then 1 else 0),
              High => (if Truthy then 1 else 0),
              Excludes_Zero => Truthy));
-         Apply_Pending_Move_Refinement
-           (Result,
-            UString_Value (Expr.Name),
-            Truthy);
+         if Allow_Pending_Move_Refinement then
+            Apply_Pending_Move_Refinement
+              (Result,
+               UString_Value (Expr.Name),
+               Truthy);
+         end if;
       elsif Expr.Kind = GM.Expr_Select then
          Apply_Discriminant_Refinement (Result, Expr, Var_Types, Truthy, Type_Env);
       elsif Expr.Kind = GM.Expr_Binary then
          Op := Expr.Operator;
          if UString_Value (Op) = "and then" then
             if Truthy then
-               return Refine_Condition (Refine_Condition (Result, Expr.Left, True, Var_Types, Type_Env), Expr.Right, True, Var_Types, Type_Env);
+               return
+                 Refine_Condition
+                   (Refine_Condition
+                      (Result,
+                       Expr.Left,
+                       True,
+                       Var_Types,
+                       Type_Env,
+                       False),
+                    Expr.Right,
+                    True,
+                    Var_Types,
+                    Type_Env,
+                    False);
             end if;
-            return Refine_Condition (Result, Expr.Left, False, Var_Types, Type_Env);
+            return Refine_Condition (Result, Expr.Left, False, Var_Types, Type_Env, False);
          elsif UString_Value (Op) = "!="
            or else UString_Value (Op) = "=="
            or else UString_Value (Op) = "<"
@@ -4366,19 +4394,28 @@ package body Safe_Frontend.Mir_Analyze is
          end;
 
          if not Has_Text (Source_Name) then
-            Target_Fact := Access_Fact_For_Name (Target_Name, Current, Var_Types);
-            if not Target_Is_Provably_Null (Current, Target_Name, Var_Types) then
-               return
-                 Ownership_Diagnostic
-                   ("move_target_not_null",
-                    Op.Span,
-                    "move target '" & Target_Name & "' is not provably null",
-                    "static analysis determined state '" & Image (Target_Fact.State) & "' for the move target.");
+            if not Op.Declaration_Init then
+               Target_Fact := Access_Fact_For_Name (Target_Name, Current, Var_Types);
+               if not Target_Is_Provably_Null (Current, Target_Name, Var_Types) then
+                  return
+                    Ownership_Diagnostic
+                      ("move_target_not_null",
+                       Op.Span,
+                       "move target '" & Target_Name & "' is not provably null",
+                       "static analysis determined state '" & Image (Target_Fact.State) & "' for the move target.");
+               end if;
             end if;
             Current.Access_Facts.Include (Target_Name, Value_Fact);
             return Null_Diagnostic;
          elsif Has_Text (Source_Name) then
-            Diag := Owner_Move_Precondition (UString_Value (Source_Name), Target_Name, Current, Var_Types, Op.Span);
+            Diag :=
+              Owner_Move_Precondition
+                (UString_Value (Source_Name),
+                 Target_Name,
+                 Current,
+                 Var_Types,
+                 Op.Span,
+                 Require_Null_Target => not Op.Declaration_Init);
             if Has_Text (Diag.Reason) then
                return Diag;
             end if;
@@ -4885,10 +4922,6 @@ package body Safe_Frontend.Mir_Analyze is
             Invalidate_Discriminant_Fact (Current, Name);
          end if;
       end Initialize_Target_Conservatively;
-      procedure Remove_Pending_For_Target (Expr : GM.Expr_Access) is
-      begin
-         Clear_Pending_Move (Current, Root_Name (Expr));
-      end Remove_Pending_For_Target;
    begin
       case Op.Kind is
          when GM.Op_Scope_Enter =>
@@ -4933,7 +4966,6 @@ package body Safe_Frontend.Mir_Analyze is
             end loop;
          when GM.Op_Assign =>
             begin
-               Remove_Pending_For_Target (Op.Target);
                if not (Op.Declaration_Init
                        and then Base_Name (Op.Target) /= ""
                        and then Var_Types.Contains (Base_Name (Op.Target))
@@ -4965,9 +4997,7 @@ package body Safe_Frontend.Mir_Analyze is
                               Actual : constant GM.Expr_Access :=
                                 Op.Value.Args (Op.Value.Args.First_Index + (Index - Function_Def.Params.First_Index));
                            begin
-                              if UString_Value (Formal.Mode) in "out" | "in out" then
-                                 Clear_Pending_Move (Current, Root_Name (Actual));
-                              end if;
+                              pragma Unreferenced (Actual);
                            end;
                         end loop;
                      end if;
@@ -5016,7 +5046,6 @@ package body Safe_Frontend.Mir_Analyze is
             end if;
          when GM.Op_Channel_Receive =>
             begin
-               Remove_Pending_For_Target (Op.Target);
                Validate_Assignment_Target (Op.Target, Current, Var_Types, Type_Env, Functions);
                declare
                   Target_Name : constant String := Root_Name (Op.Target);
@@ -5060,7 +5089,6 @@ package body Safe_Frontend.Mir_Analyze is
                if Has_Text (Diag.Reason) then
                   Append_Diagnostic (Diagnostics, With_Path (Diag, Path_String), Sequence);
                end if;
-               Remove_Pending_For_Target (Op.Success_Target);
                Validate_Assignment_Target
                  (Op.Success_Target,
                   Current,
@@ -5107,8 +5135,6 @@ package body Safe_Frontend.Mir_Analyze is
             end;
          when GM.Op_Channel_Try_Receive =>
             begin
-               Remove_Pending_For_Target (Op.Target);
-               Remove_Pending_For_Target (Op.Success_Target);
                Validate_Assignment_Target (Op.Target, Current, Var_Types, Type_Env, Functions);
                Validate_Assignment_Target
                  (Op.Success_Target,
