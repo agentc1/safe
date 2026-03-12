@@ -12,6 +12,8 @@ if str(SCRIPTS_DIR) not in sys.path:
 from validate_output_contracts import (
     require_positive_int,
     validate_mir_graphs,
+    validate_optional_mir_channels,
+    validate_optional_typed_channels,
     validate_optional_typed_tasks,
     validate_span,
 )
@@ -57,6 +59,35 @@ class ValidateOutputContractsTests(unittest.TestCase):
                 "typed.tasks",
             )
 
+    def test_validate_optional_typed_channels_rejects_boolean_capacity(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_optional_typed_channels(
+                [
+                    {
+                        "name": "Data_Ch",
+                        "is_public": False,
+                        "element_type": {"name": "Integer", "kind": "integer"},
+                        "capacity": True,
+                        "span": valid_span(),
+                    }
+                ],
+                "typed.channels",
+            )
+
+    def test_validate_optional_mir_channels_rejects_boolean_capacity(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_optional_mir_channels(
+                [
+                    {
+                        "name": "Data_Ch",
+                        "element_type": {"name": "Integer", "kind": "integer"},
+                        "capacity": True,
+                        "span": valid_span(),
+                    }
+                ],
+                "mir.channels",
+            )
+
     def test_validate_mir_graphs_rejects_boolean_task_priority(self) -> None:
         with self.assertRaises(ValueError):
             validate_mir_graphs(
@@ -67,6 +98,23 @@ class ValidateOutputContractsTests(unittest.TestCase):
                         "entry_bb": "bb0",
                         "priority": True,
                         "has_explicit_priority": False,
+                        "span": valid_span(),
+                        "blocks": [],
+                    }
+                ],
+                "mir.graphs",
+            )
+
+    def test_validate_mir_graphs_rejects_non_boolean_explicit_priority_flag(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_mir_graphs(
+                [
+                    {
+                        "name": "Worker",
+                        "kind": "task",
+                        "entry_bb": "bb0",
+                        "priority": 1,
+                        "has_explicit_priority": 1,
                         "span": valid_span(),
                         "blocks": [],
                     }

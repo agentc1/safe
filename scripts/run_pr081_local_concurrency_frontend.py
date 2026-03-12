@@ -39,6 +39,7 @@ POSITIVE_EMIT_CASES = [
     REPO_ROOT / "tests" / "positive" / "channel_pingpong.safe",
     REPO_ROOT / "tests" / "positive" / "channel_pipeline.safe",
     REPO_ROOT / "tests" / "concurrency" / "multi_task_channel.safe",
+    REPO_ROOT / "tests" / "concurrency" / "select_delay_local_scope.safe",
     REPO_ROOT / "tests" / "concurrency" / "select_priority.safe",
     REPO_ROOT / "tests" / "concurrency" / "task_priority_delay.safe",
     REPO_ROOT / "tests" / "concurrency" / "try_ops.safe",
@@ -157,36 +158,7 @@ ANALYSIS_REGRESSION_CASES = [
     },
 ]
 
-DELAY_ARM_SCOPE_CASE = {
-    "name": "select_delay_local_scope.safe",
-    "text": (
-        "package Select_Delay_Local_Scope is\n"
-        "\n"
-        "   type Message is range 0 .. 100;\n"
-        "\n"
-        "   channel Data_Ch : Message capacity 1;\n"
-        "\n"
-        "   task Worker is\n"
-        "      Count : Natural = 0;\n"
-        "   begin\n"
-        "      loop\n"
-        "         select\n"
-        "            when Item : Message from Data_Ch then\n"
-        "               if Item > 0 then\n"
-        "                  Count = Count + 1;\n"
-        "               end if;\n"
-        "         or\n"
-        "            delay 0.05 then\n"
-        "               Temp : Natural = 1;\n"
-        "               Temp = Temp + 1;\n"
-        "               Count = Count + Temp;\n"
-        "         end select;\n"
-        "      end loop;\n"
-        "   end Worker;\n"
-        "\n"
-        "end Select_Delay_Local_Scope;\n"
-    ),
-}
+DELAY_ARM_SCOPE_CASE = REPO_ROOT / "tests" / "concurrency" / "select_delay_local_scope.safe"
 
 
 def repo_arg(path: Path) -> str:
@@ -350,6 +322,18 @@ def inspect_emitted_payloads(
         require(
             any(sum(1 for arm in term["arms"] if arm["kind"] == "delay") == 1 for term in terminators),
             "select_with_delay.safe: missing delay arm",
+        )
+    elif sample.name == "select_delay_local_scope.safe":
+        worker = graph_by_name(mir_payload, "Worker")
+        delay_blocks = [block for block in worker["blocks"] if block["role"] == "select_delay_arm"]
+        require(delay_blocks, "select_delay_local_scope.safe: missing select_delay_arm block")
+        require(
+            any("scope_enter" in op_kinds_for_block(block) for block in delay_blocks),
+            "select_delay_local_scope.safe: missing delay-arm scope_enter",
+        )
+        require(
+            any("scope_exit" in op_kinds_for_block(block) for block in delay_blocks),
+            "select_delay_local_scope.safe: missing delay-arm scope_exit",
         )
 
     return checks
@@ -645,14 +629,12 @@ def validate_delay_arm_scope_case(
     env: dict[str, str],
     temp_root: Path,
 ) -> dict[str, Any]:
-    source = temp_root / DELAY_ARM_SCOPE_CASE["name"]
-    source.write_text(DELAY_ARM_SCOPE_CASE["text"], encoding="utf-8")
-
+    source = DELAY_ARM_SCOPE_CASE
     root = temp_root / source.stem.lower()
     (root / "out").mkdir(parents=True, exist_ok=True)
     (root / "iface").mkdir(parents=True, exist_ok=True)
 
-    ast_result = run([str(safec), "ast", str(source)], cwd=REPO_ROOT, env=env, temp_root=temp_root)
+    ast_result = run([str(safec), "ast", repo_arg(source)], cwd=REPO_ROOT, env=env, temp_root=temp_root)
     ast_stdout_path = root / f"{source.stem.lower()}.ast.stdout.json"
     ast_stdout_path.write_text(ast_result["stdout"], encoding="utf-8")
     ast_stdout_validate = run(
@@ -666,7 +648,7 @@ def validate_delay_arm_scope_case(
         [
             str(safec),
             "emit",
-            str(source),
+            repo_arg(source),
             "--out-dir",
             str(root / "out"),
             "--interface-dir",
@@ -692,7 +674,7 @@ def validate_delay_arm_scope_case(
             "--safei",
             str(paths["safei"]),
             "--source-path",
-            str(source),
+            repo_arg(source),
         ],
         cwd=REPO_ROOT,
         env=env,
@@ -730,7 +712,7 @@ def validate_delay_arm_scope_case(
     )
 
     return {
-        "sample": "$TMPDIR/" + source.name,
+        "sample": repo_arg(source),
         "ast": ast_result,
         "ast_stdout_validate": ast_stdout_validate,
         "emit": emit_result,
