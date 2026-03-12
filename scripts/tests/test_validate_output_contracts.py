@@ -74,6 +74,24 @@ class ValidateOutputContractsTests(unittest.TestCase):
                 "mir.graphs",
             )
 
+    def test_validate_mir_graphs_rejects_task_return_type(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_mir_graphs(
+                [
+                    {
+                        "name": "Worker",
+                        "kind": "task",
+                        "entry_bb": "bb0",
+                        "priority": 1,
+                        "has_explicit_priority": False,
+                        "return_type": {"name": "Integer", "kind": "integer"},
+                        "span": valid_span(),
+                        "blocks": [],
+                    }
+                ],
+                "mir.graphs",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

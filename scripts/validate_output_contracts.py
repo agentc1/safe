@@ -209,6 +209,8 @@ def validate_mir_graphs(value: Any, path: str) -> list[dict[str, Any]]:
             if type(entry.get("priority")) is not int:
                 fail(f"{path}[{index}].priority must be an integer for task graphs")
             require_boolean(entry.get("has_explicit_priority"), f"{path}[{index}].has_explicit_priority")
+            if entry.get("return_type") is not None:
+                fail(f"{path}[{index}].return_type must be null for task graphs")
         validate_mir_blocks(entry.get("blocks"), f"{path}[{index}].blocks")
         result.append(entry)
     return result

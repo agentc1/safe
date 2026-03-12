@@ -1154,12 +1154,7 @@ package body Safe_Frontend.Check_Emit is
               & JS.Span_Object (Parsed.Span)
               & "}";
          when CM.Stmt_Object_Decl =>
-            return
-              Declaration_Node
-                (Parsed.Decl,
-                 (if Resolved_Expr.Kind = CM.Stmt_Object_Decl
-                  then Resolved_Expr.Decl.Initializer
-                  else null));
+            raise Program_Error with "object declarations must be emitted via Sequence_Node";
          when CM.Stmt_Assign =>
             return
               "{""node_type"":""AssignmentStatement"",""target"":"

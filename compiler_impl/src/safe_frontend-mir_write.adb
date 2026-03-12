@@ -333,7 +333,7 @@ package body Safe_Frontend.Mir_Write is
         & JS.Quote (Item.Name)
         & ",""element_type"":"
         & Type_Json (Item.Element_Type)
-        & ",""capacity"":" 
+        & ",""capacity"":"
         & Long_Long_Integer'Image (Item.Capacity)
         & ",""span"":"
         & JS.Span_Object (Item.Span)
