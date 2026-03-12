@@ -4983,27 +4983,6 @@ package body Safe_Frontend.Mir_Analyze is
                   Append_Diagnostic (Diagnostics, With_Path (Raised_Diagnostic, Path_String), Sequence);
             end;
          when GM.Op_Call =>
-            if Op.Value /= null and then Op.Value.Kind = GM.Expr_Call then
-               declare
-                  Name         : constant String := Flatten_Name (Op.Value.Callee);
-                  Function_Def : Function_Info;
-               begin
-                  if Functions.Contains (Name) then
-                     Function_Def := Functions.Element (Name);
-                     if Function_Def.Params.Length = Op.Value.Args.Length then
-                        for Index in Function_Def.Params.First_Index .. Function_Def.Params.Last_Index loop
-                           declare
-                              Formal : constant GM.Local_Entry := Function_Def.Params (Index);
-                              Actual : constant GM.Expr_Access :=
-                                Op.Value.Args (Op.Value.Args.First_Index + (Index - Function_Def.Params.First_Index));
-                           begin
-                              pragma Unreferenced (Actual);
-                           end;
-                        end loop;
-                     end if;
-                  end if;
-               end;
-            end if;
             Diag := Analyze_Call_Expr (Op.Value, Current, Var_Types, Owner_Vars, Type_Env, Functions);
             if Has_Text (Diag.Reason) then
                Append_Diagnostic (Diagnostics, With_Path (Diag, Path_String), Sequence);
@@ -5054,6 +5033,9 @@ package body Safe_Frontend.Mir_Analyze is
                     and then Var_Types.Contains (Target_Name)
                     and then Type_Access_Role (Var_Types.Element (Target_Name)) = Role_Owner
                   then
+                     --  Safe spec 4.3 p30 requires try_receive targets to be
+                     --  treated conservatively as non-null after the operation
+                     --  unless later control flow re-establishes null.
                      Diag :=
                        Receive_Target_Precondition
                          (Target_Name,
