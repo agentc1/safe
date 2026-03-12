@@ -15,6 +15,7 @@ package body Safe_Frontend.Check_Resolve is
    use type CM.Select_Arm_Kind;
    use type CM.Statement_Kind;
    use type CM.Type_Decl_Kind;
+   use type CM.Type_Spec_Kind;
    use type FT.UString;
 
    type Function_Info is record
@@ -810,6 +811,37 @@ package body Safe_Frontend.Check_Resolve is
       return Channel_Env.Element (Name);
    end Channel_Element_Type;
 
+   function Contains_Label_Like_Syntax (Name : String) return Boolean is
+   begin
+      for Ch of Name loop
+         if Ch = '.' or else Ch = '(' then
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Contains_Label_Like_Syntax;
+
+   function Looks_Like_Unsupported_Statement_Label
+     (Decl      : CM.Object_Decl;
+      Var_Types : Type_Maps.Map;
+      Functions : Function_Maps.Map;
+      Type_Env  : Type_Maps.Map) return Boolean
+   is
+      Type_Name : constant String := UString_Value (Decl.Decl_Type.Name);
+   begin
+      if Decl.Decl_Type.Kind /= CM.Type_Spec_Name
+        or else Natural (Decl.Names.Length) /= 1
+        or else Type_Env.Contains (Type_Name)
+      then
+         return False;
+      end if;
+
+      return
+        Var_Types.Contains (Type_Name)
+        or else Functions.Contains (Type_Name)
+        or else Contains_Label_Like_Syntax (Type_Name);
+   end Looks_Like_Unsupported_Statement_Label;
+
    function Normalize_Object_Decl
      (Decl      : CM.Object_Decl;
       Var_Types : Type_Maps.Map;
@@ -819,7 +851,15 @@ package body Safe_Frontend.Check_Resolve is
    is
       Result : CM.Object_Decl := Decl;
    begin
-      Result.Type_Info := Resolve_Decl_Type (Decl, Var_Types, Path);
+      if Looks_Like_Unsupported_Statement_Label (Decl, Var_Types, Functions, Type_Env) then
+         Raise_Diag
+           (CM.Unsupported_Source_Construct
+              (Path    => Path,
+               Span    => Decl.Span,
+               Message => "named statement labels are outside the current PR08.1 concurrency subset"));
+      end if;
+
+      Result.Type_Info := Resolve_Decl_Type (Decl, Type_Env, Path);
       if Decl.Has_Initializer and then Decl.Initializer /= null then
          Result.Initializer := Normalize_Expr (Decl.Initializer, Var_Types, Functions, Type_Env);
       end if;

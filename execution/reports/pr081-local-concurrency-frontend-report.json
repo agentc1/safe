@@ -1220,6 +1220,75 @@
         "command": [
           "compiler_impl/bin/safec",
           "ast",
+          "tests/negative/neg_statement_label_assignment.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 1,
+        "stderr": "neg_statement_label_assignment.safe:12:7: error: named statement labels are outside the current PR08.1 concurrency subset\n  |\n  | 12 |       Label_1: Value = 1;\n  |    |       ^~~~~~~~~~~~~~~~~~~\n  |\n",
+        "stdout": ""
+      },
+      "check": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "check",
+          "tests/negative/neg_statement_label_assignment.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 1,
+        "stderr": "neg_statement_label_assignment.safe:12:7: error: named statement labels are outside the current PR08.1 concurrency subset\n  |\n  | 12 |       Label_1: Value = 1;\n  |    |       ^~~~~~~~~~~~~~~~~~~\n  |\n",
+        "stdout": ""
+      },
+      "check_diag_json": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "check",
+          "--diag-json",
+          "tests/negative/neg_statement_label_assignment.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 1,
+        "stderr": "",
+        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"unsupported_source_construct\",\"message\":\"named statement labels are outside the current PR08.1 concurrency subset\",\"path\":\"tests/negative/neg_statement_label_assignment.safe\",\"span\":{\"start_line\":12,\"start_col\":7,\"end_line\":12,\"end_col\":25},\"highlight_span\":null,\"notes\":[],\"suggestions\":[]}]}\n"
+      },
+      "emit": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "emit",
+          "tests/negative/neg_statement_label_assignment.safe",
+          "--out-dir",
+          "$TMPDIR/neg_statement_label_assignment-out",
+          "--interface-dir",
+          "$TMPDIR/neg_statement_label_assignment-iface"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 1,
+        "stderr": "neg_statement_label_assignment.safe:12:7: error: named statement labels are outside the current PR08.1 concurrency subset\n  |\n  | 12 |       Label_1: Value = 1;\n  |    |       ^~~~~~~~~~~~~~~~~~~\n  |\n",
+        "stdout": ""
+      },
+      "emit_artifacts": {
+        "iface_files": [],
+        "out_files": []
+      },
+      "expected_reason": "unsupported_source_construct",
+      "first_diagnostic": {
+        "highlight_span": null,
+        "message": "named statement labels are outside the current PR08.1 concurrency subset",
+        "path": "tests/negative/neg_statement_label_assignment.safe",
+        "reason": "unsupported_source_construct",
+        "span": {
+          "end_col": 25,
+          "end_line": 12,
+          "start_col": 7,
+          "start_line": 12
+        }
+      },
+      "sample": "tests/negative/neg_statement_label_assignment.safe"
+    },
+    {
+      "ast": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "ast",
           "tests/negative/neg_qualified_channel_reference.safe"
         ],
         "cwd": "$REPO_ROOT",
@@ -2056,8 +2125,8 @@
       "sample": "tests/concurrency/select_with_delay.safe"
     }
   ],
-  "repeat_sha256": "7183543f0c6d5a64da8cebae446779817e82eec47177963f89cee621bad32757",
-  "report_sha256": "7183543f0c6d5a64da8cebae446779817e82eec47177963f89cee621bad32757",
+  "repeat_sha256": "c269942d4818ff20d6a758789653aca464cd83db65683732b070d4497a02cbcf",
+  "report_sha256": "c269942d4818ff20d6a758789653aca464cd83db65683732b070d4497a02cbcf",
   "status": "ok",
   "task": "PR08.1"
 }

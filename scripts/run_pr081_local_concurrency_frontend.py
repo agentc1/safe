@@ -58,6 +58,7 @@ NEGATIVE_CASES = [
     REPO_ROOT / "tests" / "negative" / "neg_task_return.safe",
     REPO_ROOT / "tests" / "negative" / "neg_task_outer_exit.safe",
     REPO_ROOT / "tests" / "negative" / "neg_delay_until.safe",
+    REPO_ROOT / "tests" / "negative" / "neg_statement_label_assignment.safe",
     REPO_ROOT / "tests" / "negative" / "neg_qualified_channel_reference.safe",
 ]
 
