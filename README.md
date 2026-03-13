@@ -138,6 +138,14 @@ The frontend matrix now enforces:
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the current workflow definition, [`docs/frontend_architecture_baseline.md`](docs/frontend_architecture_baseline.md) for the current compiler boundary, and [`docs/frontend_scale_limits.md`](docs/frontend_scale_limits.md) for the current cliff-detection scale policy.
 
+For local milestone work, you can enforce the same serial gate/report-refresh lesson before `git push`:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+That tracked hook runs [`scripts/run_local_pre_push.py`](scripts/run_local_pre_push.py), which maps known `codex/pr08...` branches to the appropriate milestone gate plus the downstream evidence-refresh chain, then requires `git diff --exit-code` to remain clean. Unknown `codex/pr08...` branches fail closed until the mapping is updated.
+
 ---
 
 ## Status

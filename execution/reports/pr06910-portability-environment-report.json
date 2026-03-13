@@ -69,6 +69,7 @@
     ],
     "runtime_source_violations": [],
     "scripts_scanned": [
+      "scripts/run_local_pre_push.py",
       "scripts/run_pr068_ada_ast_emit_no_python.py",
       "scripts/run_pr06910_portability_environment.py",
       "scripts/run_pr0693_runtime_boundary.py",
@@ -96,8 +97,8 @@
     "execution/reports/pr068-ada-ast-emit-no-python-report.json",
     "execution/reports/pr06910-portability-environment-report.json"
   ],
-  "repeat_sha256": "c2e7ac098f78bb28d8e6ff8dc0a3a7895bddee7a05d98ae55901498ef93a8aca",
-  "report_sha256": "c2e7ac098f78bb28d8e6ff8dc0a3a7895bddee7a05d98ae55901498ef93a8aca",
+  "repeat_sha256": "8014d4b0a96ae292a735a9b2b881d7e4caef57c114277c421e0386622fa90dd8",
+  "report_sha256": "8014d4b0a96ae292a735a9b2b881d7e4caef57c114277c421e0386622fa90dd8",
   "reruns": {
     "ast_emit_no_python": {
       "command": [
@@ -146,6 +147,6 @@
     "cwd": "$REPO_ROOT",
     "result": "OK",
     "returncode": 0,
-    "tests_ran": 63
+    "tests_ran": 67
   }
 }

@@ -297,6 +297,7 @@ PORTABILITY_PATH_LOOKUP_SCRIPTS = [
     "scripts/run_pr082_local_concurrency_analysis.py",
     "scripts/run_pr083_interface_contracts.py",
     "scripts/run_pr083a_public_constants.py",
+    "scripts/run_local_pre_push.py",
 ]
 GLUE_SAFETY_AUDITED_SCRIPTS = [
     "scripts/run_frontend_smoke.py",
@@ -322,6 +323,7 @@ GLUE_SAFETY_AUDITED_SCRIPTS = [
     "scripts/run_pr082_local_concurrency_analysis.py",
     "scripts/run_pr083_interface_contracts.py",
     "scripts/run_pr083a_public_constants.py",
+    "scripts/run_local_pre_push.py",
     "scripts/validate_execution_state.py",
     "scripts/validate_ast_output.py",
     "scripts/validate_output_contracts.py",
