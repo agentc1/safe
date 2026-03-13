@@ -215,6 +215,25 @@ def validate_mir_blocks(value: Any, path: str) -> list[dict[str, Any]]:
     return result
 
 
+def validate_mir_locals(value: Any, path: str) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for index, item in enumerate(require_list(value, path)):
+        entry = require_mapping(item, f"{path}[{index}]")
+        require_string(entry.get("id"), f"{path}[{index}].id")
+        require_string(entry.get("kind"), f"{path}[{index}].kind")
+        require_string(entry.get("mode"), f"{path}[{index}].mode")
+        require_string(entry.get("name"), f"{path}[{index}].name")
+        if "ownership_role" in entry and not isinstance(entry.get("ownership_role"), str):
+            fail(f"{path}[{index}].ownership_role must be a string when present")
+        require_string(entry.get("scope_id"), f"{path}[{index}].scope_id")
+        validate_span(entry.get("span"), f"{path}[{index}].span")
+        validate_type_descriptor(entry.get("type"), f"{path}[{index}].type")
+        if "is_constant" in entry:
+            require_boolean(entry.get("is_constant"), f"{path}[{index}].is_constant")
+        result.append(entry)
+    return result
+
+
 def validate_mir_graphs(value: Any, path: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for index, item in enumerate(require_list(value, path)):
@@ -229,6 +248,8 @@ def validate_mir_graphs(value: Any, path: str) -> list[dict[str, Any]]:
             require_boolean(entry.get("has_explicit_priority"), f"{path}[{index}].has_explicit_priority")
             if entry.get("return_type") is not None:
                 fail(f"{path}[{index}].return_type must be null for task graphs")
+        if "locals" in entry:
+            validate_mir_locals(entry.get("locals"), f"{path}[{index}].locals")
         validate_mir_blocks(entry.get("blocks"), f"{path}[{index}].blocks")
         result.append(entry)
     return result

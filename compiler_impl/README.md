@@ -237,3 +237,4 @@ python3 scripts/run_pr083a_public_constants.py
 ```
 
 That gate promotes ordinary object constants to the live Ada-native path, validates additive `safei-v1` constant payloads, proves imported integer/boolean constants work in the current static-expression sites, checks local `write_to_constant` parity between direct `check` and emitted `analyze-mir`, and records results in `execution/reports/pr083a-public-constants-report.json`.
+The supported static subset in PR08.3a is intentionally narrow: direct integer/boolean constant references (plus unary minus on integers) in the currently supported static sites. Imported constants without a supported exported static value remain readable objects but fail deterministically when a required static site tries to use them.

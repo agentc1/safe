@@ -33,6 +33,19 @@ def valid_type() -> dict[str, object]:
     return {"name": "Integer", "kind": "integer", "low": 0, "high": 10}
 
 
+def valid_mir_local() -> dict[str, object]:
+    return {
+        "id": "v0",
+        "kind": "local",
+        "mode": "in",
+        "name": "Value",
+        "ownership_role": "",
+        "scope_id": "scope0",
+        "span": valid_span(),
+        "type": valid_type(),
+    }
+
+
 def valid_safei() -> dict[str, object]:
     return {
         "format": "safei-v1",
@@ -204,6 +217,29 @@ class ValidateOutputContractsTests(unittest.TestCase):
                 ],
                 "mir.graphs",
             )
+
+    def test_validate_mir_graphs_accepts_boolean_local_constant_flag(self) -> None:
+        graph = {
+            "name": "Worker",
+            "kind": "procedure",
+            "entry_bb": "bb0",
+            "span": valid_span(),
+            "locals": [{**valid_mir_local(), "is_constant": True}],
+            "blocks": [],
+        }
+        validate_mir_graphs([graph], "mir.graphs")
+
+    def test_validate_mir_graphs_rejects_non_boolean_local_constant_flag(self) -> None:
+        graph = {
+            "name": "Worker",
+            "kind": "procedure",
+            "entry_bb": "bb0",
+            "span": valid_span(),
+            "locals": [{**valid_mir_local(), "is_constant": 1}],
+            "blocks": [],
+        }
+        with self.assertRaises(ValueError):
+            validate_mir_graphs([graph], "mir.graphs")
 
     def test_validate_safei_payload_accepts_safei_v1(self) -> None:
         payload = validate_safei_payload(valid_safei(), path="sample.safei.json")
