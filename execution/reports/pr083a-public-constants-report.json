@@ -1191,8 +1191,8 @@
       ]
     }
   },
-  "repeat_sha256": "98041e837ec49507f2c69d89aa3ec6be33951c1db42a72c7b938ed59ca20f2e9",
-  "report_sha256": "98041e837ec49507f2c69d89aa3ec6be33951c1db42a72c7b938ed59ca20f2e9",
+  "repeat_sha256": "6f85dcf380bd86f3af29f035920e0ce0d2a01e030ef9440423cdc5bd0fea0cda",
+  "report_sha256": "6f85dcf380bd86f3af29f035920e0ce0d2a01e030ef9440423cdc5bd0fea0cda",
   "source_failures": {
     "imported_missing_static_value": {
       "ast": {
@@ -1205,7 +1205,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "client_constant_missing_value.safe:5:29: error: type bounds must be integer literals or constant references",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check": {
@@ -1218,7 +1218,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "client_constant_missing_value.safe:5:29: error: type bounds must be integer literals or constant references",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check_diag": {
@@ -1251,10 +1251,11 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "client_constant_missing_value.safe:5:29: error: type bounds must be integer literals or constant references",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "expected_reason": "source_frontend_error",
+      "first_header_kind": "validated_during_gate",
       "header_contains": null,
       "header_parity": true
     },
@@ -1269,7 +1270,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "client_constant_range.safe:1:1: error: $TMPDIR/kind-mismatch/provider_constant_int.safei.json: objects[].static_value must be a boolean",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check": {
@@ -1282,7 +1283,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "client_constant_range.safe:1:1: error: $TMPDIR/kind-mismatch/provider_constant_int.safei.json: objects[].static_value must be a boolean",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check_diag": {
@@ -1315,10 +1316,11 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "client_constant_range.safe:1:1: error: $TMPDIR/kind-mismatch/provider_constant_int.safei.json: objects[].static_value must be a boolean",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "expected_reason": "source_frontend_error",
+      "first_header_kind": "validated_during_gate",
       "header_contains": null,
       "header_parity": true
     },
@@ -1333,7 +1335,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "client_constant_range.safe:1:1: error: $TMPDIR/missing-static-value/provider_constant_int.safei.json: objects[].static_value is required when static_value_kind is pr",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check": {
@@ -1346,7 +1348,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "client_constant_range.safe:1:1: error: $TMPDIR/missing-static-value/provider_constant_int.safei.json: objects[].static_value is required when static_value_kind is pr",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check_diag": {
@@ -1379,10 +1381,11 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "client_constant_range.safe:1:1: error: $TMPDIR/missing-static-value/provider_constant_int.safei.json: objects[].static_value is required when static_value_kind is pr",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "expected_reason": "source_frontend_error",
+      "first_header_kind": "validated_during_gate",
       "header_contains": "objects[].static_value is required",
       "header_parity": true
     },
@@ -1395,7 +1398,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_named_number_unsupported.safe:7:23: error: named number declarations are outside the current PR08.3a constant subset",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check": {
@@ -1406,7 +1409,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_named_number_unsupported.safe:7:23: error: named number declarations are outside the current PR08.3a constant subset",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check_diag": {
@@ -1435,10 +1438,11 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_named_number_unsupported.safe:7:23: error: named number declarations are outside the current PR08.3a constant subset",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "expected_reason": "unsupported_source_construct",
+      "first_header_kind": "validated_during_gate",
       "header_contains": null,
       "header_parity": true
     },
@@ -1451,7 +1455,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_write_to_constant_assign.safe:10:7: error: assignment target rooted in constant `Limit` is not writable",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check": {
@@ -1462,7 +1466,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_write_to_constant_assign.safe:10:7: error: assignment target rooted in constant `Limit` is not writable",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check_diag": {
@@ -1491,10 +1495,11 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_write_to_constant_assign.safe:10:7: error: assignment target rooted in constant `Limit` is not writable",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "expected_reason": "write_to_constant",
+      "first_header_kind": "validated_during_gate",
       "header_contains": null,
       "header_parity": true
     },
@@ -1507,7 +1512,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_write_to_constant_field.safe:15:7: error: assignment target rooted in constant `Value` is not writable",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check": {
@@ -1518,7 +1523,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_write_to_constant_field.safe:15:7: error: assignment target rooted in constant `Value` is not writable",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check_diag": {
@@ -1547,10 +1552,11 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_write_to_constant_field.safe:15:7: error: assignment target rooted in constant `Value` is not writable",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "expected_reason": "write_to_constant",
+      "first_header_kind": "validated_during_gate",
       "header_contains": null,
       "header_parity": true
     },
@@ -1563,7 +1569,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_write_to_constant_index.safe:22:7: error: assignment target rooted in constant `Data` is not writable",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check": {
@@ -1574,7 +1580,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_write_to_constant_index.safe:22:7: error: assignment target rooted in constant `Data` is not writable",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "check_diag": {
@@ -1603,10 +1609,11 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_write_to_constant_index.safe:22:7: error: assignment target rooted in constant `Data` is not writable",
+        "stderr": "<validated via header parity>",
         "stdout": ""
       },
       "expected_reason": "write_to_constant",
+      "first_header_kind": "validated_during_gate",
       "header_contains": null,
       "header_parity": true
     }

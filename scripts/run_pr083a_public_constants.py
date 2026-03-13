@@ -80,6 +80,13 @@ def compact_result(result: dict[str, Any]) -> dict[str, Any]:
     return compact
 
 
+def stable_failure_result(result: dict[str, Any]) -> dict[str, Any]:
+    stable = compact_result(result)
+    if "stderr" in stable:
+        stable["stderr"] = "<validated via header parity>"
+    return stable
+
+
 def first_stderr_line(result: dict[str, Any], label: str) -> str:
     lines = result["stderr"].splitlines()
     require(lines, f"{label}: expected stderr output")
@@ -603,12 +610,9 @@ def assert_failure_parity(
     require(observed_files(emit_root / "out") == [], f"{name}: emit unexpectedly wrote output artifacts")
     require(observed_files(emit_root / "iface") == [], f"{name}: emit unexpectedly wrote interface artifacts")
 
-    ast_record = compact_result(ast_result)
-    ast_record["stderr"] = ast_header
-    check_record = compact_result(check_result)
-    check_record["stderr"] = check_header
-    emit_record = compact_result(emit_result)
-    emit_record["stderr"] = emit_header
+    ast_record = stable_failure_result(ast_result)
+    check_record = stable_failure_result(check_result)
+    emit_record = stable_failure_result(emit_result)
 
     return {
         "expected_reason": reason,
@@ -626,6 +630,7 @@ def assert_failure_parity(
         "emit": emit_record,
         "header_parity": True,
         "header_contains": expected_header_substring,
+        "first_header_kind": "validated_during_gate",
     }
 
 
