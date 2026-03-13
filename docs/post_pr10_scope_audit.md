@@ -60,7 +60,8 @@ deferred beyond `PR10`.
 - Static-evaluation row
   Old status: binary arithmetic folding only
   New status: widened to the real open gap: declaration-time static evaluation
-  beyond the minimal PR08.3a/PR08.3b subset, including binary arithmetic and
+  beyond the minimal PR08.3a constant subset and the still-deferred
+  named-number subset, including binary arithmetic and
   dot-attribute references such as `.First` / `.Last`
 - `Raise/accept/goto statements`
   Old status: combined mixed row

@@ -58,7 +58,7 @@ before PR10, and not better owned by `docs/syntax_proposals.md`.
 
 | Item | Source | Area | Priority |
 |------|--------|------|----------|
-| Static evaluation beyond the minimal constant-reference subset used by PR08.3a/PR08.3b, including binary arithmetic and declaration-time dot-attribute references such as `.First` / `.Last` | `PR08.3a`, `spec/03-single-file-packages.md` section `3.2.7`, `compiler_impl/src/safe_frontend-check_resolve.adb` | `resolver` | `blocking-if-needed` |
+| Static evaluation beyond the minimal constant-reference subset used by PR08.3a and the still-deferred named-number work, including binary arithmetic and declaration-time dot-attribute references such as `.First` / `.Last` | `PR08.3a`, `spec/03-single-file-packages.md` section `3.2.7`, `compiler_impl/src/safe_frontend-check_resolve.adb` | `resolver` | `blocking-if-needed` |
 | Fixed-point Rule 5 support beyond the frozen current subset | `docs/frontend_architecture_baseline.md` | `analyzer` | `blocking-if-needed` |
 
 ## Concurrency, Ownership, and Runtime Model
