@@ -39,12 +39,21 @@ def gprbuild_command() -> str:
     try:
         return find_command("gprbuild")
     except FileNotFoundError:
-        for fallback in (
+        direct_fallbacks = (
             Path.home() / ".alire" / "bin" / "gprbuild",
             Path.home() / ".local" / "bin" / "gprbuild",
-        ):
+            Path.home() / ".alire" / "libexec" / "spark" / "bin" / "gprbuild",
+        )
+        for fallback in direct_fallbacks:
             if fallback.exists():
                 return str(fallback)
+        toolchain_bins = sorted(
+            (Path.home() / ".local" / "share" / "alire" / "toolchains").glob(
+                "*/bin/gprbuild"
+            )
+        )
+        if toolchain_bins:
+            return str(toolchain_bins[-1])
         raise
 
 
