@@ -173,7 +173,7 @@ def generate_report(*, safec: Path, env: dict[str, str]) -> dict[str, object]:
             f"{NEGATIVE_FIXTURE}: seeded Ada outputs changed on failed emit",
         )
 
-        stale_root = temp_root / "stale-cleanup"
+        stale_root = temp_root / "support-preservation"
         for name in ("out", "iface", "ada"):
             (stale_root / name).mkdir(parents=True, exist_ok=True)
         seed_file(stale_root / "ada" / "safe_runtime.ads", "-- stale runtime\n")
@@ -189,14 +189,14 @@ def generate_report(*, safec: Path, env: dict[str, str]) -> dict[str, object]:
             temp_root=temp_root,
         )
         ensure_emit_success(source=SURFACE_FIXTURES[0], root=stale_root)
-        stale_after = emitted_ada_files(stale_root / "ada")
+        stale_after = file_hashes(stale_root / "ada")
         require(
-            "safe_runtime.ads" not in stale_after,
-            f"{SURFACE_FIXTURES[0]}: stale safe_runtime.ads should be removed",
+            stale_before["safe_runtime.ads"] == stale_after["safe_runtime.ads"],
+            f"{SURFACE_FIXTURES[0]}: existing safe_runtime.ads should be preserved",
         )
         require(
-            "gnat.adc" not in stale_after,
-            f"{SURFACE_FIXTURES[0]}: stale gnat.adc should be removed",
+            stale_before["gnat.adc"] == stale_after["gnat.adc"],
+            f"{SURFACE_FIXTURES[0]}: existing gnat.adc should be preserved",
         )
 
         return {
@@ -217,10 +217,10 @@ def generate_report(*, safec: Path, env: dict[str, str]) -> dict[str, object]:
                     "ada": file_hashes(seeded_negative_root / "ada"),
                 },
             },
-            "stale_optional_cleanup": {
+            "shared_support_files_preserved": {
                 "fixture": repo_arg(SURFACE_FIXTURES[0]),
                 "before": stale_before,
-                "after_files": stale_after,
+                "after": stale_after,
             },
         }
 

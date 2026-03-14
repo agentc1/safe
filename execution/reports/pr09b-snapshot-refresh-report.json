@@ -1,7 +1,7 @@
 {
   "deterministic": true,
-  "repeat_sha256": "776d97ffd356281879a7590daeb6ced67e08320b234eeea59e40183d886929d0",
-  "report_sha256": "776d97ffd356281879a7590daeb6ced67e08320b234eeea59e40183d886929d0",
+  "repeat_sha256": "910ce3d89b81952a26f0bc3fac57a51a9ccbbd035bf1a967543eb23e71d803da",
+  "report_sha256": "910ce3d89b81952a26f0bc3fac57a51a9ccbbd035bf1a967543eb23e71d803da",
   "retired_snapshots_absent": [
     "tests/golden/golden_sensors.ada",
     "tests/golden/golden_ownership.ada",
@@ -16,7 +16,7 @@
           "sha256": "1e2fcc19815107411c19daec797fc78f9a1f5357527b26c5611e8b5ab6b76b3a"
         },
         "sensor_average.adb": {
-          "sha256": "e759ef30128530aee73149655a3dde1feb67cc5e226d6dcfc8ce4134e7554654"
+          "sha256": "6c379267ae5bcd654527ae9dcd7444bb7abc4d05d631b2e888a0807fe28ffe41"
         },
         "sensor_average.ads": {
           "sha256": "0f2efca66d7a0446034e7f9edd5d00ea17b5786f267da4cce8ba813fedfc8e11"
@@ -43,10 +43,10 @@
           "sha256": "02f745f7b4743057317a8e6b81f29ef7431b7672dc8d5cdc4ea5550036d82daf"
         },
         "pipeline.adb": {
-          "sha256": "6cb05c4928e42c813533eebaf4281a15358172bd8621cf2c95a2e7608dc252ef"
+          "sha256": "a81e7dd560ddb07d9e332fc35184ea70a0f3b477a5b3d616b55d3d5507226ec6"
         },
         "pipeline.ads": {
-          "sha256": "36b449b2226306e5acb472a9401c1690cc74e2071161d6b265690371c2b3c7f9"
+          "sha256": "1b6dad34100690fad5e8561621d107e24aed1dc3bc81f7c901cfba01a1b5f4a6"
         },
         "safe_runtime.ads": {
           "sha256": "1e2fcc19815107411c19daec797fc78f9a1f5357527b26c5611e8b5ab6b76b3a"

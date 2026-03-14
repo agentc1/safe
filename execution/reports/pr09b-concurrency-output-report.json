@@ -21,10 +21,10 @@
             "sha256": "02f745f7b4743057317a8e6b81f29ef7431b7672dc8d5cdc4ea5550036d82daf"
           },
           "ping_pong.adb": {
-            "sha256": "70b960c9f6c05a97c5d236b852feb1d23a6ece3169bfd2b521d87535bf807d94"
+            "sha256": "5021e79f97e4cc0508f7e58e7c6d8549e430d3593fc1b6ad67d7c6700ff878cb"
           },
           "ping_pong.ads": {
-            "sha256": "96b3d41f42e76417d534f7f63c341ed240e1fdc3446c212bd81a20399bc71119"
+            "sha256": "e568021ea82676ecf1443f850c2eda653c08fa31ba95de255ee2dc2d74655523"
           },
           "safe_runtime.ads": {
             "sha256": "1e2fcc19815107411c19daec797fc78f9a1f5357527b26c5611e8b5ab6b76b3a"
@@ -81,10 +81,10 @@
             "sha256": "02f745f7b4743057317a8e6b81f29ef7431b7672dc8d5cdc4ea5550036d82daf"
           },
           "pipeline.adb": {
-            "sha256": "6cb05c4928e42c813533eebaf4281a15358172bd8621cf2c95a2e7608dc252ef"
+            "sha256": "a81e7dd560ddb07d9e332fc35184ea70a0f3b477a5b3d616b55d3d5507226ec6"
           },
           "pipeline.ads": {
-            "sha256": "36b449b2226306e5acb472a9401c1690cc74e2071161d6b265690371c2b3c7f9"
+            "sha256": "1b6dad34100690fad5e8561621d107e24aed1dc3bc81f7c901cfba01a1b5f4a6"
           },
           "safe_runtime.ads": {
             "sha256": "1e2fcc19815107411c19daec797fc78f9a1f5357527b26c5611e8b5ab6b76b3a"
@@ -144,10 +144,10 @@
             "sha256": "1e2fcc19815107411c19daec797fc78f9a1f5357527b26c5611e8b5ab6b76b3a"
           },
           "select_with_delay.adb": {
-            "sha256": "ed3bbc597ef6dd1e2c899334e09be0aa68fd55b886f57dd7bb8a5077e09c482e"
+            "sha256": "0fdbb702fa55e6e19d590ea83f71a58de8d4227eef7c1e9231fc0668b1cf481f"
           },
           "select_with_delay.ads": {
-            "sha256": "23b48a70e6518b1399cd3b85a532b34fed2aef467cdf945938c2005683a5bed9"
+            "sha256": "62f400cee52aa05f446444dffbe8bf4d52353007ee56be25019fe586b9df725a"
           }
         },
         "json_and_interface": {
@@ -183,6 +183,6 @@
       }
     }
   ],
-  "repeat_sha256": "9ced7c6575558908a6f20e3a4095f04b12e1eb3d41613c082f8c05db77df679f",
-  "report_sha256": "9ced7c6575558908a6f20e3a4095f04b12e1eb3d41613c082f8c05db77df679f"
+  "repeat_sha256": "180b220a72795997a125dba0681a09edb3a928213e9eb0317372fc0df3dba4a4",
+  "report_sha256": "180b220a72795997a125dba0681a09edb3a928213e9eb0317372fc0df3dba4a4"
 }

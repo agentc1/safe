@@ -11,7 +11,7 @@ This workspace hosts the current Safe compiler frontend baseline established by 
 - `safec analyze-mir --diag-json <file.mir.json>` writes `diagnostics-v0` JSON for a `mir-v2` input.
 - `safec check <file.safe> [--interface-search-dir <dir>]...` runs the Ada-native check pipeline for the currently supported subset and exits nonzero if diagnostics are emitted.
 - `safec check --diag-json <file.safe> [--interface-search-dir <dir>]...` writes `diagnostics-v0` JSON for the Ada-native check pipeline.
-- `safec emit <file.safe> --out-dir <dir> --interface-dir <dir> --ada-out-dir <dir> [--interface-search-dir <dir>]...` writes the current frontend artifacts for downstream inspection and regression checks, and optionally emits Ada/SPARK artifacts for the current PR09 subset.
+- `safec emit <file.safe> --out-dir <dir> --interface-dir <dir> [--ada-out-dir <dir>] [--interface-search-dir <dir>]...` writes the current frontend artifacts for downstream inspection and regression checks, and optionally emits Ada/SPARK artifacts for the current PR09 subset.
 
 The current frontend supports the exact current Rule 5 fixture corpus, sequential ownership, the current boolean result-record discriminant pattern, the local-only PR08.1/PR08.2 concurrency slice for single-package task declarations, channel declarations, send, receive, try_send, try_receive, select, and relative delay, the PR08.3 interface-contract slice for imported package-qualified resolution through explicit dependency interfaces, the PR08.3a additive constant slice for ordinary object constants plus imported integer/boolean constant values in the currently supported static-expression sites, and the PR08.4 transitive integration slice for imported-summary consumption, cross-package ownership/channel-ceiling analysis, and imported-call ownership semantics.
 
@@ -142,7 +142,7 @@ Managed artifact set for `safec emit`:
 - Exit `0` (`Exit_Success`)
   - Full success.
   - All managed artifacts for the invocation are written deterministically.
-  - Stale optional Ada support files (`safe_runtime.ads`, `gnat.adc`) are removed when the current successful emit no longer needs them.
+  - Optional Ada support files (`safe_runtime.ads`, `gnat.adc`) are written when needed and otherwise preserved if already present in the target Ada output directory.
 
 - Exit `1` (`Exit_Diagnostics`)
   - Source/frontend/analyzer diagnostics, including `unsupported_source_construct`.
@@ -151,7 +151,7 @@ Managed artifact set for `safec emit`:
 - Exit `3` (`Exit_Internal`)
   - Internal compiler failures, including serialization or filesystem I/O failures.
   - The driver computes all managed artifact text before beginning filesystem mutation.
-  - If an Ada artifact write fails after `--ada-out-dir <dir>` was requested, the driver removes the managed Ada files for that invocation (`<unit>.ads`, `<unit>.adb`, `safe_runtime.ads`, `gnat.adc`) before returning.
+  - If an Ada artifact write fails after `--ada-out-dir <dir>` was requested, the driver removes the managed unit files for that invocation (`<unit>.ads`, `<unit>.adb`) before returning.
   - JSON/interface writes remain direct writes rather than a transactional multi-directory commit.
 
 ## Verification

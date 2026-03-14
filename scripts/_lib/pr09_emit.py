@@ -36,7 +36,7 @@ def require_safec() -> Path:
 
 
 def gprbuild_command() -> str:
-    return find_command("gprbuild")
+    return find_command("gprbuild", Path.home() / ".local" / "bin" / "gprbuild")
 
 
 def python_command() -> str:

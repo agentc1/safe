@@ -190,13 +190,15 @@
       }
     }
   ],
-  "repeat_sha256": "60289b07c1dfea4c376397050cb107062fba8db1702beaaca15214d558bbf6c8",
-  "report_sha256": "60289b07c1dfea4c376397050cb107062fba8db1702beaaca15214d558bbf6c8",
-  "stale_optional_cleanup": {
-    "after_files": [
-      "emitter_surface_record.adb",
-      "emitter_surface_record.ads"
-    ],
+  "repeat_sha256": "c25bc8e5f3c57d2e0d685048c028b9b62f20bc5b0cbe271723ce44b1b7a35100",
+  "report_sha256": "c25bc8e5f3c57d2e0d685048c028b9b62f20bc5b0cbe271723ce44b1b7a35100",
+  "shared_support_files_preserved": {
+    "after": {
+      "emitter_surface_record.adb": "80b7653339f25737b50e975f7c47a323d1446c9af8c915fb10023dfd00a1fca1",
+      "emitter_surface_record.ads": "53c3c5226ffb8a874595673fc208c1ec28b37d6569118beb360e819facaaaf33",
+      "gnat.adc": "118c2a7c221218305dcebf64872ca17035609286cb225a41fe528d2d89409f4c",
+      "safe_runtime.ads": "758ab91b32e877d42186fce700fafd56a7f8190e42b8a2fb630af1885ce9fea5"
+    },
     "before": {
       "gnat.adc": "118c2a7c221218305dcebf64872ca17035609286cb225a41fe528d2d89409f4c",
       "safe_runtime.ads": "758ab91b32e877d42186fce700fafd56a7f8190e42b8a2fb630af1885ce9fea5"

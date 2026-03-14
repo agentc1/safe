@@ -88,8 +88,6 @@ package body Safe_Frontend.Driver is
    begin
       Delete_If_Exists (Ada_Out_Dir & "/" & Ada_Stem & ".ads");
       Delete_If_Exists (Ada_Out_Dir & "/" & Ada_Stem & ".adb");
-      Delete_If_Exists (Ada_Out_Dir & "/safe_runtime.ads");
-      Delete_If_Exists (Ada_Out_Dir & "/gnat.adc");
    end Cleanup_Ada_Artifacts;
 
    function Failure_Exit_Code (Result : Lex_Result) return Integer is
@@ -564,15 +562,11 @@ package body Safe_Frontend.Driver is
                      Write_File
                        (Ada_Out_Dir & "/safe_runtime.ads",
                         Safe_Runtime);
-                  else
-                     Delete_If_Exists (Ada_Out_Dir & "/safe_runtime.ads");
                   end if;
                   if Ada_Result.Needs_Gnat_Adc then
                      Write_File
                        (Ada_Out_Dir & "/gnat.adc",
                         Gnat_Adc);
-                  else
-                     Delete_If_Exists (Ada_Out_Dir & "/gnat.adc");
                   end if;
                exception
                   when others =>

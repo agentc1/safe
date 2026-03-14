@@ -126,7 +126,7 @@ def generate_report(*, env: dict[str, str]) -> dict[str, object]:
         compiler_readme_text = COMPILER_README_PATH.read_text(encoding="utf-8")
         require_contains(
             compiler_readme_text,
-            "`safec emit <file.safe> --out-dir <dir> --interface-dir <dir> --ada-out-dir <dir> [--interface-search-dir <dir>]...`",
+            "`safec emit <file.safe> --out-dir <dir> --interface-dir <dir> [--ada-out-dir <dir>] [--interface-search-dir <dir>]...`",
             "compiler_impl/README.md",
         )
         require_contains(

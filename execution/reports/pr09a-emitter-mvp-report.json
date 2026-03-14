@@ -21,7 +21,7 @@
             "sha256": "1e2fcc19815107411c19daec797fc78f9a1f5357527b26c5611e8b5ab6b76b3a"
           },
           "sensor_average.adb": {
-            "sha256": "e759ef30128530aee73149655a3dde1feb67cc5e226d6dcfc8ce4134e7554654"
+            "sha256": "6c379267ae5bcd654527ae9dcd7444bb7abc4d05d631b2e888a0807fe28ffe41"
           },
           "sensor_average.ads": {
             "sha256": "0f2efca66d7a0446034e7f9edd5d00ea17b5786f267da4cce8ba813fedfc8e11"
@@ -71,7 +71,7 @@
       "determinism": {
         "ada": {
           "accumulator.adb": {
-            "sha256": "df7eabd9eb55ba86d15f3ca71098107b7a923d2e03484998249c24523422e980"
+            "sha256": "5cc4910ed7491c615dbdaf8cf5652e3dff27d19ecb6c94a46792849e78942949"
           },
           "accumulator.ads": {
             "sha256": "93c09e4d8e6b6503ffefbaba7931ff5c4e30d5505c22e57ba0edb0ff594aa102"
@@ -230,7 +230,7 @@
       "determinism": {
         "ada": {
           "safe_conversion.adb": {
-            "sha256": "b69aafc376fd3d1847d33e6c083e6a256f333c8ba6d2a3bd3c09746f3dc4e8a9"
+            "sha256": "520511a72981077981aef09fcb970ba5ab3c7ed62552145cd5aaf8bf3cbb8238"
           },
           "safe_conversion.ads": {
             "sha256": "33791402cae4e4185e2e2f677917a5d638baa2d84e2b1a281d10f9fcc1811693"
@@ -271,6 +271,6 @@
     "PR09a emits compile-valid Ada/SPARK skeleton output on the rule1 subset.",
     "safe_runtime.ads remains byte-identical to companion/templates/safe_runtime.ads."
   ],
-  "repeat_sha256": "15ae3552c851678cbccb4fc97f5fcdffc6cc6872b5025bf8024ad8bb74b4aca7",
-  "report_sha256": "15ae3552c851678cbccb4fc97f5fcdffc6cc6872b5025bf8024ad8bb74b4aca7"
+  "repeat_sha256": "097880f25d4eeaa53124f4ddfdd69bbb6e65e6ead3e1d1d5868e7a39683699bf",
+  "report_sha256": "097880f25d4eeaa53124f4ddfdd69bbb6e65e6ead3e1d1d5868e7a39683699bf"
 }

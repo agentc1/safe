@@ -56,41 +56,38 @@ package body Pipeline is
    end Filtered_Ch_Channel;
 
    task body Producer is
-      Counter : Sample := 0;
+      Counter : Safe_Runtime.Wide_Integer := Safe_Runtime.Wide_Integer (0);
    begin
       loop
-         Raw_Ch.Send (Counter);
+         Raw_Ch.Send (Sample (Safe_Runtime.Wide_Integer (Counter)));
          if (Counter < 10_000) then
-            pragma Assert ((Safe_Runtime.Wide_Integer (Counter) + Safe_Runtime.Wide_Integer (1)) >= Safe_Runtime.Wide_Integer (Sample'First) and then (Safe_Runtime.Wide_Integer (Counter) + Safe_Runtime.Wide_Integer (1)) <= Safe_Runtime.Wide_Integer (Sample'Last));
-            Counter := Sample ((Safe_Runtime.Wide_Integer (Counter) + Safe_Runtime.Wide_Integer (1)));
+            Counter := (Safe_Runtime.Wide_Integer (Counter) + Safe_Runtime.Wide_Integer (1));
          else
-            Counter := 0;
+            Counter := Safe_Runtime.Wide_Integer (0);
          end if;
       end loop;
    end Producer;
 
    task body Filter is
       Input : Sample;
-      Output : Sample;
+      Output : Safe_Runtime.Wide_Integer;
    begin
       loop
          Raw_Ch.Receive (Input);
-         pragma Assert ((Safe_Runtime.Wide_Integer (Input) / Safe_Runtime.Wide_Integer (2)) >= Safe_Runtime.Wide_Integer (Sample'First) and then (Safe_Runtime.Wide_Integer (Input) / Safe_Runtime.Wide_Integer (2)) <= Safe_Runtime.Wide_Integer (Sample'Last));
-         Output := Sample ((Safe_Runtime.Wide_Integer (Input) / Safe_Runtime.Wide_Integer (2)));
-         Filtered_Ch.Send (Output);
+         Output := (Safe_Runtime.Wide_Integer (Input) / Safe_Runtime.Wide_Integer (2));
+         Filtered_Ch.Send (Sample (Safe_Runtime.Wide_Integer (Output)));
       end loop;
    end Filter;
 
    task body Consumer is
       Data : Sample;
-      Sum : Natural := 0;
+      Sum : Safe_Runtime.Wide_Integer := Safe_Runtime.Wide_Integer (0);
    begin
       loop
          Filtered_Ch.Receive (Data);
-         pragma Assert ((Safe_Runtime.Wide_Integer (Sum) + Safe_Runtime.Wide_Integer (Natural (Data))) >= Safe_Runtime.Wide_Integer (Natural'First) and then (Safe_Runtime.Wide_Integer (Sum) + Safe_Runtime.Wide_Integer (Natural (Data))) <= Safe_Runtime.Wide_Integer (Natural'Last));
-         Sum := Natural ((Safe_Runtime.Wide_Integer (Sum) + Safe_Runtime.Wide_Integer (Natural (Data))));
+         Sum := (Safe_Runtime.Wide_Integer (Sum) + Safe_Runtime.Wide_Integer (Natural (Data)));
          if (Sum > 1_000_000) then
-            Sum := 0;
+            Sum := Safe_Runtime.Wide_Integer (0);
          end if;
       end loop;
    end Consumer;

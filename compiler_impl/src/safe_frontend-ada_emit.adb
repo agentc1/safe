@@ -57,6 +57,7 @@ package body Safe_Frontend.Ada_Emit is
       Needs_Safe_Runtime : Boolean := False;
       Needs_Gnat_Adc     : Boolean := False;
       Needs_Unchecked_Deallocation : Boolean := False;
+      Wide_Local_Names   : FT.UString_Vectors.Vector;
    end record;
 
    procedure Raise_Unsupported
@@ -72,6 +73,21 @@ package body Safe_Frontend.Ada_Emit is
       Text   : String := "";
       Depth  : Natural := 0);
    function Join_Names (Items : FT.UString_Vectors.Vector) return String;
+   function Contains_Name
+     (Items : FT.UString_Vectors.Vector;
+      Name  : String) return Boolean;
+   procedure Add_Wide_Name
+     (State : in out Emit_State;
+      Name  : String);
+   function Is_Wide_Name
+     (State : Emit_State;
+      Name  : String) return Boolean;
+   function Names_Use_Wide_Storage
+     (State : Emit_State;
+      Names : FT.UString_Vectors.Vector) return Boolean;
+   procedure Restore_Wide_Names
+     (State           : in out Emit_State;
+      Previous_Length : Ada.Containers.Count_Type);
    function Starts_With (Text : String; Prefix : String) return Boolean;
    function Normalize_Aspect_Name
      (Subprogram_Name : String;
@@ -97,6 +113,9 @@ package body Safe_Frontend.Ada_Emit is
      (Unit     : CM.Resolved_Unit;
       Document : GM.Mir_Document;
       Name     : String) return String;
+   function Lookup_Channel
+     (Unit : CM.Resolved_Unit;
+      Name : String) return CM.Resolved_Channel_Decl;
    function Render_Type_Decl (Type_Item : GM.Type_Descriptor) return String;
    function Render_Object_Decl_Text
      (Unit     : CM.Resolved_Unit;
@@ -123,6 +142,29 @@ package body Safe_Frontend.Ada_Emit is
      (Unit     : CM.Resolved_Unit;
       Document : GM.Mir_Document;
       Expr     : CM.Expr_Access) return Boolean;
+   function Uses_Wide_Value
+     (Unit     : CM.Resolved_Unit;
+      Document : GM.Mir_Document;
+      State    : Emit_State;
+      Expr     : CM.Expr_Access) return Boolean;
+   function Render_Channel_Send_Value
+     (Unit         : CM.Resolved_Unit;
+      Document     : GM.Mir_Document;
+      State        : in out Emit_State;
+      Channel_Expr : CM.Expr_Access;
+      Value        : CM.Expr_Access) return String;
+   procedure Collect_Wide_Locals
+     (Unit         : CM.Resolved_Unit;
+      Document     : GM.Mir_Document;
+      State        : in out Emit_State;
+      Declarations : CM.Resolved_Object_Decl_Vectors.Vector;
+      Statements   : CM.Statement_Access_Vectors.Vector);
+   procedure Collect_Wide_Locals
+     (Unit         : CM.Resolved_Unit;
+      Document     : GM.Mir_Document;
+      State        : in out Emit_State;
+      Declarations : CM.Object_Decl_Vectors.Vector;
+      Statements   : CM.Statement_Access_Vectors.Vector);
 
    procedure Render_Statements
      (Buffer     : in out SU.Unbounded_String;
@@ -145,10 +187,19 @@ package body Safe_Frontend.Ada_Emit is
       Bronze     : MB.Bronze_Result) return String;
    procedure Render_Channel_Spec
      (Buffer  : in out SU.Unbounded_String;
-      Channel : CM.Resolved_Channel_Decl);
+      Channel : CM.Resolved_Channel_Decl;
+      Bronze  : MB.Bronze_Result);
    procedure Render_Channel_Body
      (Buffer  : in out SU.Unbounded_String;
       Channel : CM.Resolved_Channel_Decl);
+   procedure Render_Free_Declarations
+     (Buffer       : in out SU.Unbounded_String;
+      Declarations : CM.Resolved_Object_Decl_Vectors.Vector;
+      Depth        : Natural);
+   procedure Render_Free_Declarations
+     (Buffer       : in out SU.Unbounded_String;
+      Declarations : CM.Object_Decl_Vectors.Vector;
+      Depth        : Natural);
    procedure Render_Subprogram_Body
      (Buffer     : in out SU.Unbounded_String;
       Unit       : CM.Resolved_Unit;
@@ -232,6 +283,55 @@ package body Safe_Frontend.Ada_Emit is
       when Constraint_Error =>
          return "";
    end Join_Names;
+
+   function Contains_Name
+     (Items : FT.UString_Vectors.Vector;
+      Name  : String) return Boolean is
+   begin
+      for Item of Items loop
+         if FT.To_String (Item) = Name then
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Contains_Name;
+
+   procedure Add_Wide_Name
+     (State : in out Emit_State;
+      Name  : String) is
+   begin
+      if not Contains_Name (State.Wide_Local_Names, Name) then
+         State.Wide_Local_Names.Append (FT.To_UString (Name));
+      end if;
+   end Add_Wide_Name;
+
+   function Is_Wide_Name
+     (State : Emit_State;
+      Name  : String) return Boolean is
+   begin
+      return Contains_Name (State.Wide_Local_Names, Name);
+   end Is_Wide_Name;
+
+   function Names_Use_Wide_Storage
+     (State : Emit_State;
+      Names : FT.UString_Vectors.Vector) return Boolean is
+   begin
+      for Name of Names loop
+         if Is_Wide_Name (State, FT.To_String (Name)) then
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Names_Use_Wide_Storage;
+
+   procedure Restore_Wide_Names
+     (State           : in out Emit_State;
+      Previous_Length : Ada.Containers.Count_Type) is
+   begin
+      while State.Wide_Local_Names.Length > Previous_Length loop
+         State.Wide_Local_Names.Delete_Last;
+      end loop;
+   end Restore_Wide_Names;
 
    function Starts_With (Text : String; Prefix : String) return Boolean is
    begin
@@ -344,6 +444,24 @@ package body Safe_Frontend.Ada_Emit is
       end if;
       return Name;
    end Render_Type_Name;
+
+   function Lookup_Channel
+     (Unit : CM.Resolved_Unit;
+      Name : String) return CM.Resolved_Channel_Decl
+   is
+   begin
+      for Item of Unit.Channels loop
+         if FT.To_String (Item.Name) = Name then
+            return Item;
+         end if;
+      end loop;
+      for Item of Unit.Imported_Channels loop
+         if FT.To_String (Item.Name) = Name then
+            return Item;
+         end if;
+      end loop;
+      return (others => <>);
+   end Lookup_Channel;
 
    function Render_Type_Decl (Type_Item : GM.Type_Descriptor) return String is
       Name : constant String := FT.To_String (Type_Item.Name);
@@ -621,6 +739,251 @@ package body Safe_Frontend.Ada_Emit is
       end case;
    end Uses_Wide_Arithmetic;
 
+   function Uses_Wide_Value
+     (Unit     : CM.Resolved_Unit;
+      Document : GM.Mir_Document;
+      State    : Emit_State;
+      Expr     : CM.Expr_Access) return Boolean
+   is
+   begin
+      if Expr = null then
+         return False;
+      elsif Uses_Wide_Arithmetic (Unit, Document, Expr) then
+         return True;
+      end if;
+
+      case Expr.Kind is
+         when CM.Expr_Ident =>
+            return Is_Wide_Name (State, FT.To_String (Expr.Name));
+         when CM.Expr_Unary | CM.Expr_Conversion | CM.Expr_Annotated =>
+            return Uses_Wide_Value (Unit, Document, State, Expr.Inner);
+         when CM.Expr_Binary =>
+            return
+              Uses_Wide_Value (Unit, Document, State, Expr.Left)
+              or else Uses_Wide_Value (Unit, Document, State, Expr.Right);
+         when CM.Expr_Call | CM.Expr_Resolved_Index =>
+            for Item of Expr.Args loop
+               if Uses_Wide_Value (Unit, Document, State, Item) then
+                  return True;
+               end if;
+            end loop;
+            return False;
+         when CM.Expr_Select =>
+            return Uses_Wide_Value (Unit, Document, State, Expr.Prefix);
+         when others =>
+            return False;
+      end case;
+   end Uses_Wide_Value;
+
+   function Render_Channel_Send_Value
+     (Unit         : CM.Resolved_Unit;
+      Document     : GM.Mir_Document;
+      State        : in out Emit_State;
+      Channel_Expr : CM.Expr_Access;
+      Value        : CM.Expr_Access) return String
+   is
+      Channel_Name : constant String :=
+        (if Channel_Expr = null then "" else CM.Flatten_Name (Channel_Expr));
+      Channel_Item : constant CM.Resolved_Channel_Decl :=
+        Lookup_Channel (Unit, Channel_Name);
+   begin
+      if Has_Text (Channel_Item.Name)
+        and then Is_Integer_Type (Channel_Item.Element_Type)
+        and then Uses_Wide_Value (Unit, Document, State, Value)
+      then
+         return
+           Render_Type_Name (Channel_Item.Element_Type)
+           & " ("
+           & Render_Wide_Expr (Unit, Document, Value, State)
+           & ")";
+      end if;
+      return Render_Expr (Unit, Document, Value, State);
+   end Render_Channel_Send_Value;
+
+   procedure Collect_Wide_Locals_From_Statements
+     (Unit        : CM.Resolved_Unit;
+      Document    : GM.Mir_Document;
+      State       : in out Emit_State;
+      Local_Names : FT.UString_Vectors.Vector;
+      Statements  : CM.Statement_Access_Vectors.Vector);
+
+   procedure Collect_Local_Names
+     (Declarations : CM.Resolved_Object_Decl_Vectors.Vector;
+      Statements   : CM.Statement_Access_Vectors.Vector;
+      Names        : in out FT.UString_Vectors.Vector) is
+   begin
+      for Decl of Declarations loop
+         for Name of Decl.Names loop
+            if not Contains_Name (Names, FT.To_String (Name)) then
+               Names.Append (Name);
+            end if;
+         end loop;
+      end loop;
+      for Item of Statements loop
+         if Item /= null and then Item.Kind = CM.Stmt_Object_Decl then
+            for Name of Item.Decl.Names loop
+               if not Contains_Name (Names, FT.To_String (Name)) then
+                  Names.Append (Name);
+               end if;
+            end loop;
+         end if;
+      end loop;
+   end Collect_Local_Names;
+
+   procedure Collect_Local_Names
+     (Declarations : CM.Object_Decl_Vectors.Vector;
+      Statements   : CM.Statement_Access_Vectors.Vector;
+      Names        : in out FT.UString_Vectors.Vector) is
+   begin
+      for Decl of Declarations loop
+         for Name of Decl.Names loop
+            if not Contains_Name (Names, FT.To_String (Name)) then
+               Names.Append (Name);
+            end if;
+         end loop;
+      end loop;
+      for Item of Statements loop
+         if Item /= null and then Item.Kind = CM.Stmt_Object_Decl then
+            for Name of Item.Decl.Names loop
+               if not Contains_Name (Names, FT.To_String (Name)) then
+                  Names.Append (Name);
+               end if;
+            end loop;
+         end if;
+      end loop;
+   end Collect_Local_Names;
+
+   procedure Mark_Wide_Declaration
+     (Unit      : CM.Resolved_Unit;
+      Document  : GM.Mir_Document;
+      State     : in out Emit_State;
+      Decl      : CM.Resolved_Object_Decl) is
+   begin
+      if Is_Integer_Type (Decl.Type_Info)
+        and then Decl.Has_Initializer
+        and then Uses_Wide_Value (Unit, Document, State, Decl.Initializer)
+      then
+         for Name of Decl.Names loop
+            Add_Wide_Name (State, FT.To_String (Name));
+         end loop;
+      end if;
+   end Mark_Wide_Declaration;
+
+   procedure Mark_Wide_Declaration
+     (Unit      : CM.Resolved_Unit;
+      Document  : GM.Mir_Document;
+      State     : in out Emit_State;
+      Decl      : CM.Object_Decl) is
+   begin
+      if Is_Integer_Type (Decl.Type_Info)
+        and then Decl.Has_Initializer
+        and then Uses_Wide_Value (Unit, Document, State, Decl.Initializer)
+      then
+         for Name of Decl.Names loop
+            Add_Wide_Name (State, FT.To_String (Name));
+         end loop;
+      end if;
+   end Mark_Wide_Declaration;
+
+   procedure Collect_Wide_Locals_From_Statements
+     (Unit        : CM.Resolved_Unit;
+      Document    : GM.Mir_Document;
+      State       : in out Emit_State;
+      Local_Names : FT.UString_Vectors.Vector;
+      Statements  : CM.Statement_Access_Vectors.Vector) is
+   begin
+      for Item of Statements loop
+         if Item = null then
+            null;
+         else
+            case Item.Kind is
+               when CM.Stmt_Object_Decl =>
+                  Mark_Wide_Declaration (Unit, Document, State, Item.Decl);
+               when CM.Stmt_Assign =>
+                  if Item.Target /= null
+                    and then Item.Target.Kind = CM.Expr_Ident
+                    and then Contains_Name (Local_Names, FT.To_String (Item.Target.Name))
+                    and then Uses_Wide_Value (Unit, Document, State, Item.Value)
+                  then
+                     Add_Wide_Name (State, FT.To_String (Item.Target.Name));
+                  end if;
+               when CM.Stmt_If =>
+                  Collect_Wide_Locals_From_Statements
+                    (Unit, Document, State, Local_Names, Item.Then_Stmts);
+                  for Part of Item.Elsifs loop
+                     Collect_Wide_Locals_From_Statements
+                       (Unit, Document, State, Local_Names, Part.Statements);
+                  end loop;
+                  if Item.Has_Else then
+                     Collect_Wide_Locals_From_Statements
+                       (Unit, Document, State, Local_Names, Item.Else_Stmts);
+                  end if;
+               when CM.Stmt_While | CM.Stmt_For | CM.Stmt_Loop =>
+                  Collect_Wide_Locals_From_Statements
+                    (Unit, Document, State, Local_Names, Item.Body_Stmts);
+               when CM.Stmt_Block =>
+                  declare
+                     Block_Names : FT.UString_Vectors.Vector;
+                  begin
+                     Collect_Local_Names (Item.Declarations, Item.Body_Stmts, Block_Names);
+                     for Decl of Item.Declarations loop
+                        Mark_Wide_Declaration (Unit, Document, State, Decl);
+                     end loop;
+                     Collect_Wide_Locals_From_Statements
+                       (Unit, Document, State, Block_Names, Item.Body_Stmts);
+                  end;
+               when CM.Stmt_Select =>
+                  for Arm of Item.Arms loop
+                     case Arm.Kind is
+                        when CM.Select_Arm_Channel =>
+                           Collect_Wide_Locals_From_Statements
+                             (Unit, Document, State, Local_Names, Arm.Channel_Data.Statements);
+                        when CM.Select_Arm_Delay =>
+                           Collect_Wide_Locals_From_Statements
+                             (Unit, Document, State, Local_Names, Arm.Delay_Data.Statements);
+                        when others =>
+                           null;
+                     end case;
+                  end loop;
+               when others =>
+                  null;
+            end case;
+         end if;
+      end loop;
+   end Collect_Wide_Locals_From_Statements;
+
+   procedure Collect_Wide_Locals
+     (Unit         : CM.Resolved_Unit;
+      Document     : GM.Mir_Document;
+      State        : in out Emit_State;
+      Declarations : CM.Resolved_Object_Decl_Vectors.Vector;
+      Statements   : CM.Statement_Access_Vectors.Vector) is
+      Local_Names : FT.UString_Vectors.Vector;
+   begin
+      Collect_Local_Names (Declarations, Statements, Local_Names);
+      for Decl of Declarations loop
+         Mark_Wide_Declaration (Unit, Document, State, Decl);
+      end loop;
+      Collect_Wide_Locals_From_Statements
+        (Unit, Document, State, Local_Names, Statements);
+   end Collect_Wide_Locals;
+
+   procedure Collect_Wide_Locals
+     (Unit         : CM.Resolved_Unit;
+      Document     : GM.Mir_Document;
+      State        : in out Emit_State;
+      Declarations : CM.Object_Decl_Vectors.Vector;
+      Statements   : CM.Statement_Access_Vectors.Vector) is
+      Local_Names : FT.UString_Vectors.Vector;
+   begin
+      Collect_Local_Names (Declarations, Statements, Local_Names);
+      for Decl of Declarations loop
+         Mark_Wide_Declaration (Unit, Document, State, Decl);
+      end loop;
+      Collect_Wide_Locals_From_Statements
+        (Unit, Document, State, Local_Names, Statements);
+   end Collect_Wide_Locals;
+
    function Render_Wide_Expr
      (Unit     : CM.Resolved_Unit;
       Document : GM.Mir_Document;
@@ -668,10 +1031,16 @@ package body Safe_Frontend.Ada_Emit is
       State    : in out Emit_State;
       Decl     : CM.Resolved_Object_Decl) return String
    is
-      pragma Unreferenced (State);
       Result : SU.Unbounded_String;
-      Type_Name : constant String := Render_Type_Name (Decl.Type_Info);
+      Type_Name : constant String :=
+        (if Is_Integer_Type (Decl.Type_Info)
+           and then Names_Use_Wide_Storage (State, Decl.Names)
+         then "Safe_Runtime.Wide_Integer"
+         else Render_Type_Name (Decl.Type_Info));
    begin
+      if Type_Name = "Safe_Runtime.Wide_Integer" then
+         State.Needs_Safe_Runtime := True;
+      end if;
       for Index in Decl.Names.First_Index .. Decl.Names.Last_Index loop
          if Index /= Decl.Names.First_Index then
             Result := Result & SU.To_Unbounded_String ("; ");
@@ -684,10 +1053,28 @@ package body Safe_Frontend.Ada_Emit is
                 & (if Decl.Is_Constant then "constant " else "")
                 & Type_Name);
          if Decl.Has_Initializer then
-            Result :=
-              Result
-              & SU.To_Unbounded_String
-                  (" := " & Render_Expr (Unit, Document, Decl.Initializer, State));
+            if Type_Name = "Safe_Runtime.Wide_Integer" then
+               Result :=
+                 Result
+                 & SU.To_Unbounded_String
+                     (" := " & Render_Wide_Expr (Unit, Document, Decl.Initializer, State));
+            elsif Is_Integer_Type (Decl.Type_Info)
+              and then Uses_Wide_Value (Unit, Document, State, Decl.Initializer)
+            then
+               Result :=
+                 Result
+                 & SU.To_Unbounded_String
+                     (" := "
+                      & Render_Type_Name (Decl.Type_Info)
+                      & " ("
+                      & Render_Wide_Expr (Unit, Document, Decl.Initializer, State)
+                      & ")");
+            else
+               Result :=
+                 Result
+                 & SU.To_Unbounded_String
+                     (" := " & Render_Expr (Unit, Document, Decl.Initializer, State));
+            end if;
          end if;
       end loop;
       return SU.To_String (Result) & ";";
@@ -700,8 +1087,15 @@ package body Safe_Frontend.Ada_Emit is
       Decl     : CM.Object_Decl) return String
    is
       Result : SU.Unbounded_String;
-      Type_Name : constant String := Render_Type_Name (Decl.Type_Info);
+      Type_Name : constant String :=
+        (if Is_Integer_Type (Decl.Type_Info)
+           and then Names_Use_Wide_Storage (State, Decl.Names)
+         then "Safe_Runtime.Wide_Integer"
+         else Render_Type_Name (Decl.Type_Info));
    begin
+      if Type_Name = "Safe_Runtime.Wide_Integer" then
+         State.Needs_Safe_Runtime := True;
+      end if;
       for Index in Decl.Names.First_Index .. Decl.Names.Last_Index loop
          if Index /= Decl.Names.First_Index then
             Result := Result & SU.To_Unbounded_String ("; ");
@@ -714,10 +1108,28 @@ package body Safe_Frontend.Ada_Emit is
                 & (if Decl.Is_Constant then "constant " else "")
                 & Type_Name);
          if Decl.Has_Initializer then
-            Result :=
-              Result
-              & SU.To_Unbounded_String
-                  (" := " & Render_Expr (Unit, Document, Decl.Initializer, State));
+            if Type_Name = "Safe_Runtime.Wide_Integer" then
+               Result :=
+                 Result
+                 & SU.To_Unbounded_String
+                     (" := " & Render_Wide_Expr (Unit, Document, Decl.Initializer, State));
+            elsif Is_Integer_Type (Decl.Type_Info)
+              and then Uses_Wide_Value (Unit, Document, State, Decl.Initializer)
+            then
+               Result :=
+                 Result
+                 & SU.To_Unbounded_String
+                     (" := "
+                      & Render_Type_Name (Decl.Type_Info)
+                      & " ("
+                      & Render_Wide_Expr (Unit, Document, Decl.Initializer, State)
+                      & ")");
+            else
+               Result :=
+                 Result
+                 & SU.To_Unbounded_String
+                     (" := " & Render_Expr (Unit, Document, Decl.Initializer, State));
+            end if;
          end if;
       end loop;
       return SU.To_String (Result) & ";";
@@ -1151,8 +1563,15 @@ package body Safe_Frontend.Ada_Emit is
       Target_Image : constant String := Render_Expr (Unit, Document, Stmt.Target, State);
       Value_Image  : constant String := Render_Expr (Unit, Document, Stmt.Value, State);
    begin
-      if Is_Integer_Type (Unit, Document, Target_Type)
-        and then Uses_Wide_Arithmetic (Unit, Document, Stmt.Value)
+      if Stmt.Target.Kind = CM.Expr_Ident
+        and then Is_Wide_Name (State, FT.To_String (Stmt.Target.Name))
+      then
+         Append_Line
+           (Buffer,
+            Target_Image & " := " & Render_Wide_Expr (Unit, Document, Stmt.Value, State) & ";",
+            Depth);
+      elsif Is_Integer_Type (Unit, Document, Target_Type)
+        and then Uses_Wide_Value (Unit, Document, State, Stmt.Value)
       then
          Append_Narrowing_Assignment
            (Buffer, Unit, Document, State, Stmt.Target, Stmt.Value, Depth);
@@ -1177,7 +1596,7 @@ package body Safe_Frontend.Ada_Emit is
    begin
       if Return_Type'Length > 0
         and then Is_Integer_Type (Unit, Document, Return_Type)
-        and then Uses_Wide_Arithmetic (Unit, Document, Value)
+        and then Uses_Wide_Value (Unit, Document, State, Value)
       then
          declare
             Wide_Image : constant String := Render_Wide_Expr (Unit, Document, Value, State);
@@ -1389,14 +1808,23 @@ package body Safe_Frontend.Ada_Emit is
                  (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type);
                Append_Line (Buffer, "end loop;", Depth);
             when CM.Stmt_Block =>
-               Append_Line (Buffer, "declare", Depth);
-               Render_Block_Declarations
-                 (Buffer, Unit, Document, Item.Declarations, State, Depth + 1);
-               Append_Line (Buffer, "begin", Depth);
-               Render_Statements
-                 (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type);
-               Render_Cleanup (Buffer, Item.Declarations, Depth + 1);
-               Append_Line (Buffer, "end;", Depth);
+               declare
+                  Previous_Wide_Count : constant Ada.Containers.Count_Type :=
+                    State.Wide_Local_Names.Length;
+               begin
+                  Collect_Wide_Locals
+                    (Unit, Document, State, Item.Declarations, Item.Body_Stmts);
+                  Append_Line (Buffer, "declare", Depth);
+                  Render_Block_Declarations
+                    (Buffer, Unit, Document, Item.Declarations, State, Depth + 1);
+                  Render_Free_Declarations (Buffer, Item.Declarations, Depth + 1);
+                  Append_Line (Buffer, "begin", Depth);
+                  Render_Statements
+                    (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type);
+                  Render_Cleanup (Buffer, Item.Declarations, Depth + 1);
+                  Append_Line (Buffer, "end;", Depth);
+                  Restore_Wide_Names (State, Previous_Wide_Count);
+               end;
             when CM.Stmt_Loop =>
                Append_Line (Buffer, "loop", Depth);
                Render_Statements
@@ -1417,7 +1845,8 @@ package body Safe_Frontend.Ada_Emit is
                  (Buffer,
                   Render_Expr (Unit, Document, Item.Channel_Name, State)
                   & ".Send ("
-                  & Render_Expr (Unit, Document, Item.Value, State)
+                  & Render_Channel_Send_Value
+                      (Unit, Document, State, Item.Channel_Name, Item.Value)
                   & ");",
                   Depth);
             when CM.Stmt_Receive =>
@@ -1436,7 +1865,8 @@ package body Safe_Frontend.Ada_Emit is
                  (Buffer,
                   Render_Expr (Unit, Document, Item.Channel_Name, State)
                   & ".Send ("
-                  & Render_Expr (Unit, Document, Item.Value, State)
+                  & Render_Channel_Send_Value
+                      (Unit, Document, State, Item.Channel_Name, Item.Value)
                   & ");",
                   Depth + 1);
                Append_Line
@@ -1578,7 +2008,8 @@ package body Safe_Frontend.Ada_Emit is
 
    procedure Render_Channel_Spec
      (Buffer  : in out SU.Unbounded_String;
-      Channel : CM.Resolved_Channel_Decl)
+      Channel : CM.Resolved_Channel_Decl;
+      Bronze  : MB.Bronze_Result)
    is
       Name          : constant String := FT.To_String (Channel.Name);
       Element_Type  : constant String := Render_Type_Name (Channel.Element_Type);
@@ -1587,7 +2018,15 @@ package body Safe_Frontend.Ada_Emit is
       Index_Subtype : constant String := Name & "_Index";
       Count_Subtype : constant String := Name & "_Count";
       Buffer_Type   : constant String := Name & "_Buffer";
+      Ceiling       : Long_Long_Integer :=
+        (if Channel.Has_Required_Ceiling then Channel.Required_Ceiling else 0);
    begin
+      for Item of Bronze.Ceilings loop
+         if FT.To_String (Item.Channel_Name) = Name then
+            Ceiling := Item.Priority;
+            exit;
+         end if;
+      end loop;
       Append_Line
         (Buffer,
          "subtype " & Index_Subtype & " is Positive range 1 .. " & Capacity & ";",
@@ -1604,9 +2043,7 @@ package body Safe_Frontend.Ada_Emit is
         (Buffer,
          "protected type "
          & Type_Name
-         & (if Channel.Has_Required_Ceiling
-            then " with Priority => " & Trim_Image (Channel.Required_Ceiling)
-            else "")
+         & " with Priority => " & Trim_Image (Ceiling)
          & " is",
          1);
       Append_Line (Buffer, "entry Send (Value : in " & Element_Type & ");", 2);
@@ -1660,8 +2097,8 @@ package body Safe_Frontend.Ada_Emit is
 
    procedure Render_Free_Declarations
      (Buffer       : in out SU.Unbounded_String;
-      Declarations : CM.Resolved_Object_Decl_Vectors.Vector;
-      Depth        : Natural)
+     Declarations : CM.Resolved_Object_Decl_Vectors.Vector;
+     Depth        : Natural)
    is
       Seen : FT.UString_Vectors.Vector;
 
@@ -1700,6 +2137,36 @@ package body Safe_Frontend.Ada_Emit is
       end loop;
    end Render_Free_Declarations;
 
+   procedure Render_Free_Declarations
+     (Buffer       : in out SU.Unbounded_String;
+      Declarations : CM.Object_Decl_Vectors.Vector;
+      Depth        : Natural)
+   is
+      Seen : FT.UString_Vectors.Vector;
+   begin
+      for Decl of Declarations loop
+         if Is_Owner_Access (Decl.Type_Info) then
+            declare
+               Type_Name : constant String := FT.To_String (Decl.Type_Info.Name);
+            begin
+               if not Contains_Name (Seen, Type_Name) then
+                  Seen.Append (FT.To_UString (Type_Name));
+                  Append_Line
+                    (Buffer,
+                     "procedure Free_"
+                     & Type_Name
+                     & " is new Ada.Unchecked_Deallocation ("
+                     & FT.To_String (Decl.Type_Info.Target)
+                     & ", "
+                     & Type_Name
+                     & ");",
+                     Depth);
+               end if;
+            end;
+         end if;
+      end loop;
+   end Render_Free_Declarations;
+
    procedure Render_Subprogram_Body
      (Buffer     : in out SU.Unbounded_String;
       Unit       : CM.Resolved_Unit;
@@ -1707,7 +2174,11 @@ package body Safe_Frontend.Ada_Emit is
       Subprogram : CM.Resolved_Subprogram;
       State      : in out Emit_State)
    is
+      Previous_Wide_Count : constant Ada.Containers.Count_Type :=
+        State.Wide_Local_Names.Length;
    begin
+      Collect_Wide_Locals
+        (Unit, Document, State, Subprogram.Declarations, Subprogram.Statements);
       Append_Line
         (Buffer,
          FT.To_String (Subprogram.Kind)
@@ -1732,6 +2203,7 @@ package body Safe_Frontend.Ada_Emit is
       Render_Cleanup (Buffer, Subprogram.Declarations, 2);
       Append_Line (Buffer, "end " & FT.To_String (Subprogram.Name) & ";", 1);
       Append_Line (Buffer);
+      Restore_Wide_Names (State, Previous_Wide_Count);
    end Render_Subprogram_Body;
 
    procedure Render_Task_Body
@@ -1741,7 +2213,11 @@ package body Safe_Frontend.Ada_Emit is
       Task_Item : CM.Resolved_Task;
       State     : in out Emit_State)
    is
+      Previous_Wide_Count : constant Ada.Containers.Count_Type :=
+        State.Wide_Local_Names.Length;
    begin
+      Collect_Wide_Locals
+        (Unit, Document, State, Task_Item.Declarations, Task_Item.Statements);
       Append_Line (Buffer, "task body " & FT.To_String (Task_Item.Name) & " is", 1);
       Render_Block_Declarations
         (Buffer, Unit, Document, Task_Item.Declarations, State, 2);
@@ -1752,6 +2228,7 @@ package body Safe_Frontend.Ada_Emit is
       Render_Cleanup (Buffer, Task_Item.Declarations, 2);
       Append_Line (Buffer, "end " & FT.To_String (Task_Item.Name) & ";", 1);
       Append_Line (Buffer);
+      Restore_Wide_Names (State, Previous_Wide_Count);
    end Render_Task_Body;
 
    function Unit_File_Stem (Unit_Name : String) return String is
@@ -1831,7 +2308,7 @@ package body Safe_Frontend.Ada_Emit is
 
       if not Unit.Channels.Is_Empty then
          for Channel of Unit.Channels loop
-            Render_Channel_Spec (Spec_Inner, Channel);
+            Render_Channel_Spec (Spec_Inner, Channel, Bronze);
          end loop;
       end if;
 
