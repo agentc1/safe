@@ -71,7 +71,7 @@ def generate_report(
     tracker = load_tracker()
     task_map = {task["id"]: task for task in tracker["tasks"]}
     require(
-        tracker.get("next_task_id") in {"PR09", "PR10"},
+        tracker.get("next_task_id") in {"PR09", "PR10", None},
         "tracker next_task_id must remain at or beyond PR09 for the PR08 baseline",
     )
     require(task_map["PR08.4"]["status"] == "done", "PR08.4 must be marked done")
@@ -92,10 +92,11 @@ def generate_report(
         dashboard_text == rendered_dashboard["stdout"],
         "execution/dashboard.md must match scripts/render_execution_status.py output",
     )
-    require_contains(
-        dashboard_text,
-        f"- **Next task:** `{tracker['next_task_id']}`",
-        "execution/dashboard.md",
+    require(
+        "- **Next task:** `PR09`" in dashboard_text
+        or "- **Next task:** `PR10`" in dashboard_text
+        or "- **Next task:** `none`" in dashboard_text,
+        "execution/dashboard.md: expected PR09/PR10 as next task until completion, then none",
     )
     require_contains(dashboard_text, "| PR08.4 | done | PR08.3 | 1 |", "execution/dashboard.md")
     require_contains(dashboard_text, "| PR08 | done | PR08.4 | 1 |", "execution/dashboard.md")

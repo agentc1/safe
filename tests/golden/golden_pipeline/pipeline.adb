@@ -118,42 +118,34 @@ package body Pipeline with SPARK_Mode => On is
       end Try_Receive;
    end Filtered_Ch_Channel;
 
-   procedure Produce_Once is
-   begin
-      Raw_Ch.Send (8);
-   end Produce_Once;
-
-   procedure Filter_Once is
-      Input : Sample;
-   begin
-      Raw_Ch.Receive (Input);
-      Filtered_Ch.Send (Input);
-   end Filter_Once;
-
-   procedure Consume_Once(Seen : out Boolean) is
-      Data : Sample;
-   begin
-      Filtered_Ch.Receive (Data);
-      Seen := (Data > 0);
-   end Consume_Once;
-
    task body Producer is
    begin
       loop
+         Raw_Ch.Send (8);
          delay 0.001;
       end loop;
    end Producer;
 
    task body Filter is
+      Input : Sample;
    begin
       loop
+         Raw_Ch.Receive (Input);
+         Filtered_Ch.Send (Input);
          delay 0.001;
       end loop;
    end Filter;
 
    task body Consumer is
+      Data : Sample;
    begin
       loop
+         Filtered_Ch.Receive (Data);
+         if (Data > 0) then
+            delay 0.001;
+         else
+            delay 0.001;
+         end if;
          delay 0.001;
       end loop;
    end Consumer;

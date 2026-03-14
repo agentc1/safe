@@ -2221,7 +2221,7 @@
             },
             "Data Dependencies": {
               "flow": {
-                "count": 2,
+                "count": 0,
                 "detail": ""
               },
               "justified": {
@@ -2233,7 +2233,7 @@
                 "detail": ""
               },
               "total": {
-                "count": 2,
+                "count": 0,
                 "detail": ""
               },
               "unproved": {
@@ -2361,11 +2361,11 @@
                 "detail": ""
               },
               "provers": {
-                "count": 26,
+                "count": 30,
                 "detail": "CVC5"
               },
               "total": {
-                "count": 26,
+                "count": 30,
                 "detail": ""
               },
               "unproved": {
@@ -2397,19 +2397,19 @@
             },
             "Total": {
               "flow": {
-                "count": 15,
-                "detail": "37%"
+                "count": 13,
+                "detail": "30%"
               },
               "justified": {
                 "count": 0,
                 "detail": ""
               },
               "provers": {
-                "count": 26,
-                "detail": "63%"
+                "count": 30,
+                "detail": "70%"
               },
               "total": {
-                "count": 41,
+                "count": 43,
                 "detail": ""
               },
               "unproved": {
@@ -2420,19 +2420,19 @@
           },
           "total": {
             "flow": {
-              "count": 15,
-              "detail": "37%"
+              "count": 13,
+              "detail": "30%"
             },
             "justified": {
               "count": 0,
               "detail": ""
             },
             "provers": {
-              "count": 26,
-              "detail": "63%"
+              "count": 30,
+              "detail": "70%"
             },
             "total": {
-              "count": 41,
+              "count": 43,
               "detail": ""
             },
             "unproved": {
@@ -2528,7 +2528,7 @@
             },
             "Data Dependencies": {
               "flow": {
-                "count": 3,
+                "count": 0,
                 "detail": ""
               },
               "justified": {
@@ -2540,7 +2540,7 @@
                 "detail": ""
               },
               "total": {
-                "count": 3,
+                "count": 0,
                 "detail": ""
               },
               "unproved": {
@@ -2594,7 +2594,7 @@
             },
             "Initialization": {
               "flow": {
-                "count": 14,
+                "count": 13,
                 "detail": ""
               },
               "justified": {
@@ -2606,7 +2606,7 @@
                 "detail": ""
               },
               "total": {
-                "count": 14,
+                "count": 13,
                 "detail": ""
               },
               "unproved": {
@@ -2668,11 +2668,11 @@
                 "detail": ""
               },
               "provers": {
-                "count": 27,
+                "count": 31,
                 "detail": "CVC5"
               },
               "total": {
-                "count": 27,
+                "count": 31,
                 "detail": ""
               },
               "unproved": {
@@ -2704,16 +2704,16 @@
             },
             "Total": {
               "flow": {
-                "count": 18,
-                "detail": "40%"
+                "count": 14,
+                "detail": "31%"
               },
               "justified": {
                 "count": 0,
                 "detail": ""
               },
               "provers": {
-                "count": 27,
-                "detail": "60%"
+                "count": 31,
+                "detail": "69%"
               },
               "total": {
                 "count": 45,
@@ -2727,16 +2727,16 @@
           },
           "total": {
             "flow": {
-              "count": 18,
-              "detail": "40%"
+              "count": 14,
+              "detail": "31%"
             },
             "justified": {
               "count": 0,
               "detail": ""
             },
             "provers": {
-              "count": 27,
-              "detail": "60%"
+              "count": 31,
+              "detail": "69%"
             },
             "total": {
               "count": 45,
@@ -3062,6 +3062,6 @@
     "PR10 selected emitted outputs compile and pass GNATprove prove with all-proved-only semantics.",
     "The prove gate treats warnings as errors and requires zero justified plus zero unproved checks."
   ],
-  "repeat_sha256": "10b3bc00bdc705eb5a536d8550fcf2b6c498efb2e726a9efd19b200243740f0c",
-  "report_sha256": "10b3bc00bdc705eb5a536d8550fcf2b6c498efb2e726a9efd19b200243740f0c"
+  "repeat_sha256": "b49c1c6e6be07256796ebf5cd208bc8bb9e6acf771901b2b541048ab48e4ea99",
+  "report_sha256": "b49c1c6e6be07256796ebf5cd208bc8bb9e6acf771901b2b541048ab48e4ea99"
 }

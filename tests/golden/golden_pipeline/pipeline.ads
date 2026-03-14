@@ -8,7 +8,7 @@ is
    subtype Raw_Ch_Index is Positive range 1 .. 4;
    subtype Raw_Ch_Count is Natural range 0 .. 4;
    type Raw_Ch_Buffer is array (Raw_Ch_Index) of Sample;
-   protected type Raw_Ch_Channel with Priority => 0 is
+   protected type Raw_Ch_Channel with Priority => 10 is
       entry Send (Value : in Sample);
       entry Receive (Value : out Sample);
       procedure Try_Send (Value : in Sample; Success : out Boolean);
@@ -24,7 +24,7 @@ is
    subtype Filtered_Ch_Index is Positive range 1 .. 4;
    subtype Filtered_Ch_Count is Natural range 0 .. 4;
    type Filtered_Ch_Buffer is array (Filtered_Ch_Index) of Sample;
-   protected type Filtered_Ch_Channel with Priority => 0 is
+   protected type Filtered_Ch_Channel with Priority => 10 is
       entry Send (Value : in Sample);
       entry Receive (Value : out Sample);
       procedure Try_Send (Value : in Sample; Success : out Boolean);
@@ -37,12 +37,8 @@ is
    end Filtered_Ch_Channel;
    Filtered_Ch : Filtered_Ch_Channel;
 
-   procedure Produce_Once with Global => (In_Out => Raw_Ch);
-   procedure Filter_Once with Global => (In_Out => (Filtered_Ch, Raw_Ch));
-   procedure Consume_Once(Seen : out Boolean) with Global => (In_Out => Filtered_Ch);
-
-   task Producer;
-   task Filter;
-   task Consumer;
+   task Producer with Priority => 10;
+   task Filter with Priority => 10;
+   task Consumer with Priority => 10;
 
 end Pipeline;

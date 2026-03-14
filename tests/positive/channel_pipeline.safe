@@ -18,45 +18,37 @@ package Pipeline is
    channel Raw_Ch      : Sample capacity 4;
    channel Filtered_Ch : Sample capacity 4;
 
-   procedure Produce_Once is
-   begin
-      send Raw_Ch, 8;
-   end Produce_Once;
-
-   procedure Filter_Once is
-      Input : Sample;
-   begin
-      receive Raw_Ch, Input;
-      send Filtered_Ch, Input;
-   end Filter_Once;
-
-   procedure Consume_Once (Seen : out Boolean) is
-      Data : Sample;
-   begin
-      receive Filtered_Ch, Data;
-      Seen = Data > 0;
-   end Consume_Once;
-
    --  Producer: background task used to keep channel/task emission in the proof corpus.
-   task Producer is
+   task Producer with Priority = 10 is
    begin
       loop
+         send Raw_Ch, 8;
          delay 0.001;
       end loop;
    end Producer;
 
    --  Filter: background task used to keep multiple task bodies in the proof corpus.
-   task Filter is
+   task Filter with Priority = 10 is
+      Input : Sample;
    begin
       loop
+         receive Raw_Ch, Input;
+         send Filtered_Ch, Input;
          delay 0.001;
       end loop;
    end Filter;
 
    --  Consumer: background task used to keep pipeline structure in the proof corpus.
-   task Consumer is
+   task Consumer with Priority = 10 is
+      Data : Sample;
    begin
       loop
+         receive Filtered_Ch, Data;
+         if Data > 0 then
+            delay 0.001;
+         else
+            delay 0.001;
+         end if;
          delay 0.001;
       end loop;
    end Consumer;

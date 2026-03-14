@@ -2181,7 +2181,7 @@
             },
             "Data Dependencies": {
               "flow": {
-                "count": 2,
+                "count": 0,
                 "detail": ""
               },
               "justified": {
@@ -2193,7 +2193,7 @@
                 "detail": ""
               },
               "total": {
-                "count": 2,
+                "count": 0,
                 "detail": ""
               },
               "unproved": {
@@ -2357,7 +2357,7 @@
             },
             "Total": {
               "flow": {
-                "count": 15,
+                "count": 13,
                 "detail": "100%"
               },
               "justified": {
@@ -2369,7 +2369,7 @@
                 "detail": ""
               },
               "total": {
-                "count": 15,
+                "count": 13,
                 "detail": ""
               },
               "unproved": {
@@ -2380,7 +2380,7 @@
           },
           "total": {
             "flow": {
-              "count": 15,
+              "count": 13,
               "detail": "100%"
             },
             "justified": {
@@ -2392,7 +2392,7 @@
               "detail": ""
             },
             "total": {
-              "count": 15,
+              "count": 13,
               "detail": ""
             },
             "unproved": {
@@ -2483,7 +2483,7 @@
             },
             "Data Dependencies": {
               "flow": {
-                "count": 3,
+                "count": 0,
                 "detail": ""
               },
               "justified": {
@@ -2495,7 +2495,7 @@
                 "detail": ""
               },
               "total": {
-                "count": 3,
+                "count": 0,
                 "detail": ""
               },
               "unproved": {
@@ -2549,7 +2549,7 @@
             },
             "Initialization": {
               "flow": {
-                "count": 14,
+                "count": 13,
                 "detail": ""
               },
               "justified": {
@@ -2561,7 +2561,7 @@
                 "detail": ""
               },
               "total": {
-                "count": 14,
+                "count": 13,
                 "detail": ""
               },
               "unproved": {
@@ -2659,7 +2659,7 @@
             },
             "Total": {
               "flow": {
-                "count": 18,
+                "count": 14,
                 "detail": "100%"
               },
               "justified": {
@@ -2671,7 +2671,7 @@
                 "detail": ""
               },
               "total": {
-                "count": 18,
+                "count": 14,
                 "detail": ""
               },
               "unproved": {
@@ -2682,7 +2682,7 @@
           },
           "total": {
             "flow": {
-              "count": 18,
+              "count": 14,
               "detail": "100%"
             },
             "justified": {
@@ -2694,7 +2694,7 @@
               "detail": ""
             },
             "total": {
-              "count": 18,
+              "count": 14,
               "detail": ""
             },
             "unproved": {
@@ -3012,6 +3012,6 @@
     "PR10 selected emitted outputs compile and pass GNATprove flow with warnings treated as errors.",
     "Concurrency fixtures run GNATprove with gnat.adc applied explicitly via -cargs -gnatec."
   ],
-  "repeat_sha256": "ede0689787f3f2f44ffb3f17f591c95d04977ae593e2f34a75845aaab763ce9c",
-  "report_sha256": "ede0689787f3f2f44ffb3f17f591c95d04977ae593e2f34a75845aaab763ce9c"
+  "repeat_sha256": "594e1a6b1662437f18883376815cc4c72de974e0da5cfb72cf355a4519c034e3",
+  "report_sha256": "594e1a6b1662437f18883376815cc4c72de974e0da5cfb72cf355a4519c034e3"
 }
