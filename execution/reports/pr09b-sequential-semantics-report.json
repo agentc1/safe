@@ -10,6 +10,56 @@
           "gprbuild",
           "-c",
           "-P",
+          "$TMPDIR/ownership_early_return-a/ada/build.gpr",
+          "ownership_early_return.adb"
+        ],
+        "cwd": "$REPO_ROOT/compiler_impl",
+        "returncode": 0
+      },
+      "determinism": {
+        "ada": {
+          "ownership_early_return.adb": {
+            "sha256": "903ce1a4ef43c28cc02e6b753ae8cd2eb16a25aa17f2f104852e983de9df8e05"
+          },
+          "ownership_early_return.ads": {
+            "sha256": "faff7ffedb117504d83b025e5262085f56e03381b18b41c7a1169affaf3689f4"
+          }
+        },
+        "json_and_interface": {
+          "ownership_early_return.ast.json": {
+            "sha256": "8c7986cb98ac33ddc7b5c937beb3e7061c30675912f4a9aec8e977e6e0591f51"
+          },
+          "ownership_early_return.mir.json": {
+            "sha256": "476af164036c6e53018ef60979655a4a208dbfaa22dd4c6939c3adec42cbc762"
+          },
+          "ownership_early_return.safei.json": {
+            "sha256": "9f59c7663bb62f6eb58209eaaa84eb442950c0401b44f574cff3a33016123b0d"
+          },
+          "ownership_early_return.typed.json": {
+            "sha256": "0a292487391fbdff4fce1507a49916747839ff7d2fe55a649be48b03cd212127"
+          }
+        }
+      },
+      "fixture": "tests/positive/ownership_early_return.safe",
+      "structural_assertions": {
+        "ownership_early_return.adb": [
+          "Free_Payload_Ptr (Inner);",
+          "Free_Payload_Ptr (Outer);"
+        ],
+        "ownership_early_return.ads": [
+          "Global => null"
+        ]
+      }
+    },
+    {
+      "compile": {
+        "command": [
+          "alr",
+          "exec",
+          "--",
+          "gprbuild",
+          "-c",
+          "-P",
           "$TMPDIR/ownership_move-a/ada/build.gpr",
           "ownership_move.adb"
         ],
@@ -69,7 +119,7 @@
       "determinism": {
         "ada": {
           "safe_linked_list.adb": {
-            "sha256": "2e8f5d6872431ea7fbb690a5815be9a1295601d122b088a2695389d4b022f2ab"
+            "sha256": "f7eb0c42ad386bdecb0f4864d9f9b59d087c1f6b9c0cb1d93ee4f81e42a7aa63"
           },
           "safe_linked_list.ads": {
             "sha256": "68d9bc67cf3e590fb9ad2d95d06712e70e18434d1a248ff9713e4a1d3ecedcd3"
@@ -104,6 +154,6 @@
       }
     }
   ],
-  "repeat_sha256": "e4809a71c2589be69665600825a4419575c36a77b6ed2a7fb16ffae0b74d4f14",
-  "report_sha256": "e4809a71c2589be69665600825a4419575c36a77b6ed2a7fb16ffae0b74d4f14"
+  "repeat_sha256": "281b8823dfde307483b510cea95b47455417128ea9326f9efa6c6eae11c6344f",
+  "report_sha256": "281b8823dfde307483b510cea95b47455417128ea9326f9efa6c6eae11c6344f"
 }

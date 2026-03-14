@@ -28,6 +28,8 @@ All current user-facing `safec` commands are Ada-native for that supported surfa
 PR06.9.12 is a cliff-detection gate, not a benchmark commitment, for that current frontend subset.
 
 See [`../docs/frontend_architecture_baseline.md`](../docs/frontend_architecture_baseline.md) for the canonical frontend boundary and [`../docs/frontend_scale_limits.md`](../docs/frontend_scale_limits.md) for the current cliff-detection scale policy.
+For a host-local end-to-end walkthrough from Safe source to a runnable native
+binary, see [`../docs/safec_end_to_end_cli_tutorial.md`](../docs/safec_end_to_end_cli_tutorial.md).
 
 ## Current Doctrine
 

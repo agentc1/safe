@@ -130,7 +130,7 @@
             "sha256": "1f2082a7858976419ba70ae94a2939ad36bd8f8ee091a72c8ceaa418f9a21658"
           },
           "safe_parameters.ads": {
-            "sha256": "b40b9316eb5ffbfa5be460e417977225ea34204c0ed5f7647adf6a9d5adba103"
+            "sha256": "a3c079a4dbb81674e247fe94aa8a590ca211075ef8e7ee764fec324dc6bb3c6c"
           },
           "safe_runtime.ads": {
             "sha256": "1e2fcc19815107411c19daec797fc78f9a1f5357527b26c5611e8b5ab6b76b3a"
@@ -160,6 +160,10 @@
         "safe_parameters.adb": [
           "Safe_Runtime.Wide_Integer",
           "pragma Assert"
+        ],
+        "safe_parameters.ads": [
+          "Depends =>",
+          "Output => Raw"
         ]
       }
     },
@@ -276,6 +280,6 @@
     "PR09a emits compile-valid Ada/SPARK skeleton output on the rule1 subset.",
     "safe_runtime.ads remains byte-identical to companion/templates/safe_runtime.ads."
   ],
-  "repeat_sha256": "15c99e480de0da2df15ebed8f59cebc442a3a41d421860159ff1b03fce03fb23",
-  "report_sha256": "15c99e480de0da2df15ebed8f59cebc442a3a41d421860159ff1b03fce03fb23"
+  "repeat_sha256": "7db8228c1f71a5fedb52e3907cf7c1e3a14aa63198dc0d4bd59e241148838548",
+  "report_sha256": "7db8228c1f71a5fedb52e3907cf7c1e3a14aa63198dc0d4bd59e241148838548"
 }

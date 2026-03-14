@@ -1,6 +1,6 @@
 with Ada.Characters.Handling;
 with Ada.Containers;
-with Ada.Strings.Fixed;
+with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
 
 package body Safe_Frontend.Ada_Emit is
@@ -18,9 +18,7 @@ package body Safe_Frontend.Ada_Emit is
    Indent_Width : constant Positive := 3;
 
    Emitter_Unsupported : exception;
-
-   Failure_Span    : FT.Source_Span := FT.Null_Span;
-   Failure_Message : FT.UString := FT.To_UString ("");
+   Emitter_Internal    : exception;
 
    Runtime_Template : constant String :=
      "--  Safe Language Runtime Type Definitions" & ASCII.LF
@@ -53,15 +51,38 @@ package body Safe_Frontend.Ada_Emit is
      "pragma Partition_Elaboration_Policy(Sequential);" & ASCII.LF
      & "pragma Profile(Jorvik);" & ASCII.LF;
 
+   type Cleanup_Item is record
+      Name      : FT.UString := FT.To_UString ("");
+      Type_Name : FT.UString := FT.To_UString ("");
+   end record;
+
+   package Cleanup_Item_Vectors is new Ada.Containers.Indefinite_Vectors
+     (Index_Type   => Positive,
+      Element_Type => Cleanup_Item);
+
+   type Cleanup_Frame is record
+      Items : Cleanup_Item_Vectors.Vector;
+   end record;
+
+   package Cleanup_Frame_Vectors is new Ada.Containers.Indefinite_Vectors
+     (Index_Type   => Positive,
+      Element_Type => Cleanup_Frame);
+
    type Emit_State is record
       Needs_Safe_Runtime : Boolean := False;
       Needs_Gnat_Adc     : Boolean := False;
       Needs_Unchecked_Deallocation : Boolean := False;
       Wide_Local_Names   : FT.UString_Vectors.Vector;
+      Unsupported_Span   : FT.Source_Span := FT.Null_Span;
+      Unsupported_Message : FT.UString := FT.To_UString ("");
+      Cleanup_Stack      : Cleanup_Frame_Vectors.Vector;
    end record;
 
+   procedure Raise_Internal (Message : String);
+   pragma No_Return (Raise_Internal);
    procedure Raise_Unsupported
-     (Span    : FT.Source_Span;
+     (State   : in out Emit_State;
+      Span    : FT.Source_Span;
       Message : String);
 
    function Has_Text (Item : FT.UString) return Boolean;
@@ -88,6 +109,26 @@ package body Safe_Frontend.Ada_Emit is
    procedure Restore_Wide_Names
      (State           : in out Emit_State;
       Previous_Length : Ada.Containers.Count_Type);
+   procedure Push_Cleanup_Frame (State : in out Emit_State);
+   procedure Pop_Cleanup_Frame (State : in out Emit_State);
+   procedure Add_Cleanup_Item
+     (State     : in out Emit_State;
+      Name      : String;
+      Type_Name : String);
+   procedure Register_Cleanup_Items
+     (State        : in out Emit_State;
+      Declarations : CM.Resolved_Object_Decl_Vectors.Vector);
+   procedure Register_Cleanup_Items
+     (State        : in out Emit_State;
+      Declarations : CM.Object_Decl_Vectors.Vector);
+   procedure Render_Cleanup_Item
+     (Buffer : in out SU.Unbounded_String;
+      Item   : Cleanup_Item;
+      Depth  : Natural);
+   procedure Render_Active_Cleanup
+     (Buffer : in out SU.Unbounded_String;
+      State  : Emit_State;
+      Depth  : Natural);
    function Starts_With (Text : String; Prefix : String) return Boolean;
    function Normalize_Aspect_Name
      (Subprogram_Name : String;
@@ -116,7 +157,9 @@ package body Safe_Frontend.Ada_Emit is
    function Lookup_Channel
      (Unit : CM.Resolved_Unit;
       Name : String) return CM.Resolved_Channel_Decl;
-   function Render_Type_Decl (Type_Item : GM.Type_Descriptor) return String;
+   function Render_Type_Decl
+     (Type_Item : GM.Type_Descriptor;
+      State     : in out Emit_State) return String;
    function Render_Object_Decl_Text
      (Unit     : CM.Resolved_Unit;
       Document : GM.Mir_Document;
@@ -219,12 +262,18 @@ package body Safe_Frontend.Ada_Emit is
    function Gnat_Adc_Text return String is
      (Gnat_Adc_Contents);
 
+   procedure Raise_Internal (Message : String) is
+   begin
+      raise Emitter_Internal with Message;
+   end Raise_Internal;
+
    procedure Raise_Unsupported
-     (Span    : FT.Source_Span;
+     (State   : in out Emit_State;
+      Span    : FT.Source_Span;
       Message : String) is
    begin
-      Failure_Span := Span;
-      Failure_Message := FT.To_UString (Message);
+      State.Unsupported_Span := Span;
+      State.Unsupported_Message := FT.To_UString (Message);
       raise Emitter_Unsupported;
    end Raise_Unsupported;
 
@@ -271,17 +320,20 @@ package body Safe_Frontend.Ada_Emit is
 
    function Join_Names (Items : FT.UString_Vectors.Vector) return String is
       Result : SU.Unbounded_String;
+      First  : Boolean := True;
    begin
-      for Index in Items.First_Index .. Items.Last_Index loop
-         if Index /= Items.First_Index then
+      for Item of Items loop
+         if not First then
             Result := Result & SU.To_Unbounded_String (", ");
+         else
+            First := False;
          end if;
-         Result := Result & SU.To_Unbounded_String (FT.To_String (Items (Index)));
+         Result := Result & SU.To_Unbounded_String (FT.To_String (Item));
       end loop;
       return SU.To_String (Result);
    exception
       when Constraint_Error =>
-         return "";
+         Raise_Internal ("malformed name vector during Ada emission");
    end Join_Names;
 
    function Contains_Name
@@ -332,6 +384,105 @@ package body Safe_Frontend.Ada_Emit is
          State.Wide_Local_Names.Delete_Last;
       end loop;
    end Restore_Wide_Names;
+
+   procedure Push_Cleanup_Frame (State : in out Emit_State) is
+   begin
+      State.Cleanup_Stack.Append ((Items => <>));
+   end Push_Cleanup_Frame;
+
+   procedure Pop_Cleanup_Frame (State : in out Emit_State) is
+   begin
+      if State.Cleanup_Stack.Is_Empty then
+         Raise_Internal ("cleanup frame stack underflow during Ada emission");
+      end if;
+      State.Cleanup_Stack.Delete_Last;
+   end Pop_Cleanup_Frame;
+
+   procedure Add_Cleanup_Item
+     (State     : in out Emit_State;
+      Name      : String;
+      Type_Name : String) is
+   begin
+      if State.Cleanup_Stack.Is_Empty then
+         Raise_Internal ("cleanup item added outside an active cleanup scope during Ada emission");
+      end if;
+
+      declare
+         Frame : Cleanup_Frame := State.Cleanup_Stack.Last_Element;
+      begin
+         Frame.Items.Append
+           ((Name      => FT.To_UString (Name),
+             Type_Name => FT.To_UString (Type_Name)));
+         State.Cleanup_Stack.Replace_Element (State.Cleanup_Stack.Last_Index, Frame);
+      end;
+   end Add_Cleanup_Item;
+
+   procedure Register_Cleanup_Items
+     (State        : in out Emit_State;
+      Declarations : CM.Resolved_Object_Decl_Vectors.Vector) is
+   begin
+      for Decl of Declarations loop
+         if Is_Owner_Access (Decl.Type_Info) then
+            for Name of Decl.Names loop
+               Add_Cleanup_Item
+                 (State,
+                  FT.To_String (Name),
+                  FT.To_String (Decl.Type_Info.Name));
+            end loop;
+         end if;
+      end loop;
+   end Register_Cleanup_Items;
+
+   procedure Register_Cleanup_Items
+     (State        : in out Emit_State;
+      Declarations : CM.Object_Decl_Vectors.Vector) is
+   begin
+      for Decl of Declarations loop
+         if Is_Owner_Access (Decl.Type_Info) then
+            for Name of Decl.Names loop
+               Add_Cleanup_Item
+                 (State,
+                  FT.To_String (Name),
+                  FT.To_String (Decl.Type_Info.Name));
+            end loop;
+         end if;
+      end loop;
+   end Register_Cleanup_Items;
+
+   procedure Render_Cleanup_Item
+     (Buffer : in out SU.Unbounded_String;
+      Item   : Cleanup_Item;
+      Depth  : Natural) is
+   begin
+      Append_Line
+        (Buffer,
+         "if " & FT.To_String (Item.Name) & " /= null then",
+         Depth);
+      Append_Line
+        (Buffer,
+         "Free_" & FT.To_String (Item.Type_Name) & " (" & FT.To_String (Item.Name) & ");",
+         Depth + 1);
+      Append_Line (Buffer, "end if;", Depth);
+   end Render_Cleanup_Item;
+
+   procedure Render_Active_Cleanup
+     (Buffer : in out SU.Unbounded_String;
+      State  : Emit_State;
+      Depth  : Natural) is
+   begin
+      if State.Cleanup_Stack.Is_Empty then
+         return;
+      end if;
+      for Frame_Index in reverse State.Cleanup_Stack.First_Index .. State.Cleanup_Stack.Last_Index loop
+         declare
+            Frame : constant Cleanup_Frame := State.Cleanup_Stack (Frame_Index);
+         begin
+            for Item_Index in reverse Frame.Items.First_Index .. Frame.Items.Last_Index loop
+               Render_Cleanup_Item (Buffer, Frame.Items (Item_Index), Depth);
+            end loop;
+         end;
+      end loop;
+   end Render_Active_Cleanup;
 
    function Starts_With (Text : String; Prefix : String) return Boolean is
    begin
@@ -463,7 +614,9 @@ package body Safe_Frontend.Ada_Emit is
       return (others => <>);
    end Lookup_Channel;
 
-   function Render_Type_Decl (Type_Item : GM.Type_Descriptor) return String is
+   function Render_Type_Decl
+     (Type_Item : GM.Type_Descriptor;
+      State     : in out Emit_State) return String is
       Name : constant String := FT.To_String (Type_Item.Name);
       Kind : constant String := FT.To_String (Type_Item.Kind);
       Result : SU.Unbounded_String;
@@ -507,7 +660,8 @@ package body Safe_Frontend.Ada_Emit is
       elsif Kind = "record" then
          if Type_Item.Has_Discriminant or else not Type_Item.Variant_Fields.Is_Empty then
             Raise_Unsupported
-              (FT.Null_Span,
+              (State,
+               FT.Null_Span,
                "PR09 emitter does not yet support discriminated or variant record emission");
          end if;
          Result := SU.To_Unbounded_String ("type " & Name & " is record" & ASCII.LF);
@@ -548,7 +702,8 @@ package body Safe_Frontend.Ada_Emit is
       end if;
 
       Raise_Unsupported
-        (FT.Null_Span,
+        (State,
+         FT.Null_Span,
          "PR09 emitter does not yet support type kind '" & Kind & "'");
       return "";
    end Render_Type_Decl;
@@ -569,11 +724,13 @@ package body Safe_Frontend.Ada_Emit is
       Expr     : CM.Expr_Access;
       State    : in out Emit_State) return String
    is
-      pragma Unreferenced (State);
       Result : SU.Unbounded_String;
    begin
       if Expr = null then
-         Raise_Unsupported (FT.Null_Span, "encountered null expression during Ada emission");
+         Raise_Unsupported
+           (State,
+            FT.Null_Span,
+            "encountered null expression during Ada emission");
       end if;
 
       case Expr.Kind is
@@ -586,7 +743,10 @@ package body Safe_Frontend.Ada_Emit is
             if Has_Text (Expr.Text) then
                return FT.To_String (Expr.Text);
             end if;
-            Raise_Unsupported (Expr.Span, "real literal missing source text");
+            Raise_Unsupported
+              (State,
+               Expr.Span,
+               "real literal missing source text");
          when CM.Expr_Bool =>
             return (if Expr.Bool_Value then "True" else "False");
          when CM.Expr_Null =>
@@ -680,10 +840,14 @@ package body Safe_Frontend.Ada_Emit is
             if Has_Text (Expr.Type_Name) then
                return Render_Type_Name (Unit, Document, FT.To_String (Expr.Type_Name));
             end if;
-            Raise_Unsupported (Expr.Span, "subtype indication missing type name");
+            Raise_Unsupported
+              (State,
+               Expr.Span,
+               "subtype indication missing type name");
          when others =>
                Raise_Unsupported
-                 (Expr.Span,
+                 (State,
+                  Expr.Span,
                   "PR09 emitter does not yet support expression kind '"
                   & Expr.Kind'Image
                   & "'");
@@ -996,7 +1160,10 @@ package body Safe_Frontend.Ada_Emit is
       State.Needs_Safe_Runtime := True;
 
       if Expr = null then
-         Raise_Unsupported (FT.Null_Span, "encountered null wide expression during Ada emission");
+         Raise_Unsupported
+           (State,
+            FT.Null_Span,
+            "encountered null wide expression during Ada emission");
       end if;
 
       case Expr.Kind is
@@ -1390,7 +1557,9 @@ package body Safe_Frontend.Ada_Emit is
               Normalize_Aspect_Name (FT.To_String (Subprogram.Name), FT.To_String (Item.Output_Name));
          begin
             if not Contains (Allowed_Outputs, Output_Name) then
-               return "";
+               Raise_Internal
+                 ("invalid Depends output `" & Output_Name
+                  & "` while emitting `" & FT.To_String (Subprogram.Name) & "`");
             end if;
             if Index /= Summary.Depends.First_Index then
                Result := Result & SU.To_Unbounded_String (", ");
@@ -1406,7 +1575,9 @@ package body Safe_Frontend.Ada_Emit is
                        FT.To_String (Item.Inputs (Item.Inputs.First_Index)));
                begin
                   if not Contains (Allowed_Inputs, Name) then
-                     return "";
+                     Raise_Internal
+                       ("invalid Depends input `" & Name
+                        & "` while emitting `" & FT.To_String (Subprogram.Name) & "`");
                   end if;
                   Result := Result & SU.To_Unbounded_String (Name);
                end;
@@ -1422,7 +1593,9 @@ package body Safe_Frontend.Ada_Emit is
                              FT.To_String (Input));
                      begin
                         if not Contains (Allowed_Inputs, Name) then
-                           return "";
+                           Raise_Internal
+                             ("invalid Depends input `" & Name
+                              & "` while emitting `" & FT.To_String (Subprogram.Name) & "`");
                         end if;
                         Inputs.Append (FT.To_UString (Name));
                      end;
@@ -1482,7 +1655,10 @@ package body Safe_Frontend.Ada_Emit is
               & " .. "
               & Render_Expr (Unit, Document, Item_Range.High_Expr, State);
          when others =>
-            Raise_Unsupported (Item_Range.Span, "unsupported loop range in Ada emission");
+            Raise_Unsupported
+              (State,
+               Item_Range.Span,
+               "unsupported loop range in Ada emission");
       end case;
       return "";
    end Render_Discrete_Range;
@@ -1677,22 +1853,18 @@ package body Safe_Frontend.Ada_Emit is
          begin
             if Is_Owner_Access (Decl.Type_Info) then
                for Name of Decl.Names loop
-                  Append_Line
+                  Render_Cleanup_Item
                     (Buffer,
-                     "if " & FT.To_String (Name) & " /= null then",
+                     (Name      => Name,
+                      Type_Name => Decl.Type_Info.Name),
                      Depth);
-                  Append_Line
-                    (Buffer,
-                     "Free_" & FT.To_String (Decl.Type_Info.Name) & " (" & FT.To_String (Name) & ");",
-                     Depth + 1);
-                  Append_Line (Buffer, "end if;", Depth);
                end loop;
             end if;
          end;
       end loop;
    exception
       when Constraint_Error =>
-         null;
+         Raise_Internal ("malformed cleanup declarations during Ada emission");
    end Render_Cleanup;
 
    procedure Render_Cleanup
@@ -1706,22 +1878,18 @@ package body Safe_Frontend.Ada_Emit is
          begin
             if Is_Owner_Access (Decl.Type_Info) then
                for Name of Decl.Names loop
-                  Append_Line
+                  Render_Cleanup_Item
                     (Buffer,
-                     "if " & FT.To_String (Name) & " /= null then",
+                     (Name      => Name,
+                      Type_Name => Decl.Type_Info.Name),
                      Depth);
-                  Append_Line
-                    (Buffer,
-                     "Free_" & FT.To_String (Decl.Type_Info.Name) & " (" & FT.To_String (Name) & ");",
-                     Depth + 1);
-                  Append_Line (Buffer, "end if;", Depth);
                end loop;
             end if;
          end;
       end loop;
    exception
       when Constraint_Error =>
-         null;
+         Raise_Internal ("malformed cleanup declarations during Ada emission");
    end Render_Cleanup;
 
    procedure Render_Statements
@@ -1736,7 +1904,10 @@ package body Safe_Frontend.Ada_Emit is
    begin
       for Item of Statements loop
          if Item = null then
-            Raise_Unsupported (FT.Null_Span, "encountered null statement during Ada emission");
+            Raise_Unsupported
+              (State,
+               FT.Null_Span,
+               "encountered null statement during Ada emission");
          end if;
 
          case Item.Kind is
@@ -1758,6 +1929,7 @@ package body Safe_Frontend.Ada_Emit is
                   Render_Expr (Unit, Document, Item.Call, State) & ";",
                   Depth);
             when CM.Stmt_Return =>
+               Render_Active_Cleanup (Buffer, State, Depth);
                Append_Return
                  (Buffer,
                   Unit,
@@ -1814,6 +1986,8 @@ package body Safe_Frontend.Ada_Emit is
                begin
                   Collect_Wide_Locals
                     (Unit, Document, State, Item.Declarations, Item.Body_Stmts);
+                  Push_Cleanup_Frame (State);
+                  Register_Cleanup_Items (State, Item.Declarations);
                   Append_Line (Buffer, "declare", Depth);
                   Render_Block_Declarations
                     (Buffer, Unit, Document, Item.Declarations, State, Depth + 1);
@@ -1823,6 +1997,7 @@ package body Safe_Frontend.Ada_Emit is
                     (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type);
                   Render_Cleanup (Buffer, Item.Declarations, Depth + 1);
                   Append_Line (Buffer, "end;", Depth);
+                  Pop_Cleanup_Frame (State);
                   Restore_Wide_Names (State, Previous_Wide_Count);
                end;
             when CM.Stmt_Loop =>
@@ -1976,7 +2151,10 @@ package body Safe_Frontend.Ada_Emit is
                                  Arm_Depth,
                                  Return_Type);
                            when others =>
-                              Raise_Unsupported (Arm.Span, "unsupported select arm in Ada emission");
+                              Raise_Unsupported
+                                (State,
+                                 Arm.Span,
+                                 "unsupported select arm in Ada emission");
                         end case;
                      end;
                   end loop;
@@ -1998,7 +2176,8 @@ package body Safe_Frontend.Ada_Emit is
                   Depth);
             when others =>
                Raise_Unsupported
-                 (Item.Span,
+                 (State,
+                  Item.Span,
                   "PR09 emitter does not yet support statement kind '"
                   & Item.Kind'Image
                   & "'");
@@ -2179,6 +2358,8 @@ package body Safe_Frontend.Ada_Emit is
    begin
       Collect_Wide_Locals
         (Unit, Document, State, Subprogram.Declarations, Subprogram.Statements);
+      Push_Cleanup_Frame (State);
+      Register_Cleanup_Items (State, Subprogram.Declarations);
       Append_Line
         (Buffer,
          FT.To_String (Subprogram.Kind)
@@ -2203,6 +2384,7 @@ package body Safe_Frontend.Ada_Emit is
       Render_Cleanup (Buffer, Subprogram.Declarations, 2);
       Append_Line (Buffer, "end " & FT.To_String (Subprogram.Name) & ";", 1);
       Append_Line (Buffer);
+      Pop_Cleanup_Frame (State);
       Restore_Wide_Names (State, Previous_Wide_Count);
    end Render_Subprogram_Body;
 
@@ -2266,9 +2448,6 @@ package body Safe_Frontend.Ada_Emit is
          Body_Withs.Append (FT.To_UString (Name));
       end Add_Body_With;
    begin
-      Failure_Span := FT.Null_Span;
-      Failure_Message := FT.To_UString ("");
-
       if not Unit.Channels.Is_Empty or else not Unit.Tasks.Is_Empty then
          State.Needs_Gnat_Adc := True;
       end if;
@@ -2290,7 +2469,7 @@ package body Safe_Frontend.Ada_Emit is
          & "is");
 
       for Type_Item of Unit.Types loop
-         Append_Line (Spec_Inner, Render_Type_Decl (Type_Item), 1);
+         Append_Line (Spec_Inner, Render_Type_Decl (Type_Item, State), 1);
          if FT.To_String (Type_Item.Kind) = "record" then
             Append_Line (Spec_Inner);
          end if;
@@ -2395,7 +2574,7 @@ package body Safe_Frontend.Ada_Emit is
             Diagnostic =>
               CM.Unsupported_Source_Construct
                 (Path    => FT.To_String (Unit.Path),
-                 Span    => Failure_Span,
-                 Message => FT.To_String (Failure_Message)));
+                 Span    => State.Unsupported_Span,
+                 Message => FT.To_String (State.Unsupported_Message)));
    end Emit;
 end Safe_Frontend.Ada_Emit;

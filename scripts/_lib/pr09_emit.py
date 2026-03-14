@@ -144,6 +144,12 @@ def emitted_body_file(ada_dir: Path) -> Path:
     return candidates[0]
 
 
+def emitted_spec_file(ada_dir: Path) -> Path:
+    candidates = sorted(path for path in ada_dir.glob("*.ads") if path.name != "safe_runtime.ads")
+    require(candidates, f"{display_path(ada_dir)}: expected emitted .ads file")
+    return candidates[0]
+
+
 def compare_dirs(left: Path, right: Path) -> dict[str, dict[str, str]]:
     left_files = list_files(left)
     right_files = list_files(right)

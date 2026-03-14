@@ -21,6 +21,7 @@ from _lib.pr09_emit import (
     compile_emitted_ada,
     emit_with_determinism,
     emitted_body_file,
+    emitted_spec_file,
     ensure_emit_success,
     repo_arg,
     require_safec,
@@ -62,6 +63,8 @@ def generate_report(*, safec: Path, env: dict[str, str]) -> dict[str, object]:
                 temp_root=temp_root,
             )
             body_path = emitted_body_file(root_a / "ada")
+            spec_path = emitted_spec_file(root_a / "ada")
+            spec_fragments = ["Depends =>", "Output => Raw"] if fixture.name == "rule1_parameter.safe" else []
             safe_runtime_hashes = safe_runtime_matches_template(root_a / "ada")
             fixtures.append(
                 {
@@ -73,7 +76,17 @@ def generate_report(*, safec: Path, env: dict[str, str]) -> dict[str, object]:
                         body_path.name: structural_assertions(
                             body_path,
                             ["Safe_Runtime.Wide_Integer", "pragma Assert"],
-                        )
+                        ),
+                        **(
+                            {
+                                spec_path.name: structural_assertions(
+                                    spec_path,
+                                    spec_fragments,
+                                )
+                            }
+                            if spec_fragments
+                            else {}
+                        ),
                     },
                 }
             )
