@@ -1,5 +1,5 @@
 # Safe Companion -- Extracted Assumptions
-# Generated: 2026-03-15T14:00:43Z
+# Generated: deterministic committed extract; wall-clock time omitted
 # Source: companion/templates/obj/gnatprove
 #
 # This file lists all assumptions extracted from GNATprove output.
