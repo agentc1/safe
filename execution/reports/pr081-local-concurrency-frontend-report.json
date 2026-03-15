@@ -810,7 +810,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_channel_access_component.safe:17:22: error: channel element type shall not be an access type or a composite type containing an access-type subcomponent\n  |\n  | 17 |    channel Data_Ch : Envelope capacity 1;\n  |    |                      ^~~~~~~~\n  |\n",
+        "stderr": "neg_channel_access_component.safe:16:22: error: channel element type shall not be an access type or a composite type containing an access-type subcomponent\n  |\n  | 16 |    channel Data_Ch : Envelope capacity 1;\n  |    |                      ^~~~~~~~\n  |\n",
         "stdout": ""
       },
       "check": {
@@ -821,7 +821,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_channel_access_component.safe:17:22: error: channel element type shall not be an access type or a composite type containing an access-type subcomponent\n  |\n  | 17 |    channel Data_Ch : Envelope capacity 1;\n  |    |                      ^~~~~~~~\n  |\n",
+        "stderr": "neg_channel_access_component.safe:16:22: error: channel element type shall not be an access type or a composite type containing an access-type subcomponent\n  |\n  | 16 |    channel Data_Ch : Envelope capacity 1;\n  |    |                      ^~~~~~~~\n  |\n",
         "stdout": ""
       },
       "check_diag_json": {
@@ -834,7 +834,7 @@
         "cwd": "$REPO_ROOT",
         "returncode": 1,
         "stderr": "",
-        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"source_frontend_error\",\"message\":\"channel element type shall not be an access type or a composite type containing an access-type subcomponent\",\"path\":\"tests/negative/neg_channel_access_component.safe\",\"span\":{\"start_line\":17,\"start_col\":22,\"end_line\":17,\"end_col\":29},\"highlight_span\":null,\"notes\":[],\"suggestions\":[]}]}\n"
+        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"source_frontend_error\",\"message\":\"channel element type shall not be an access type or a composite type containing an access-type subcomponent\",\"path\":\"tests/negative/neg_channel_access_component.safe\",\"span\":{\"start_line\":16,\"start_col\":22,\"end_line\":16,\"end_col\":29},\"highlight_span\":null,\"notes\":[],\"suggestions\":[]}]}\n"
       },
       "emit": {
         "command": [
@@ -848,7 +848,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_channel_access_component.safe:17:22: error: channel element type shall not be an access type or a composite type containing an access-type subcomponent\n  |\n  | 17 |    channel Data_Ch : Envelope capacity 1;\n  |    |                      ^~~~~~~~\n  |\n",
+        "stderr": "neg_channel_access_component.safe:16:22: error: channel element type shall not be an access type or a composite type containing an access-type subcomponent\n  |\n  | 16 |    channel Data_Ch : Envelope capacity 1;\n  |    |                      ^~~~~~~~\n  |\n",
         "stdout": ""
       },
       "emit_artifacts": {
@@ -863,9 +863,9 @@
         "reason": "source_frontend_error",
         "span": {
           "end_col": 29,
-          "end_line": 17,
+          "end_line": 16,
           "start_col": 22,
-          "start_line": 17
+          "start_line": 16
         }
       },
       "sample": "tests/negative/neg_channel_access_component.safe"
@@ -2369,8 +2369,8 @@
       "sample": "tests/concurrency/select_with_delay.safe"
     }
   ],
-  "repeat_sha256": "c1c69a3046a758b774791a4554f99f9848429485d49d5df94218ccee1436abf1",
-  "report_sha256": "c1c69a3046a758b774791a4554f99f9848429485d49d5df94218ccee1436abf1",
+  "repeat_sha256": "bead0cfe621d5f6f50a1bdf617b4a5b67635f73865c0c04d115d9a814c7f82fe",
+  "report_sha256": "bead0cfe621d5f6f50a1bdf617b4a5b67635f73865c0c04d115d9a814c7f82fe",
   "status": "ok",
   "task": "PR08.1"
 }

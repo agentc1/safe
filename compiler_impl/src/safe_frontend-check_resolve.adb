@@ -343,9 +343,34 @@ package body Safe_Frontend.Check_Resolve is
       Base : constant GM.Type_Descriptor := Base_Type (Info, Type_Env);
       Kind : constant String := FT.Lowercase (UString_Value (Base.Kind));
 
+      function Has_Prefix (Text : String; Prefix : String) return Boolean is
+      begin
+         return Text'Length >= Prefix'Length
+           and then Text (Text'First .. Text'First + Prefix'Length - 1) = Prefix;
+      end Has_Prefix;
+
+      function Looks_Like_Anonymous_Access_Name (Name : String) return Boolean is
+         Lower : constant String := FT.Lowercase (Name);
+      begin
+         return Has_Prefix (Lower, "access ")
+           or else Has_Prefix (Lower, "not null access ")
+           or else Has_Prefix (Lower, "access constant ")
+           or else Has_Prefix (Lower, "not null access constant ")
+           or else Has_Prefix (Lower, "access all ")
+           or else Has_Prefix (Lower, "not null access all ")
+           or else Has_Prefix (Lower, "access all constant ")
+           or else Has_Prefix (Lower, "not null access all constant ");
+      end Looks_Like_Anonymous_Access_Name;
+
       function Named_Type_Contains_Access (Name : String) return Boolean is
       begin
-         if Name = "" or else not Has_Type (Type_Env, Name) then
+         if Name = "" then
+            return False;
+         end if;
+         if Looks_Like_Anonymous_Access_Name (Name) then
+            return True;
+         end if;
+         if not Has_Type (Type_Env, Name) then
             return False;
          end if;
          return Contains_Channel_Access_Subcomponent (Get_Type (Type_Env, Name), Type_Env);

@@ -1,7 +1,7 @@
 {
   "deterministic": true,
-  "repeat_sha256": "0d158722729ebf2eaa422995da389583b5b2a478b07bcd6d5448d97a5c3c0403",
-  "report_sha256": "0d158722729ebf2eaa422995da389583b5b2a478b07bcd6d5448d97a5c3c0403",
+  "repeat_sha256": "1774a1839a53937cd54d55697df5a07a6e567014fbb3b2dc7521dfa3dcc01fac",
+  "report_sha256": "1774a1839a53937cd54d55697df5a07a6e567014fbb3b2dc7521dfa3dcc01fac",
   "retired_snapshots_absent": [
     "tests/golden/golden_sensors.ada",
     "tests/golden/golden_ownership.ada",
@@ -43,10 +43,10 @@
           "sha256": "02f745f7b4743057317a8e6b81f29ef7431b7672dc8d5cdc4ea5550036d82daf"
         },
         "pipeline.adb": {
-          "sha256": "cf1c2ca3e3b0d122cff991896c1c20e26c2a7aeffa80892888a1fd297e3edc2e"
+          "sha256": "41af125026a39475bdda637068bd4ee97f55b276874c76d6f63e904562dc1802"
         },
         "pipeline.ads": {
-          "sha256": "b1997e978d56a6fc96817a42e7debbd64b5017a42d39a69b3dc8e8bd05efb944"
+          "sha256": "c283bd2d26c96be3637c540dbc40ea41e7483e5764e285d8c3466663c54d470e"
         }
       }
     }

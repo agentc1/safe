@@ -19,7 +19,7 @@
       "determinism": {
         "ada": {
           "ownership_early_return.adb": {
-            "sha256": "ed7f3f5167dc46600fdc574c17487acdd64a85cf9a75afe87bd5edf9fdac826f"
+            "sha256": "b44eb236fb84d3f9878425eabf20e288055f47edffd58c854c1f913e30b571fb"
           },
           "ownership_early_return.ads": {
             "sha256": "faff7ffedb117504d83b025e5262085f56e03381b18b41c7a1169affaf3689f4"
@@ -43,8 +43,10 @@
       "fixture": "tests/positive/ownership_early_return.safe",
       "structural_assertions": {
         "ownership_early_return.adb": [
+          "Return_Value : constant Integer := Outer.all.Value;",
           "Free_Payload_Ptr (Inner);",
-          "Free_Payload_Ptr (Outer);"
+          "Free_Payload_Ptr (Outer);",
+          "return Return_Value;"
         ],
         "ownership_early_return.ads": [
           "Global => null"
@@ -151,6 +153,6 @@
       }
     }
   ],
-  "repeat_sha256": "dd750aa840afd4df9d621c6d389c52e453b2f1548798673d75d951dc341deba0",
-  "report_sha256": "dd750aa840afd4df9d621c6d389c52e453b2f1548798673d75d951dc341deba0"
+  "repeat_sha256": "d9b34518014e0c020d1bbdf82ec7184eff1c5a47f4357037654f497e4f0a380b",
+  "report_sha256": "d9b34518014e0c020d1bbdf82ec7184eff1c5a47f4357037654f497e4f0a380b"
 }
