@@ -21,6 +21,7 @@ from _lib.harness_common import (
     require,
     run,
     sha256_file,
+    sha256_text,
     write_report,
 )
 from _lib.pr09_emit import REPO_ROOT, alr_command
@@ -137,6 +138,26 @@ def split_table_row(line: str) -> list[str] | None:
     return cells
 
 
+def normalized_assumptions_hash(path: Path) -> str:
+    text = path.read_text(encoding="utf-8")
+    normalized = re.sub(r"^# Generated: .*\n", "", text, flags=re.MULTILINE)
+    return sha256_text(normalized)
+
+
+def snapshot_text(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    return path.read_text(encoding="utf-8")
+
+
+def restore_text(path: Path, original: str | None) -> None:
+    if original is None:
+        if path.exists():
+            path.unlink()
+        return
+    path.write_text(original, encoding="utf-8")
+
+
 def parse_findings(text: str) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     for line in text.splitlines():
@@ -213,6 +234,8 @@ def run_companion_verify(*, env: dict[str, str]) -> dict[str, Any]:
     alr = alr_command()
     companion_root = REPO_ROOT / "companion" / "gen"
 
+    assumptions_path = REPO_ROOT / "companion" / "assumptions_extracted.txt"
+    original_assumptions = snapshot_text(assumptions_path)
     build = run([alr, "build"], cwd=companion_root, env=env)
     flow = run(
         [alr, "exec", "--", "gnatprove", "-P", "companion.gpr", "--mode=flow", "--report=all", "--warnings=error"],
@@ -239,9 +262,12 @@ def run_companion_verify(*, env: dict[str, str]) -> dict[str, Any]:
         cwd=companion_root,
         env=env,
     )
-    extract = run([bash, "scripts/extract_assumptions.sh"], cwd=REPO_ROOT, env=env)
-    extracted_hash = sha256_file(REPO_ROOT / "companion" / "assumptions_extracted.txt")
-    diff = run([bash, "scripts/diff_assumptions.sh"], cwd=REPO_ROOT, env=env)
+    try:
+        extract = run([bash, "scripts/extract_assumptions.sh"], cwd=REPO_ROOT, env=env)
+        extracted_hash = normalized_assumptions_hash(assumptions_path)
+        diff = run([bash, "scripts/diff_assumptions.sh"], cwd=REPO_ROOT, env=env)
+    finally:
+        restore_text(assumptions_path, original_assumptions)
     prove_golden_hash = sha256_file(REPO_ROOT / "companion" / "gen" / "prove_golden.txt")
     gnatprove_out_hash = sha256_file(REPO_ROOT / "companion" / "gen" / "obj" / "gnatprove" / "gnatprove.out")
     return {
@@ -261,6 +287,8 @@ def run_templates_verify(*, env: dict[str, str]) -> dict[str, Any]:
     alr = alr_command()
     templates_root = REPO_ROOT / "companion" / "templates"
 
+    assumptions_path = REPO_ROOT / "companion" / "assumptions_extracted.txt"
+    original_assumptions = snapshot_text(assumptions_path)
     build = run([alr, "build"], cwd=templates_root, env=env)
     flow = run(
         [alr, "exec", "--", "gnatprove", "-P", "templates.gpr", "--mode=flow", "--report=all", "--warnings=error"],
@@ -289,12 +317,15 @@ def run_templates_verify(*, env: dict[str, str]) -> dict[str, Any]:
     )
     extract_env = env.copy()
     extract_env["PROVE_OUT"] = "companion/templates/obj/gnatprove"
-    extract = run([bash, "scripts/extract_assumptions.sh"], cwd=REPO_ROOT, env=extract_env)
-    extracted_hash = sha256_file(REPO_ROOT / "companion" / "assumptions_extracted.txt")
     diff_env = env.copy()
     diff_env["PROVE_GOLDEN"] = "companion/templates/prove_golden.txt"
     diff_env["PROVE_OUT"] = "companion/templates/obj/gnatprove/gnatprove.out"
-    diff = run([bash, "scripts/diff_assumptions.sh"], cwd=REPO_ROOT, env=diff_env)
+    try:
+        extract = run([bash, "scripts/extract_assumptions.sh"], cwd=REPO_ROOT, env=extract_env)
+        extracted_hash = normalized_assumptions_hash(assumptions_path)
+        diff = run([bash, "scripts/diff_assumptions.sh"], cwd=REPO_ROOT, env=diff_env)
+    finally:
+        restore_text(assumptions_path, original_assumptions)
     prove_golden_hash = sha256_file(REPO_ROOT / "companion" / "templates" / "prove_golden.txt")
     gnatprove_out_hash = sha256_file(REPO_ROOT / "companion" / "templates" / "obj" / "gnatprove" / "gnatprove.out")
     return {

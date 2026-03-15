@@ -21,7 +21,7 @@
   ],
   "baseline_truth": {
     "companion_verify": {
-      "assumptions_extracted_sha256": "7be328a1ab4a8f756617ed8e9ad5ae5bba13d39f8eac36a68abce4d14f27e37a",
+      "assumptions_extracted_sha256": "04becc81d8705c62493fe616c44b417475ec5273432b5a7723bfcd128eecdcc2",
       "build": {
         "command": [
           "alr",
@@ -155,7 +155,7 @@
       }
     ],
     "templates_verify": {
-      "assumptions_extracted_sha256": "7cf95c34b90658ffaffe55b682de866a3232042418d86564dbe21404b1e21e95",
+      "assumptions_extracted_sha256": "3ad85b666e769c09dc50ae6d5078b539a7a3feb164cefb3de6d781789dd442ff",
       "build": {
         "command": [
           "alr",
@@ -296,8 +296,8 @@
       "title": "GNATprove evidence and parser hardening"
     }
   ],
-  "repeat_sha256": "a17967600554eec7a94c9ca4f353fe2f755722b21947227f84a9e27b9b69ac89",
-  "report_sha256": "a17967600554eec7a94c9ca4f353fe2f755722b21947227f84a9e27b9b69ac89",
+  "repeat_sha256": "531c96b793089b9e05ab36916d68a688d933fe41c71ca893df575655cb334c50",
+  "report_sha256": "531c96b793089b9e05ab36916d68a688d933fe41c71ca893df575655cb334c50",
   "retained_post_pr10_residuals": [
     {
       "area": "resolver",
