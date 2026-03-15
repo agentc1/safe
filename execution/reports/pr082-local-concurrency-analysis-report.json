@@ -444,7 +444,7 @@
         "cwd": "$REPO_ROOT",
         "returncode": 1,
         "stderr": "",
-        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"source_frontend_error\",\"message\":\"channel element type shall not be an access type or a composite type containing an access-type subcomponent\",\"path\":\"tests/negative/neg_channel_access_component.safe\",\"span\":{\"start_line\":17,\"start_col\":22,\"end_line\":17,\"end_col\":29},\"highlight_span\":null,\"notes\":[],\"suggestions\":[]}]}\n"
+        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"source_frontend_error\",\"message\":\"channel element type shall not be an access type or a composite type containing an access-type subcomponent\",\"path\":\"tests/negative/neg_channel_access_component.safe\",\"span\":{\"start_line\":16,\"start_col\":22,\"end_line\":16,\"end_col\":29},\"highlight_span\":null,\"notes\":[],\"suggestions\":[]}]}\n"
       },
       "expected_reason": "source_frontend_error",
       "first_diagnostic": {
@@ -1570,8 +1570,8 @@
       }
     }
   ],
-  "repeat_sha256": "bc71546e0c23a64c8bca7fef89bb35bb6e31ab8610f6ca9574b291a277298059",
-  "report_sha256": "bc71546e0c23a64c8bca7fef89bb35bb6e31ab8610f6ca9574b291a277298059",
+  "repeat_sha256": "74a55aa2b367626ce434293fa872e361bfe1d7880ee384ff5b9f2f0851197399",
+  "report_sha256": "74a55aa2b367626ce434293fa872e361bfe1d7880ee384ff5b9f2f0851197399",
   "sequential_positive_regression_cases": [
     {
       "check": {
