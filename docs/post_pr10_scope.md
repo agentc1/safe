@@ -60,15 +60,22 @@ before PR10, and not better owned by `docs/syntax_proposals.md`.
 |------|--------|------|----------|
 | Static evaluation beyond the minimal constant-reference subset used by PR08.3a and the still-deferred named-number work, including binary arithmetic and declaration-time dot-attribute references such as `.First` / `.Last` | `PR08.3a`, `spec/03-single-file-packages.md` section `3.2.7`, `compiler_impl/src/safe_frontend-check_resolve.adb` | `resolver` | `blocking-if-needed` |
 | Fixed-point Rule 5 support beyond the frozen current subset | `docs/frontend_architecture_baseline.md` | `analyzer` | `blocking-if-needed` |
+| Floating-point computed-divisor proof shaping: GNATprove's float model may not discharge division-by-zero VCs from if-then guards on computed FP values (e.g., `if mag > 0.0 then x / mag`), meaning compiler-suggested guards may not resolve the proof obligation and the emitter may need to produce stronger annotations or restructured code | PR10 review, `docs/emitted_output_verification_matrix.md`, `spec/02-restrictions.md` section `2.8.5` (TBD-04 related) | `analyzer` | `blocking-if-needed` |
+| Floating-point overflow to infinity: large-magnitude FP multiplications (e.g., `mass * velocity * velocity` where both operands are near `Float'Last`) can overflow to IEEE 754 infinity, and no if-then guard is available because the overflow occurs inside the expression evaluation itself, not at a checkable boundary; the emitter or analyzer must either reject such programs, emit range-constraining preconditions, or restructure the computation | PR10 review, `spec/02-restrictions.md` section `2.8.5` (TBD-04 related) | `analyzer` | `blocking-if-needed` |
+| Convergence loop termination: while loops with non-monotonic convergence conditions (e.g., Newton's method `while abs(guess*guess - x) > epsilon`) have no derivable `Loop_Variant` because the convergence is mathematical rather than structural; the emitter cannot produce a variant annotation and GNATprove cannot prove termination. Recommended design direction: reject unbounded convergence loops and require the developer to restructure as a bounded `for` loop with a sufficient iteration cap (e.g., `for iteration in 1 .. 100 loop ... end loop`). The bounded loop has a structural termination proof. The developer supplies domain knowledge (iteration cap is sufficient) while the compiler handles the proof (loop terminates). The diagnostic should say: "unbounded while loop cannot be proved to terminate; restructure as a bounded for loop with a sufficient iteration count" | PR10 review, `spec/02-restrictions.md` section `2.8.5`, GNATprove loop-variant requirements | `analyzer` | `blocking-if-needed` |
 
 ## Concurrency, Ownership, and Runtime Model
 
 | Item | Source | Area | Priority |
 |------|--------|------|----------|
-| `try_receive` failure-path precision beyond the current conservative model | `PR08.2` review fallout, `spec/04-tasks-and-channels.md` paragraph 30 | `analyzer` | `nice-to-have` |
+| Success-sensitive `try_receive` analyzer precision beyond the current leave-unchanged failure contract | `PR08.2` review fallout, `spec/04-tasks-and-channels.md` paragraph 30 | `analyzer` | `nice-to-have` |
 | Imported package-qualified writes with sound cross-package mutability rules | `PR08.3` boundary, `compiler_impl/README.md` | `resolver` | `long-term` |
 | Channel deadlock analysis (TBD-09) | `spec/00-front-matter.md` section `0.8` | `analyzer` | `long-term` |
 | `Constant_After_Elaboration` for concurrency analysis (TBD-06) | `spec/00-front-matter.md` section `0.8` | `analyzer` | `blocking-if-needed` |
+| Faithful source-level `select ... or delay ...` semantics beyond the current emitted polling-based lowering | `docs/emitted_output_verification_matrix.md`, `spec/04-tasks-and-channels.md` section `4.4` | `spec` | `long-term` |
+| Emitted select proof coverage for the receive-success path: the current PR10 `select_with_delay.safe` fixture has a producer that never sends, so the channel arm's success path (message received, processed) is structurally present in the emitted polling loop but never exercised; a richer fixture with a producing sender and at least two channel arms is needed to prove the success-path effects | PR10 review, `docs/emitted_output_verification_matrix.md` | `tooling` | `blocking-if-needed` |
+| Early-return deallocation ordering in emitted Ada: when a function returns an expression that dereferences an owned pointer (e.g., `return Ptr.all.Value`), the emitter must capture the return value into a temporary before emitting `Free(Ptr)` at scope exit; GNATprove cannot catch a wrong ordering because `Ada.Unchecked_Deallocation` is outside its proof model, so a mis-ordered emit produces use-after-free that compiles and proves clean | PR10 review, `tests/positive/ownership_early_return.safe`, TBD-11 related | `analyzer` | `blocking-if-needed` |
+| Document that ownership safety depends on the frontend analysis, not GNATprove: `Ada.Unchecked_Deallocation` is outside GNATprove's proof model, so the "GNATprove prove = yes" column in the verification matrix proves absence of runtime check failures but not absence of use-after-free; the frontend's Silver ownership analysis is the mechanism that prevents use-after-free, and this architectural boundary should be stated explicitly in the verification matrix | PR10 review, `docs/emitted_output_verification_matrix.md` | `spec` | `blocking-if-needed` |
 | Task-level fault containment and restart intensity | `spec/02-restrictions.md` paragraphs `151a`-`151g` | `spec` | `long-term` |
 | Clarify and standardise spec text for constant access objects versus access-to-constant / observe writes through `.all` | `PR08.3a` review fallout, `compiler_impl/src/safe_frontend-check_resolve.adb`, `compiler_impl/src/safe_frontend-mir_analyze.adb` | `spec` | `long-term` |
 
@@ -90,6 +97,10 @@ before PR10, and not better owned by `docs/syntax_proposals.md`.
 |------|--------|------|----------|
 | Selective interface search-dir scanning or scoped tolerance for unrelated malformed `.safei.json` files | `PR08.3` review fallout | `tooling` | `nice-to-have` |
 | Ada-side Bronze regression harness independent of Python evidence re-derivation | `PR08.2` review fallout | `tooling` | `nice-to-have` |
+| Emitted-output GNATprove coverage beyond the selected PR10 sequential corpus | `docs/emitted_output_verification_matrix.md`, `execution/tracker.json` | `tooling` | `long-term` |
+| Emitted-output GNATprove coverage beyond the selected PR10 concurrency corpus | `docs/emitted_output_verification_matrix.md`, `execution/tracker.json` | `tooling` | `long-term` |
+| I/O seam wrapper obligations beyond direct emitted-package proof | `docs/emitted_output_verification_matrix.md` | `tooling` | `long-term` |
+| GNATprove summary parsing brittleness: the PR10 gate parses GNATprove's textual summary output via regex-based column splitting on whitespace; a GNATprove version update that changes output formatting could break or silently mis-parse the gate; investigate structured output (`--output=json` or equivalent) to reduce format-drift risk | PR10 review, `scripts/_lib/pr10_emit.py` | `tooling` | `nice-to-have` |
 | Diagnostic catalogue and localisation (TBD-05) | `spec/00-front-matter.md` section `0.8` | `tooling` | `long-term` |
 | Stabilise and document interchange-format policy for existing `safei-v1` and `mir-v2` artifacts, including compatibility and what is normative versus implementation-defined (TBD-08) | `spec/00-front-matter.md` section `0.8`, `compiler_impl/src/safe_frontend-interfaces.adb`, `compiler_impl/src/safe_frontend-mir_analyze.adb` | `tooling` | `long-term` |
 | Performance targets (TBD-02) | `spec/00-front-matter.md` section `0.8` | `tooling` | `long-term` |
@@ -104,9 +115,9 @@ before PR10, and not better owned by `docs/syntax_proposals.md`.
 | Floating-point semantics beyond inheriting Ada's defaults (TBD-04) | `spec/00-front-matter.md` section `0.8` | `spec` | `blocking-if-needed` |
 | Abort handler behaviour (TBD-07) | `spec/00-front-matter.md` section `0.8` | `spec` | `blocking-if-needed` |
 | Numeric model: required ranges for predefined integer types (TBD-10) | `spec/00-front-matter.md` section `0.8` | `spec` | `blocking-if-needed` |
-| Automatic deallocation semantics and ordering at scope exit (TBD-11) | `spec/00-front-matter.md` section `0.8` | `spec` | `blocking-if-needed` |
+| Automatic deallocation semantics and ordering at scope exit beyond the covered nested early-return capture-ordering regression (TBD-11) | `spec/00-front-matter.md` section `0.8` | `spec` | `blocking-if-needed` |
 | Modular arithmetic wrapping semantics (TBD-12) | `spec/00-front-matter.md` section `0.8` | `spec` | `blocking-if-needed` |
-| Broad proof-obligation discharge beyond the selected PR10 GNATprove gate | `docs/po_index.md`, `execution/tracker.json` | `spec` | `long-term` |
+| Jorvik/Ravenscar runtime scheduling, ceiling-locking, and polling-timing obligations beyond direct emitted-package proof | `docs/emitted_output_verification_matrix.md`, `spec/04-tasks-and-channels.md` | `spec` | `long-term` |
 | Limited/private type views across packages (TBD-13) | `spec/00-front-matter.md` section `0.8` | `language-design` | `long-term` |
 | Partial initialisation facility (TBD-14) | `spec/00-front-matter.md` section `0.8` | `language-design` | `long-term` |
 
@@ -114,10 +125,10 @@ before PR10, and not better owned by `docs/syntax_proposals.md`.
 
 | Priority | Count |
 |----------|------:|
-| `blocking-if-needed` | 14 |
-| `nice-to-have` | 3 |
-| `long-term` | 14 |
-| **Total** | **31** |
+| `blocking-if-needed` | 20 |
+| `nice-to-have` | 4 |
+| `long-term` | 18 |
+| **Total** | **42** |
 
 See [`docs/post_pr10_scope_audit.md`](post_pr10_scope_audit.md) for the audit
 record that removed fixed items, pre-PR10 tracked work, spec-excluded rows, and

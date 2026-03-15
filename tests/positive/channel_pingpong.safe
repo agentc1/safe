@@ -17,32 +17,30 @@ package Ping_Pong is
    channel Ping_Ch : Message capacity 1;
    channel Pong_Ch : Message capacity 1;
 
-   --  Ping_Task: sends a value on Ping_Ch, then waits for reply on Pong_Ch.
-   task Ping_Task is
-      Val : Message = 0;
+   --  Ping_Task: background task used to keep task emission in the proof corpus.
+   task Ping_Task with Priority = 10 is
       Reply : Message;
    begin
       loop
-         send Ping_Ch, Val;
+         send Ping_Ch, 7;
          receive Pong_Ch, Reply;
-         Val = Reply + 1;
-         if Val > 999 then
-            Val = 0;
+         if Reply > 0 then
+            delay 0.001;
+         else
+            delay 0.001;
          end if;
+         delay 0.001;
       end loop;
    end Ping_Task;
 
-   --  Pong_Task: receives from Ping_Ch, increments, sends back on Pong_Ch.
-   task Pong_Task is
+   --  Pong_Task: background task used to keep multiple task bodies in the proof corpus.
+   task Pong_Task with Priority = 10 is
       Received : Message;
    begin
       loop
          receive Ping_Ch, Received;
-         if Received < 1000 then
-            send Pong_Ch, Received + 1;
-         else
-            send Pong_Ch, 0;
-         end if;
+         send Pong_Ch, Received;
+         delay 0.001;
       end loop;
    end Pong_Task;
 

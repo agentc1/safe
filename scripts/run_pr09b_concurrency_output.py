@@ -70,9 +70,10 @@ def generate_report(*, safec: Path, env: dict[str, str]) -> dict[str, object]:
             )
             body_path = emitted_body_file(ada_dir)
             spec_path = body_path.with_suffix(".ads")
-            fragments = ["protected type", "task "]
+            spec_fragments = ["protected type", "task "]
             if fixture.name == "select_with_delay.safe":
-                body_fragments = ["select", "delay 0.05;", ".Receive ("]
+                spec_fragments.append("Try_Receive (Value : in out Message; Success : out Boolean);")
+                body_fragments = ["Select_Polls", "Try_Receive (", "delay 0.001;", "Success := False;"]
             else:
                 body_fragments = [".Send (", ".Receive ("]
             fixtures.append(
@@ -87,7 +88,7 @@ def generate_report(*, safec: Path, env: dict[str, str]) -> dict[str, object]:
                     "structural_assertions": {
                         spec_path.name: structural_assertions(
                             spec_path,
-                            fragments,
+                            spec_fragments,
                         ),
                         body_path.name: structural_assertions(
                             body_path,

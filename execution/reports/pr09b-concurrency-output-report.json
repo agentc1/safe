@@ -11,7 +11,9 @@
           "-c",
           "-P",
           "$TMPDIR/channel_pingpong-a/ada/build.gpr",
-          "ping_pong.adb"
+          "ping_pong.adb",
+          "-cargs",
+          "-gnatec=$TMPDIR/channel_pingpong-a/ada/gnat.adc"
         ],
         "cwd": "$REPO_ROOT/compiler_impl",
         "returncode": 0
@@ -22,27 +24,24 @@
             "sha256": "02f745f7b4743057317a8e6b81f29ef7431b7672dc8d5cdc4ea5550036d82daf"
           },
           "ping_pong.adb": {
-            "sha256": "0765e0e7c7ec86a22bdf1134ce7c367ec256fe81ac6f0e4b12587ee858ce7068"
+            "sha256": "c7b64db5ff8643edb989e82927fd3ba0b6ecb3292ebb91427a08be2a12988efe"
           },
           "ping_pong.ads": {
-            "sha256": "9828c7dfa4c274ba90135130728330cd5342607595589eb3c1a9da2cbb7db9e1"
-          },
-          "safe_runtime.ads": {
-            "sha256": "1e2fcc19815107411c19daec797fc78f9a1f5357527b26c5611e8b5ab6b76b3a"
+            "sha256": "2f1e0505518f425138eec5c2f6377fa0fa3930f670427410bac652b4499b35c8"
           }
         },
         "json_and_interface": {
           "channel_pingpong.ast.json": {
-            "sha256": "7cbbcc90704828943428c7cb779165ae3bac2ad022311dea9820d5d7d60668eb"
+            "sha256": "8b0202f69969e829e364c8ad653a63a52192f536817a521c1c1bd4fb421dd299"
           },
           "channel_pingpong.mir.json": {
-            "sha256": "d6a6c4d717477f84711cbe3ccc707fb8e266c188c1637144d12aa26de974aeea"
+            "sha256": "c41551eb534fadaf94e02a213ec664cc4cb2f91d184d9cd466f9cc3be55a4c21"
           },
           "channel_pingpong.safei.json": {
-            "sha256": "0bb256934df8ddf469eb2ce8bc5766706cb053b8e291ebefdca39afea97e4ef7"
+            "sha256": "f18e617fee02ebb02d05b93af390350974af70d27c74d7e72024685e0a480c0b"
           },
           "channel_pingpong.typed.json": {
-            "sha256": "c84ac22373b3983a47675315f01db42d78321b6a3aee87875429be55bddca623"
+            "sha256": "bde39fe4c7ce3e5c73728941e6e6147ad727bdd059dc865ad68d2c3c1463a282"
           }
         }
       },
@@ -72,7 +71,9 @@
           "-c",
           "-P",
           "$TMPDIR/channel_pipeline-a/ada/build.gpr",
-          "pipeline.adb"
+          "pipeline.adb",
+          "-cargs",
+          "-gnatec=$TMPDIR/channel_pipeline-a/ada/gnat.adc"
         ],
         "cwd": "$REPO_ROOT/compiler_impl",
         "returncode": 0
@@ -83,27 +84,24 @@
             "sha256": "02f745f7b4743057317a8e6b81f29ef7431b7672dc8d5cdc4ea5550036d82daf"
           },
           "pipeline.adb": {
-            "sha256": "8e5fa2d527d0003935f4e65a36162499935f47f230e686ce7c754384a9b145c4"
+            "sha256": "41af125026a39475bdda637068bd4ee97f55b276874c76d6f63e904562dc1802"
           },
           "pipeline.ads": {
-            "sha256": "83e39535b65ee91fa26e8ee9ff6d06997081df9ca6d083176a709100895cdcc5"
-          },
-          "safe_runtime.ads": {
-            "sha256": "1e2fcc19815107411c19daec797fc78f9a1f5357527b26c5611e8b5ab6b76b3a"
+            "sha256": "c283bd2d26c96be3637c540dbc40ea41e7483e5764e285d8c3466663c54d470e"
           }
         },
         "json_and_interface": {
           "channel_pipeline.ast.json": {
-            "sha256": "6d0c09243cc019ea66c645660ad6ec1a6bca588af9ae207df8b7fc84df5d708e"
+            "sha256": "b1e123a3c307e83c66c73d64a95ce160dcce87a35aae154e3c9afee65e5cf82d"
           },
           "channel_pipeline.mir.json": {
-            "sha256": "9d81b9da9d388dc8b8780e8aa8735a07adfa85df523ab16fd8954e11cbb4d50c"
+            "sha256": "9bf95bb607971f26e366aa347cc8b9498a7505ac127bab6e3325dc5ad023d40b"
           },
           "channel_pipeline.safei.json": {
-            "sha256": "e2b0967a69f49c77a451576e3307728b9c2dc2624ffe4d090d15ef0efe89c2f3"
+            "sha256": "a489f93844bd4b3ccd93546a39c06bb30ece79b514101c902e0a9760935640df"
           },
           "channel_pipeline.typed.json": {
-            "sha256": "15ef296f5f0b7d03f007ce449e0afbe5b31ec84aa971adc04512babfbf3de772"
+            "sha256": "eb44a9395ede7c83fbfdc664bade66a914fc8d20686d8a57855040582e81c363"
           }
         }
       },
@@ -133,7 +131,9 @@
           "-c",
           "-P",
           "$TMPDIR/select_with_delay-a/ada/build.gpr",
-          "select_with_delay.adb"
+          "select_with_delay.adb",
+          "-cargs",
+          "-gnatec=$TMPDIR/select_with_delay-a/ada/gnat.adc"
         ],
         "cwd": "$REPO_ROOT/compiler_impl",
         "returncode": 0
@@ -143,28 +143,25 @@
           "gnat.adc": {
             "sha256": "02f745f7b4743057317a8e6b81f29ef7431b7672dc8d5cdc4ea5550036d82daf"
           },
-          "safe_runtime.ads": {
-            "sha256": "1e2fcc19815107411c19daec797fc78f9a1f5357527b26c5611e8b5ab6b76b3a"
-          },
           "select_with_delay.adb": {
-            "sha256": "6010d793328ef890bb660e3cf3a09d02e68c4e9389b085c0369d0a4d2f06f528"
+            "sha256": "a34053595b7cf7aa03be54cc1798c840b00927f0ea43183e7e2e8361d96db29e"
           },
           "select_with_delay.ads": {
-            "sha256": "9f308aac832401e1339316e2f6befb0343307ed5efa6fd5ce539e971858dfc3f"
+            "sha256": "1c6a0e9966963a1be61aa8b82288b1c339a11a1043ad2cee0fedc565d06b36bd"
           }
         },
         "json_and_interface": {
           "select_with_delay.ast.json": {
-            "sha256": "1877780d9e4d17a2e8b81e819a8d8f9210c688ecdb67751de13fdbe7b9dc8762"
+            "sha256": "18e1c2d59344f937d4bb939daf003a1cc150000641559b51aa28aa5ead026a2b"
           },
           "select_with_delay.mir.json": {
-            "sha256": "377a71ab132f7f58bc4651c0af6ee10b6157406d6eb3b5b4cfa7ec09717a173a"
+            "sha256": "a746659a6020ffb7a62244072dac584fba272d9824454d10eb79c01399c0c33a"
           },
           "select_with_delay.safei.json": {
-            "sha256": "ef83ccae5b4de061970b39722a5537c2472b326102f111943b7904478a322917"
+            "sha256": "c7c75fea068394b09e3c9bce237e49bf39524c2b41585291850a563b5e16f3d5"
           },
           "select_with_delay.typed.json": {
-            "sha256": "2bcd6eeed543a831ec1c2c0a908f1a256bd952198822f0ee08c1953a8fd63745"
+            "sha256": "c8c0e69ac2fbda0085d828cb2a469aac496761448971304bdf22b32fd0834cc3"
           }
         }
       },
@@ -175,17 +172,19 @@
       },
       "structural_assertions": {
         "select_with_delay.adb": [
-          "select",
-          "delay 0.05;",
-          ".Receive ("
+          "Select_Polls",
+          "Try_Receive (",
+          "delay 0.001;",
+          "Success := False;"
         ],
         "select_with_delay.ads": [
           "protected type",
-          "task "
+          "task ",
+          "Try_Receive (Value : in out Message; Success : out Boolean);"
         ]
       }
     }
   ],
-  "repeat_sha256": "35970dfb25b038c37e8e101ba1d174625fdf5d37c045f1f01cb34afb83ad8c60",
-  "report_sha256": "35970dfb25b038c37e8e101ba1d174625fdf5d37c045f1f01cb34afb83ad8c60"
+  "repeat_sha256": "e97b69dc6eacdd4e5788941e40bd47acc7019fd9e923cc050e2faa3b763dcbe7",
+  "report_sha256": "e97b69dc6eacdd4e5788941e40bd47acc7019fd9e923cc050e2faa3b763dcbe7"
 }

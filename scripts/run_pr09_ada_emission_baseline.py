@@ -83,7 +83,10 @@ def generate_report(*, env: dict[str, str]) -> dict[str, object]:
             )
         tracker = load_tracker()
         task_map = {task["id"]: task for task in tracker["tasks"]}
-        require(tracker.get("next_task_id") == "PR10", "tracker next_task_id must advance to PR10")
+        require(
+            tracker.get("next_task_id") in ("PR10", None),
+            "tracker next_task_id must be PR10 until PR10 is complete, then null",
+        )
         require(task_map["PR09"]["status"] == "done", "PR09 must be marked done")
         require(
             task_map["PR09"]["evidence"] == EXPECTED_EVIDENCE,
@@ -96,7 +99,11 @@ def generate_report(*, env: dict[str, str]) -> dict[str, object]:
             dashboard_text == rendered_dashboard["stdout"],
             "execution/dashboard.md must match scripts/render_execution_status.py output",
         )
-        require_contains(dashboard_text, "- **Next task:** `PR10`", "execution/dashboard.md")
+        require(
+            "- **Next task:** `PR10`" in dashboard_text
+            or "- **Next task:** `none`" in dashboard_text,
+            "execution/dashboard.md: expected PR10 as next task until completion, then none",
+        )
         require_contains(dashboard_text, "| PR09 | done | PR08 | 6 |", "execution/dashboard.md")
 
         baseline_text = FRONTEND_BASELINE_PATH.read_text(encoding="utf-8")
@@ -105,10 +112,10 @@ def generate_report(*, env: dict[str, str]) -> dict[str, object]:
             "PR09 adds deterministic Ada/SPARK emission on top of that PR08 frontend baseline through `safec emit --ada-out-dir`, without widening the accepted frontend-analysis subset.",
             "docs/frontend_architecture_baseline.md",
         )
-        require_contains(
-            baseline_text,
-            "broader proof-ready Ada/SPARK emission work beyond the current PR09 subset",
-            "docs/frontend_architecture_baseline.md",
+        require(
+            "broader proof-ready Ada/SPARK emission work beyond the current PR09 subset" in baseline_text
+            or "emitted-output GNATprove coverage beyond the selected PR10 corpus" in baseline_text,
+            "docs/frontend_architecture_baseline.md: expected the PR09 baseline scope boundary text",
         )
 
         readme_text = README_PATH.read_text(encoding="utf-8")
