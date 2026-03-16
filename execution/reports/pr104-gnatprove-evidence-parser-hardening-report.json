@@ -646,7 +646,7 @@
   "gnatprove_profile_doc": {
     "path": "docs/gnatprove_profile.md",
     "required_snippets": [
-      "## 4.7 Emitted-Proof Reproducibility Contract",
+      "### 4.7 Emitted-Proof Reproducibility Contract",
       "`--mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=error --checks-as-errors=on`",
       "deterministic reports plus normalized GNATprove summaries",
       "GNATprove session artifacts are not committed and are not part of the reproducibility contract"
@@ -662,8 +662,8 @@
     "cwd": "$REPO_ROOT",
     "returncode": 0
   },
-  "repeat_sha256": "039946142a4837767fcdf82bd3e320217e498274e86fe4a4096f0be163d1c1d1",
-  "report_sha256": "039946142a4837767fcdf82bd3e320217e498274e86fe4a4096f0be163d1c1d1",
+  "repeat_sha256": "ef485bc73ed9d944216a4805063ed858ec056636e50af6d963cd5d295252c8c5",
+  "report_sha256": "ef485bc73ed9d944216a4805063ed858ec056636e50af6d963cd5d295252c8c5",
   "status": "ok",
   "task": "PR10.4"
 }

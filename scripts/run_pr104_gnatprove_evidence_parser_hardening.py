@@ -54,7 +54,7 @@ EXPECTED_PROVE_SWITCHES = [
     "--checks-as-errors=on",
 ]
 EXPECTED_GNATPROVE_PROFILE_SNIPPETS = [
-    "## 4.7 Emitted-Proof Reproducibility Contract",
+    "### 4.7 Emitted-Proof Reproducibility Contract",
     "`--mode=prove --level=2 --prover=cvc5,z3,altergo --steps=0 --timeout=120 --report=all --warnings=error --checks-as-errors=on`",
     "deterministic reports plus normalized GNATprove summaries",
     "GNATprove session artifacts are not committed and are not part of the reproducibility contract",
