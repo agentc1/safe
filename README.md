@@ -7,6 +7,42 @@ A systems programming language defined subtractively from Ada 2022, designed so 
 
 ---
 
+## Roadmap Snapshot
+
+The canonical tracked ledger lives in [`execution/tracker.json`](execution/tracker.json) and
+[`execution/dashboard.md`](execution/dashboard.md). The longer language-iteration roadmap for the
+not-yet-harnessed `PR11.x` series lives in [`docs/PR11.x-series-proposed.md`](docs/PR11.x-series-proposed.md).
+
+Completed milestone rows are shown with strikethrough. Proposed, not-yet-harnessed roadmap rows are shown
+in italics.
+
+| Milestone / Series | Status | Scope |
+|--------------------|--------|-------|
+| ~~PR00–PR06.9.13 — execution ledger, compiler workspace bring-up, runtime boundary cleanup, and hardening baseline~~ | `done` | Establishes the tracked execution model, Ada-native compiler path, and the PR06.9.x hardening/guardrail series. |
+| ~~PR07 — Rule 5 frontend/analyzer baseline~~ | `done` | Locks the live Rule 5 narrowing-boundary frontend/analyzer slice. |
+| ~~PR08 — Ada-native frontend baseline~~ | `done` | Ships the supported frontend baseline: Rule 5, sequential ownership, boolean result-record discriminants, and the accepted concurrency/interface slices. |
+| ~~PR09 — Ada emission baseline~~ | `done` | Adds deterministic Ada/SPARK emission on top of the PR08 frontend subset. |
+| ~~PR10 — emitted GNATprove baseline and verification matrix~~ | `done` | Freezes the selected emitted-output compile/flow/prove corpus and the canonical verification matrix. |
+| ~~PR10.1 — comprehensive assessment and refinement audit~~ | `done` | Audits the post-PR10 claim surfaces, normalizes the residual ledger, and carves the next tracked follow-on tasks. |
+| ~~PR10.2 — Rule 5 proof-boundary closure and loop-termination diagnostics~~ | `done` | Closes the live accepted Rule 5 boundary and check-time convergence-loop rejection policy. |
+| ~~PR10.3 — sequential emitted proof-corpus expansion beyond PR10~~ | `done` | Proves the six-fixture ownership expansion set beyond the frozen PR10 ownership representative. |
+| PR10.4 — GNATprove evidence and parser hardening | `planned` | Hardens audit parsing, GNATprove evidence discipline, milestone-ID parsing, and report de-cascading. |
+| PR10.5 — Ada emitter maintenance hardening | `planned` | Cleans up emitter error handling, subtype-aware helpers, and other emitter-maintenance debt. |
+| PR10.6 — remaining sequential emitted proof-corpus expansion beyond ownership | `planned` | Extends emitted proof coverage to the remaining accepted sequential subset beyond PR10 and PR10.3. |
+| *PR11.1 — Language Evaluation Harness* | `proposed / not harnessed` | Adds `safe build`, a static editor grammar, a disposable diagnostics shim, and the first Rosetta/sample starter corpus. |
+| *PR11.2 — Parser Completeness Phase 1* | `proposed / not harnessed` | Adds strings/character literals and case statements. |
+| *PR11.3 — Discriminated Types and Constraints* | `proposed / not harnessed` | Adds the bounded discriminated-record and discriminant-constraint subset. |
+| *PR11.4 — Signature and Control-Flow Syntax* | `proposed / not harnessed` | Front-loads low-risk syntax admissions: `returns` and `else if`. |
+| *PR11.5 — Statement Ergonomics* | `proposed / not harnessed` | Evaluates optional semicolons and statement-local `var` declarations. |
+| *PR11.6 — Alternate Block Syntax Modes* | `proposed / not harnessed` | Evaluates `pragma Strict` and whitespace-significant blocks as alternate block forms. |
+| *PR11.7 — Reference-Surface Experiments* | `proposed / not harnessed` | Evaluates capitalization-as-reference-signal and implicit dereference as separate high-risk experiments. |
+| *PR11.8 — Numeric Model* | `proposed / not harnessed` | Introduces the three-tier integer model plus predefined-type-name cleanup and numeric TBD closure. |
+| *PR11.9 — Artifact Contract Stabilization* | `proposed / not harnessed` | Stabilizes `diagnostics-v0`, `safei-v1`, and `mir-v2` compatibility rules. |
+| *PR11.10 — Monomorphic Library Layer* | `proposed / not harnessed` | Adds monomorphic bounded string/container types before generics. |
+| *PR11.11 — Restricted Generics* | `proposed / not harnessed` | Adds the first generic-package and emitter-based instantiation capability slice. |
+
+---
+
 ## What Is Safe?
 
 Safe is built on ISO/IEC 8652:2023 (Ada 2022). It is a curated subset -- removing exceptions, tagged types, and generics -- augmented with new constructs including static tasks and typed channels. Conforming Safe programs compile via any conforming Ada 2022 compiler after translation.
