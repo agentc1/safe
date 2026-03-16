@@ -960,7 +960,7 @@ package body Safe_Frontend.Ada_Emit is
             end if;
 
             declare
-               Match_Start : constant Positive := Cursor + Match - 1;
+               Match_Start : constant Positive := Positive (Match);
                Match_End   : constant Natural := Match_Start + Pattern'Length - 1;
             begin
                if Match_Start > Cursor then
