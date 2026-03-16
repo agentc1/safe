@@ -38,9 +38,9 @@ The committed report is
 |----|------|--------------|------------------|----------|-------------|--------|-------|
 | `PR101-003` | `resolver` | `PR08.3a`; `spec/03-single-file-packages.md` section `3.2.7` | Static evaluation still stops at the narrow constant subset used by PR08.3a; broader declaration-time arithmetic and attribute folding remain open. | Current resolver surface; retained unsupported cases | `retain-in-post-pr10` | `PS-001` | Keep as a retained post-PR10 resolver item. |
 | `PR101-004` | `analyzer` | `docs/frontend_architecture_baseline.md` | Fixed-point Rule 5 support remains outside the accepted and proved surface. | Current frontend boundary doc; no fixed-point Rule 5 fixtures in the accepted corpus | `retain-in-post-pr10` | `PS-002` | Retain until the accepted Rule 5 subset is widened deliberately. |
-| `PR101-005` | `analyzer` | PR10 review; `docs/emitted_output_verification_matrix.md`; `spec/02-restrictions.md` section `2.8.5` | Computed-divisor floating-point proof shaping is now clearly bounded by the frozen PR10 fixture, but the broader accepted proof boundary still needs an implementation task. | Matrix Rule 5 row; retained computed-divisor caveat; GNATprove behaviour on guarded FP division | `promote-to-pr10x` | `PR10.2` | Promote into the next concrete numeric-proof milestone rather than leaving it as an unbounded note. |
-| `PR101-006` | `analyzer` | PR10 review; `spec/02-restrictions.md` section `2.8.5` | Overflow-to-infinity on large-magnitude floating expressions remains unresolved and needs a concrete compiler policy. | Current docs acknowledge the boundary but do not implement a rejecting or constraining policy | `promote-to-pr10x` | `PR10.2` | Bundle with computed-divisor proof shaping because both are Rule 5 boundary-closure work. |
-| `PR101-007` | `analyzer` | PR10 review; GNATprove loop-variant requirements | Convergence-style while loops remain a real proof-boundary gap and already have a concrete recommended design direction. | Current post-PR10 wording; no deterministic reject/diagnostic gate yet | `promote-to-pr10x` | `PR10.2` | Promote with a diagnostic contract instead of leaving the recommendation informal. |
+| `PR101-005` | `analyzer` | PR10 review; `docs/emitted_output_verification_matrix.md`; `spec/02-restrictions.md` section `2.8.5` | The broader live accepted Rule 5 positive surface is now closed under a dedicated PR10.2 gate instead of being documented only through the frozen PR10 representative. | `execution/reports/pr102-rule5-boundary-closure-report.json`; PR10.2 tracker acceptance; updated matrix PR10.2 note | `close-as-fixed` | `PR10.2` | PR10.2 merges the historical PR07 Rule 5 positives with the frozen PR10 representative into one explicit non-shrinkable proof target. |
+| `PR101-006` | `analyzer` | PR10 review; `spec/02-restrictions.md` section `2.8.5` | The live Rule 5 boundary now distinguishes unsupported float-expression shapes from true overflow-at-narrowing and proves the accepted positive corpus under the emitted GNATprove profile. | `compiler_impl/src/safe_frontend-mir_analyze.adb`; `compiler_impl/tests/mir_analysis/pr102_fp_unsupported_expression_parity.json`; `execution/reports/pr102-rule5-boundary-closure-report.json` | `close-as-fixed` | `PR10.2` | `fp_overflow_at_narrowing` now remains reserved for true narrowing-range failures, while unsupported evaluator shapes use `fp_unsupported_expression_at_narrowing`. |
+| `PR101-007` | `analyzer` | PR10 review; GNATprove loop-variant requirements | Convergence-style while loops outside the current derivable Loop_Variant surface are now rejected during `safec check` with a dedicated diagnostic instead of being left to downstream emitted-proof failure. | `compiler_impl/src/safe_frontend-mir_analyze.adb`; `tests/negative/neg_while_variant_not_derivable.safe`; `tests/diagnostics_golden/diag_loop_variant_not_derivable.txt`; `execution/reports/pr102-rule5-boundary-closure-report.json` | `close-as-fixed` | `PR10.2` | PR10.2 mirrors the emitter's current derivable loop-variant surface in MIR analysis and names the boundary explicitly as `loop_variant_not_derivable`. |
 
 ### Concurrency, Ownership, and Runtime Model
 
@@ -112,14 +112,14 @@ The committed report is
 
 ## Promoted Follow-on Milestones
 
-The PR10.1 audit promotes the following evidence-ready follow-on tasks:
+The PR10.1 audit carved the following evidence-ready follow-on tasks:
 
-- `PR10.2` — Rule 5 proof-boundary closure and loop-termination diagnostics
+- `PR10.2` — Rule 5 proof-boundary closure and loop-termination diagnostics (completed)
 - `PR10.3` — Sequential emitted proof-corpus expansion beyond the frozen PR10 subset, beginning with the six ownership fixtures
 - `PR10.4` — GNATprove evidence and parser hardening, including audit-parser regression tests, explicit `gnat.adc` sentinels, and proof-repeatability policy
 - `PR10.5` — Ada emitter maintenance hardening
 
-`next_task_id` advances to `PR10.2`.
+The live tracker now records `PR10.2` as done, and `next_task_id` advances to `PR10.3`.
 
 ## Supersession Note
 

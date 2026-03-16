@@ -3,17 +3,17 @@
 - **Schema version:** `1`
 - **Frozen spec SHA:** `468cf72332724b04b7c193b4d2a3b02f1584125d`
 - **Active task:** `none`
-- **Next task:** `PR10.2`
+- **Next task:** `PR10.3`
 - **Updated at:** `2026-03-15T00:00:00Z`
 
 ## Repo Facts
 
 - `tests/positive`: 48
-- `tests/negative`: 77
+- `tests/negative`: 78
 - `tests/golden`: 3
 - `tests/concurrency`: 14
-- `tests/diagnostics_golden`: 17
-- **Total test corpus entries:** 159
+- `tests/diagnostics_golden`: 22
+- **Total test corpus entries:** 165
 
 ## Task Ledger
 
@@ -53,7 +53,7 @@
 | PR09 | done | PR08 | 6 |
 | PR10 | done | PR09 | 4 |
 | PR10.1 | done | PR10 | 1 |
-| PR10.2 | planned | PR10.1 | 0 |
+| PR10.2 | done | PR10.1 | 1 |
 | PR10.3 | planned | PR10.1 | 0 |
 | PR10.4 | planned | PR10.1 | 0 |
 | PR10.5 | planned | PR10.1 | 0 |
@@ -530,13 +530,15 @@
 
 ### PR10.2 — Rule 5 proof-boundary closure and loop-termination diagnostics
 
-- **Status:** `planned`
+- **Status:** `done`
 - **Depends on:** PR10.1
 - **Blockers:** none
 - **Acceptance:**
-  - Computed-divisor floating-point cases in the current accepted Rule 5 subset either prove under the emitted GNATprove profile or fail deterministically with named diagnostics and fixtures.
-  - Overflow-to-infinity and unbounded convergence-loop cases are rejected or constrained by explicit analyzer/emitter policy, with deterministic regression fixtures and documentation.
-  - A dedicated PR10.2 gate, report, CI job, and matrix/post-PR10 updates capture the resulting Rule 5 proof boundary without weakening the frozen PR10 claim.
+  - The exact six-fixture PR10.2 Rule 5 positive corpus is tests/positive/rule5_filter.safe, tests/positive/rule5_interpolate.safe, tests/positive/rule5_normalize.safe, tests/positive/rule5_statistics.safe, tests/positive/rule5_temperature.safe, and tests/positive/rule5_vector_normalize.safe; that merged PR07-plus-PR10 set is non-shrinkable and each fixture is frontend-accepted, Ada-emitted, compile-valid, and passes emitted GNATprove flow and prove under the all-proved-only policy.
+  - The source-level Rule 5 negative contract remains tests/negative/neg_rule5_div_zero.safe -> fp_division_by_zero, tests/negative/neg_rule5_infinity.safe -> infinity_at_narrowing, tests/negative/neg_rule5_nan.safe -> nan_at_narrowing, tests/negative/neg_rule5_overflow.safe -> fp_overflow_at_narrowing, and tests/negative/neg_rule5_uninitialized.safe -> fp_uninitialized_at_narrowing; unsupported float-evaluator shapes use the new fp_unsupported_expression_at_narrowing reason under MIR analysis parity coverage instead of being mislabeled as overflow.
+  - While loops outside the current derivable Loop_Variant proof surface are rejected during safec check with loop_variant_not_derivable, and a dedicated PR10.2 gate, report, CI job, tracker/docs update, and deterministic diagnostics-golden set capture the resulting Rule 5 plus convergence-loop boundary without weakening the frozen PR10 claim.
+- **Evidence:**
+  - `execution/reports/pr102-rule5-boundary-closure-report.json`
 
 ### PR10.3 — Sequential emitted proof-corpus expansion beyond PR10
 

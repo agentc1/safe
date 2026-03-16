@@ -32,6 +32,7 @@
       "scripts/run_pr09b_concurrency_output.py",
       "scripts/run_pr09b_snapshot_refresh.py",
       "scripts/run_pr09_ada_emission_baseline.py",
+      "scripts/run_pr102_rule5_boundary_closure.py",
       "scripts/run_local_pre_push.py",
       "scripts/validate_execution_state.py",
       "scripts/validate_ast_output.py",
@@ -75,7 +76,8 @@
       "scripts/run_pr09b_sequential_semantics.py",
       "scripts/run_pr09b_concurrency_output.py",
       "scripts/run_pr09b_snapshot_refresh.py",
-      "scripts/run_pr09_ada_emission_baseline.py"
+      "scripts/run_pr09_ada_emission_baseline.py",
+      "scripts/run_pr102_rule5_boundary_closure.py"
     ],
     "safe_source_readers": [
       {
@@ -105,6 +107,10 @@
       {
         "category": "fixture metadata extraction via read_expected_reason and synthetic parity source generation",
         "script": "scripts/run_pr083a_public_constants.py"
+      },
+      {
+        "category": "fixture metadata extraction via read_expected_reason and diagnostics golden comparison",
+        "script": "scripts/run_pr102_rule5_boundary_closure.py"
       }
     ],
     "shell_assumption_violations": [],
@@ -133,8 +139,8 @@
       "report_sha256": "523a8540a6b51e6d632289be814ef8170dc90dac99f2d655ebe9e600014716ad"
     }
   },
-  "repeat_sha256": "8aca71e267bc9e10941a0077654d6429604e35a8af2b62a76d9e8f95f962c7c7",
-  "report_sha256": "8aca71e267bc9e10941a0077654d6429604e35a8af2b62a76d9e8f95f962c7c7",
+  "repeat_sha256": "a60fdfbc798f1f0c7088c0b111f0ce5d12f142f1aec752b33f4019b9cd1e37fc",
+  "report_sha256": "a60fdfbc798f1f0c7088c0b111f0ce5d12f142f1aec752b33f4019b9cd1e37fc",
   "reruns": {
     "gate_quality": {
       "repeat_sha256": "a67f47652fed4f4ca2ec067ea0fcc512386a82de15d4ded7315ed51bb3b72aad",
