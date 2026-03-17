@@ -51,7 +51,7 @@ class RunLocalPrePushTests(unittest.TestCase):
         self.assertIn("Rebuild compiler after reproducibility gate", labels)
         self.assertEqual(labels[-1], "Require clean tracked tree after local gates")
 
-    def test_build_steps_include_pr084_and_pr08_baseline_gates(self) -> None:
+    def test_build_steps_include_pr084_chain_and_pr09_followup(self) -> None:
         steps = build_steps(
             branch="codex/pr084-imported-summary-integration",
             python="python3",
@@ -62,6 +62,11 @@ class RunLocalPrePushTests(unittest.TestCase):
         labels = [step.label for step in steps]
         self.assertIn("Run run_pr084_transitive_concurrency_integration.py", labels)
         self.assertIn("Run run_pr08_frontend_baseline.py", labels)
+        self.assertIn("Run run_pr09_ada_emission_baseline.py", labels)
+        self.assertLess(
+            labels.index("Run run_pr09_ada_emission_baseline.py"),
+            labels.index("Rebuild compiler after reproducibility gate"),
+        )
 
     def test_gate_scripts_for_branch_maps_known_pr09_branch(self) -> None:
         self.assertEqual(
@@ -135,7 +140,7 @@ class RunLocalPrePushTests(unittest.TestCase):
             ),
         )
 
-    def test_build_steps_include_pr09_baseline_followup_for_pr111(self) -> None:
+    def test_build_steps_include_stateful_baseline_chain_for_pr111(self) -> None:
         steps = build_steps(
             branch="codex/pr111-language-eval-harness",
             python="python3",
