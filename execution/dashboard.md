@@ -3,8 +3,8 @@
 - **Schema version:** `1`
 - **Frozen spec SHA:** `468cf72332724b04b7c193b4d2a3b02f1584125d`
 - **Active task:** `none`
-- **Next task:** `PR11.1`
-- **Updated at:** `2026-03-16T00:00:00Z`
+- **Next task:** `PR11.2`
+- **Updated at:** `2026-03-17T00:00:00Z`
 
 ## Repo Facts
 
@@ -58,7 +58,7 @@
 | PR10.4 | done | PR10.1 | 1 |
 | PR10.5 | done | PR10.1 | 1 |
 | PR10.6 | done | PR10.3 | 1 |
-| PR11.1 | planned | PR10.4, PR10.5, PR10.6 | 0 |
+| PR11.1 | done | PR10.4, PR10.5, PR10.6 | 1 |
 | PR11.2 | planned | PR11.1 | 0 |
 | PR11.3 | planned | PR11.2 | 0 |
 | PR11.3a | planned | PR11.3 | 0 |
@@ -611,13 +611,15 @@
 
 ### PR11.1 — Language Evaluation Harness
 
-- **Status:** `planned`
+- **Status:** `done`
 - **Depends on:** PR10.4, PR10.5, PR10.6
 - **Blockers:** none
 - **Acceptance:**
   - A one-command `safe build <file.safe>` wrapper, static VSCode grammar, and disposable diagnostics shim exist as explicitly non-frozen tooling surfaces for language evaluation.
   - PR11.1 creates and validates a starter Rosetta/sample corpus consisting of fibonacci.safe, gcd.safe, factorial.safe, collatz_bounded.safe, bubble_sort.safe, binary_search.safe, bounded_stack.safe, and producer_consumer.safe; linked_list_reverse.safe and prime_sieve_pipeline.safe remain candidate expansions, while trapezoidal_rule.safe and newton_sqrt_bounded.safe remain deferred to later numeric work.
   - None of the PR11.1 starter-corpus candidates depend on PR11.2 string/case support, and PR11.1 remains a `safec check` -> `safec emit --ada-out-dir` -> `gprbuild` compile milestone rather than emitted-proof expansion; proof re-enters later via PR11.3a, PR11.8a, and the parallel PR11.8b concurrency track.
+- **Evidence:**
+  - `execution/reports/pr111-language-evaluation-harness-report.json`
 
 ### PR11.2 — Parser Completeness Phase 1
 

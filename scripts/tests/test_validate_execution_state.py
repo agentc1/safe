@@ -11,6 +11,8 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from validate_execution_state import (
+    GLUE_SAFETY_AUDITED_SCRIPTS,
+    GLUE_SAFETY_REPORT_SCRIPTS,
     check_dependencies,
     check_documentation_architecture_clarity,
     check_environment_assumptions,
@@ -31,6 +33,12 @@ from validate_execution_state import (
 
 
 class ValidateExecutionStateTests(unittest.TestCase):
+    def test_pr111_glue_scripts_are_registered_for_safety_audit(self) -> None:
+        self.assertIn("scripts/run_rosetta_corpus.py", GLUE_SAFETY_AUDITED_SCRIPTS)
+        self.assertIn("scripts/run_pr111_language_evaluation_harness.py", GLUE_SAFETY_AUDITED_SCRIPTS)
+        self.assertIn("scripts/run_rosetta_corpus.py", GLUE_SAFETY_REPORT_SCRIPTS)
+        self.assertIn("scripts/run_pr111_language_evaluation_harness.py", GLUE_SAFETY_REPORT_SCRIPTS)
+
     def test_check_dependencies_rejects_cycles(self) -> None:
         tasks = [
             {"id": "A", "depends_on": ["B"]},
