@@ -81,6 +81,14 @@ EXPECTED_PR106_ACCEPTANCE = [
 EXPECTED_PR106_EVIDENCE = [
     "execution/reports/pr106-sequential-proof-corpus-expansion-report.json",
 ]
+EXPECTED_PR111_ACCEPTANCE = [
+    "A one-command `safe build <file.safe>` wrapper, static VSCode grammar, and disposable diagnostics shim exist as explicitly non-frozen tooling surfaces for language evaluation.",
+    "PR11.1 creates and validates a starter Rosetta/sample corpus consisting of fibonacci.safe, gcd.safe, factorial.safe, collatz_bounded.safe, bubble_sort.safe, binary_search.safe, bounded_stack.safe, and producer_consumer.safe; linked_list_reverse.safe and prime_sieve_pipeline.safe remain candidate expansions, while trapezoidal_rule.safe and newton_sqrt_bounded.safe remain deferred to later numeric work.",
+    "None of the PR11.1 starter-corpus candidates depend on PR11.2 string/case support, and PR11.1 remains a `safec check` -> `safec emit --ada-out-dir` -> `gprbuild` compile milestone rather than emitted-proof expansion; proof re-enters later via PR11.3a, PR11.8a, and the parallel PR11.8b concurrency track.",
+]
+EXPECTED_PR111_EVIDENCE = [
+    "execution/reports/pr111-language-evaluation-harness-report.json",
+]
 EXPECTED_PR102_ACCEPTANCE = [
     "The exact six-fixture PR10.2 Rule 5 positive corpus is tests/positive/rule5_filter.safe, tests/positive/rule5_interpolate.safe, tests/positive/rule5_normalize.safe, tests/positive/rule5_statistics.safe, tests/positive/rule5_temperature.safe, and tests/positive/rule5_vector_normalize.safe; that merged PR07-plus-PR10 set is non-shrinkable and each fixture is frontend-accepted, Ada-emitted, compile-valid, and passes emitted GNATprove flow and prove under the all-proved-only policy.",
     "The source-level Rule 5 negative contract remains tests/negative/neg_rule5_div_zero.safe -> fp_division_by_zero, tests/negative/neg_rule5_infinity.safe -> infinity_at_narrowing, tests/negative/neg_rule5_nan.safe -> nan_at_narrowing, tests/negative/neg_rule5_overflow.safe -> fp_overflow_at_narrowing, and tests/negative/neg_rule5_uninitialized.safe -> fp_uninitialized_at_narrowing; unsupported float-evaluator shapes use the new fp_unsupported_expression_at_narrowing reason under MIR analysis parity coverage instead of being mislabeled as overflow.",
@@ -172,12 +180,17 @@ EXPECTED_WORKFLOW_SNIPPETS = [
     "pr106-sequential-proof-corpus-expansion:",
     "python3 scripts/run_pr106_sequential_proof_corpus_expansion.py",
     "git diff --exit-code execution/reports/pr106-sequential-proof-corpus-expansion-report.json",
+    "pr111-language-evaluation-harness:",
+    "python3 scripts/run_pr111_language_evaluation_harness.py",
+    "git diff --exit-code execution/reports/pr111-language-evaluation-harness-report.json",
 ]
 EXPECTED_PRE_PUSH_SNIPPETS = [
+    "\"scripts/run_pr09_ada_emission_baseline.py\"",
     "\"scripts/run_pr104_gnatprove_evidence_parser_hardening.py\"",
     "\"scripts/run_pr101_comprehensive_audit.py\"",
     "\"scripts/run_pr103_sequential_proof_expansion.py\"",
     "\"scripts/run_pr106_sequential_proof_corpus_expansion.py\"",
+    "\"scripts/run_pr111_language_evaluation_harness.py\"",
 ]
 EXPECTED_TUTORIAL_SNIPPETS = [
     "Ada-native `safec` frontend plus emitted-output proof",
@@ -214,6 +227,16 @@ def task_is_at_or_beyond_pr102(value: object) -> bool:
         return False
     major, minor = parsed
     return major > 10 or (major == 10 and minor is not None and minor >= 2)
+
+
+def task_is_at_or_beyond_pr112(value: object) -> bool:
+    if value is None:
+        return True
+    parsed = parse_task_id(value)
+    if parsed is None:
+        return False
+    major, minor = parsed
+    return major > 11 or (major == 11 and minor is not None and minor >= 2)
 
 
 def compact_result(result: dict[str, Any]) -> dict[str, Any]:
@@ -501,6 +524,29 @@ def build_report(*, baseline_truth: dict[str, Any]) -> dict[str, Any]:
         task_is_at_or_beyond_pr102(tracker.get("next_task_id")),
         "next_task_id must remain at or beyond PR10.2 after PR10.1",
     )
+    require("PR11.1" in task_map, "tracker must define PR11.1")
+    require(task_map["PR11.1"]["status"] == "done", "PR11.1 must be marked done")
+    require(
+        task_map["PR11.1"]["depends_on"] == ["PR10.4", "PR10.5", "PR10.6"],
+        "PR11.1 must depend on PR10.4, PR10.5, and PR10.6",
+    )
+    require(
+        task_map["PR11.1"]["acceptance"] == EXPECTED_PR111_ACCEPTANCE,
+        "PR11.1 acceptance text must match the committed language-evaluation harness contract",
+    )
+    require(
+        task_map["PR11.1"]["evidence"] == EXPECTED_PR111_EVIDENCE,
+        "PR11.1 evidence must list the committed language-evaluation harness report",
+    )
+    require("PR11.2" in task_map, "tracker must define PR11.2")
+    require(
+        task_map["PR11.2"]["status"] in {"planned", "ready", "in_progress", "done"},
+        "PR11.2 must remain a live tracked follow-on milestone",
+    )
+    require(
+        task_is_at_or_beyond_pr112(tracker.get("next_task_id")),
+        "next_task_id must remain at or beyond PR11.2 after PR11.1",
+    )
     for task_id in PROMOTED_TASKS:
         require(task_id in task_map, f"tracker must define promoted task {task_id}")
         require(
@@ -547,8 +593,8 @@ def build_report(*, baseline_truth: dict[str, Any]) -> dict[str, Any]:
     next_task_match = re.search(r"- \*\*Next task:\*\* `([^`]+)`", dashboard_text)
     require(next_task_match is not None, "execution/dashboard.md must render the next-task line")
     require(
-        task_is_at_or_beyond_pr102(next_task_match.group(1) if next_task_match is not None else None),
-        "execution/dashboard.md must show a next task at or beyond PR10.2 (or none)",
+        task_is_at_or_beyond_pr112(next_task_match.group(1) if next_task_match is not None else None),
+        "execution/dashboard.md must show a next task at or beyond PR11.2 (or none)",
     )
     require(
         re.search(r"\| PR10\.4 \| done \| PR10\.1 \| \d+ \|", dashboard_text)
@@ -711,6 +757,8 @@ def build_report(*, baseline_truth: dict[str, Any]) -> dict[str, Any]:
             "next_task_id": tracker["next_task_id"],
             "pr101_status": task_map["PR10.1"]["status"],
             "pr101_evidence": task_map["PR10.1"]["evidence"],
+            "pr111_status": task_map["PR11.1"]["status"],
+            "pr111_evidence": task_map["PR11.1"]["evidence"],
             "promoted_tasks": {
                 task_id: {
                     "status": task_map[task_id]["status"],

@@ -1,0 +1,385 @@
+{
+  "deterministic": true,
+  "launcher_help": {
+    "command": [
+      "python3",
+      "safe",
+      "--help"
+    ],
+    "cwd": "$REPO_ROOT",
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "usage:\n  safe build <file.safe>\n  safe check <safec check args...>\n  safe emit  <safec emit args...>\n"
+  },
+  "repeat_sha256": "f963f4253853d2e798ff8b67032d1b3ffef13ba97b392bff341b0c5652bf1af3",
+  "report_sha256": "f963f4253853d2e798ff8b67032d1b3ffef13ba97b392bff341b0c5652bf1af3",
+  "rosetta_corpus": {
+    "fixtures": [
+      {
+        "check": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "check",
+            "samples/rosetta/arithmetic/fibonacci.safe"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "compile": {
+          "command": [
+            "alr",
+            "exec",
+            "--",
+            "gprbuild",
+            "-c",
+            "-P",
+            "$TMPDIR/fibonacci/ada/build.gpr",
+            "fibonacci.adb"
+          ],
+          "cwd": "$REPO_ROOT/compiler_impl",
+          "returncode": 0
+        },
+        "emit": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "emit",
+            "samples/rosetta/arithmetic/fibonacci.safe",
+            "--out-dir",
+            "$TMPDIR/fibonacci/out",
+            "--interface-dir",
+            "$TMPDIR/fibonacci/iface",
+            "--ada-out-dir",
+            "$TMPDIR/fibonacci/ada"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "source": "samples/rosetta/arithmetic/fibonacci.safe"
+      },
+      {
+        "check": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "check",
+            "samples/rosetta/arithmetic/gcd.safe"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "compile": {
+          "command": [
+            "alr",
+            "exec",
+            "--",
+            "gprbuild",
+            "-c",
+            "-P",
+            "$TMPDIR/gcd/ada/build.gpr",
+            "gcd.adb"
+          ],
+          "cwd": "$REPO_ROOT/compiler_impl",
+          "returncode": 0
+        },
+        "emit": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "emit",
+            "samples/rosetta/arithmetic/gcd.safe",
+            "--out-dir",
+            "$TMPDIR/gcd/out",
+            "--interface-dir",
+            "$TMPDIR/gcd/iface",
+            "--ada-out-dir",
+            "$TMPDIR/gcd/ada"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "source": "samples/rosetta/arithmetic/gcd.safe"
+      },
+      {
+        "check": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "check",
+            "samples/rosetta/arithmetic/factorial.safe"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "compile": {
+          "command": [
+            "alr",
+            "exec",
+            "--",
+            "gprbuild",
+            "-c",
+            "-P",
+            "$TMPDIR/factorial/ada/build.gpr",
+            "factorial.adb"
+          ],
+          "cwd": "$REPO_ROOT/compiler_impl",
+          "returncode": 0
+        },
+        "emit": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "emit",
+            "samples/rosetta/arithmetic/factorial.safe",
+            "--out-dir",
+            "$TMPDIR/factorial/out",
+            "--interface-dir",
+            "$TMPDIR/factorial/iface",
+            "--ada-out-dir",
+            "$TMPDIR/factorial/ada"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "source": "samples/rosetta/arithmetic/factorial.safe"
+      },
+      {
+        "check": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "check",
+            "samples/rosetta/arithmetic/collatz_bounded.safe"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "compile": {
+          "command": [
+            "alr",
+            "exec",
+            "--",
+            "gprbuild",
+            "-c",
+            "-P",
+            "$TMPDIR/collatz_bounded/ada/build.gpr",
+            "collatz_bounded.adb"
+          ],
+          "cwd": "$REPO_ROOT/compiler_impl",
+          "returncode": 0
+        },
+        "emit": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "emit",
+            "samples/rosetta/arithmetic/collatz_bounded.safe",
+            "--out-dir",
+            "$TMPDIR/collatz_bounded/out",
+            "--interface-dir",
+            "$TMPDIR/collatz_bounded/iface",
+            "--ada-out-dir",
+            "$TMPDIR/collatz_bounded/ada"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "source": "samples/rosetta/arithmetic/collatz_bounded.safe"
+      },
+      {
+        "check": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "check",
+            "samples/rosetta/sorting/bubble_sort.safe"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "compile": {
+          "command": [
+            "alr",
+            "exec",
+            "--",
+            "gprbuild",
+            "-c",
+            "-P",
+            "$TMPDIR/bubble_sort/ada/build.gpr",
+            "bubble_sort.adb"
+          ],
+          "cwd": "$REPO_ROOT/compiler_impl",
+          "returncode": 0
+        },
+        "emit": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "emit",
+            "samples/rosetta/sorting/bubble_sort.safe",
+            "--out-dir",
+            "$TMPDIR/bubble_sort/out",
+            "--interface-dir",
+            "$TMPDIR/bubble_sort/iface",
+            "--ada-out-dir",
+            "$TMPDIR/bubble_sort/ada"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "source": "samples/rosetta/sorting/bubble_sort.safe"
+      },
+      {
+        "check": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "check",
+            "samples/rosetta/sorting/binary_search.safe"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "compile": {
+          "command": [
+            "alr",
+            "exec",
+            "--",
+            "gprbuild",
+            "-c",
+            "-P",
+            "$TMPDIR/binary_search/ada/build.gpr",
+            "binary_search.adb"
+          ],
+          "cwd": "$REPO_ROOT/compiler_impl",
+          "returncode": 0
+        },
+        "emit": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "emit",
+            "samples/rosetta/sorting/binary_search.safe",
+            "--out-dir",
+            "$TMPDIR/binary_search/out",
+            "--interface-dir",
+            "$TMPDIR/binary_search/iface",
+            "--ada-out-dir",
+            "$TMPDIR/binary_search/ada"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "source": "samples/rosetta/sorting/binary_search.safe"
+      },
+      {
+        "check": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "check",
+            "samples/rosetta/data_structures/bounded_stack.safe"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "compile": {
+          "command": [
+            "alr",
+            "exec",
+            "--",
+            "gprbuild",
+            "-c",
+            "-P",
+            "$TMPDIR/bounded_stack/ada/build.gpr",
+            "bounded_stack.adb"
+          ],
+          "cwd": "$REPO_ROOT/compiler_impl",
+          "returncode": 0
+        },
+        "emit": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "emit",
+            "samples/rosetta/data_structures/bounded_stack.safe",
+            "--out-dir",
+            "$TMPDIR/bounded_stack/out",
+            "--interface-dir",
+            "$TMPDIR/bounded_stack/iface",
+            "--ada-out-dir",
+            "$TMPDIR/bounded_stack/ada"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "source": "samples/rosetta/data_structures/bounded_stack.safe"
+      },
+      {
+        "check": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "check",
+            "samples/rosetta/concurrency/producer_consumer.safe"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "compile": {
+          "command": [
+            "alr",
+            "exec",
+            "--",
+            "gprbuild",
+            "-c",
+            "-P",
+            "$TMPDIR/producer_consumer/ada/build.gpr",
+            "producer_consumer.adb",
+            "-cargs",
+            "-gnatec=$TMPDIR/producer_consumer/ada/gnat.adc"
+          ],
+          "cwd": "$REPO_ROOT/compiler_impl",
+          "returncode": 0
+        },
+        "emit": {
+          "command": [
+            "compiler_impl/bin/safec",
+            "emit",
+            "samples/rosetta/concurrency/producer_consumer.safe",
+            "--out-dir",
+            "$TMPDIR/producer_consumer/out",
+            "--interface-dir",
+            "$TMPDIR/producer_consumer/iface",
+            "--ada-out-dir",
+            "$TMPDIR/producer_consumer/ada"
+          ],
+          "cwd": "$REPO_ROOT",
+          "returncode": 0
+        },
+        "source": "samples/rosetta/concurrency/producer_consumer.safe"
+      }
+    ]
+  },
+  "safe_build_smoke": [
+    {
+      "command": [
+        "safe",
+        "build",
+        "samples/rosetta/arithmetic/fibonacci.safe"
+      ],
+      "cwd": "$REPO_ROOT",
+      "executable": "samples/rosetta/arithmetic/.safe-build/fibonacci/main",
+      "returncode": 0,
+      "source": "samples/rosetta/arithmetic/fibonacci.safe",
+      "stdout": "Compile\n   [Ada]          main.adb\n   [Ada]          fibonacci.adb\n   [Ada]          safe_runtime.ads\nBind\n   [gprbind]      main.bexch\n   [Ada]          main.ali\nLink\n   [link]         main.adb\nsafe build: OK (samples/rosetta/arithmetic/.safe-build/fibonacci/main)\n"
+    },
+    {
+      "command": [
+        "safe",
+        "build",
+        "samples/rosetta/concurrency/producer_consumer.safe"
+      ],
+      "cwd": "$REPO_ROOT",
+      "executable": "samples/rosetta/concurrency/.safe-build/producer_consumer/main",
+      "returncode": 0,
+      "source": "samples/rosetta/concurrency/producer_consumer.safe",
+      "stdout": "Compile\n   [Ada]          main.adb\n   [Ada]          producer_consumer.adb\n   [Ada]          safe_runtime.ads\nBind\n   [gprbind]      main.bexch\n   [Ada]          main.ali\nLink\n   [link]         main.adb\nsafe build: OK (samples/rosetta/concurrency/.safe-build/producer_consumer/main)\n"
+    }
+  ],
+  "tooling": {
+    "extension.js": "91cf87fc598ae48193d5529f97f14a715815417cd7bd30cd0f153ea4bdcf7afa",
+    "language-configuration.json": "7b2a62bcc38be1d78644fa0a0183054f8aa3738b42788e9b8fe72a9f874ce442",
+    "package.json": "062e15a8b1a0c85c46b3de1a8b63827c590b320d896b2a87ffa99c076b778f77",
+    "safe": "bc71af54d16cc67ffa174d9666515b154366893275f90cf831559649e09edd0a",
+    "safe.tmLanguage.json": "ab5f529dedf2694c7b503c364bb87aeb68b08a1ad04d7efcf9864171d8a0385a",
+    "safe_lsp.py": "6fe6db51b5f9934c19a799c3abf924fc8845a968fa8d3d3da3e393b321846e30",
+    "samples/rosetta/README.md": "57dcd68b8cd9d86673a42bd174c9396710a3dfce55adc42287ba079641644050"
+  }
+}

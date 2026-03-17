@@ -1,0 +1,40 @@
+{
+  "name": "safe-language-eval",
+  "displayName": "Safe Language Eval",
+  "description": "PR11.1 evaluation tooling for Safe: syntax highlighting plus disposable diagnostics.",
+  "version": "0.0.1",
+  "publisher": "agentc1",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:safe"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "safe",
+        "aliases": [
+          "Safe",
+          "safe"
+        ],
+        "extensions": [
+          ".safe"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "safe",
+        "scopeName": "source.safe",
+        "path": "./syntaxes/safe.tmLanguage.json"
+      }
+    ]
+  }
+}

@@ -117,13 +117,38 @@ class RunLocalPrePushTests(unittest.TestCase):
             ),
         )
 
-    def test_gate_scripts_for_branch_maps_pr11_family_branch(self) -> None:
+    def test_gate_scripts_for_branch_maps_pr111_branch(self) -> None:
         self.assertEqual(
             gate_scripts_for_branch("codex/pr111-language-eval-harness"),
+            (
+                "scripts/run_pr111_language_evaluation_harness.py",
+                "scripts/run_pr101_comprehensive_audit.py",
+            ),
+        )
+
+    def test_gate_scripts_for_branch_keeps_generic_pr11_family_fallback(self) -> None:
+        self.assertEqual(
+            gate_scripts_for_branch("codex/pr112-parser-completeness"),
             (
                 "scripts/run_frontend_smoke.py",
                 "scripts/run_pr101_comprehensive_audit.py",
             ),
+        )
+
+    def test_build_steps_include_pr09_baseline_followup_for_pr111(self) -> None:
+        steps = build_steps(
+            branch="codex/pr111-language-eval-harness",
+            python="python3",
+            alr="alr",
+            git="git",
+            include_diff=False,
+        )
+        labels = [step.label for step in steps]
+        self.assertIn("Run run_pr111_language_evaluation_harness.py", labels)
+        self.assertIn("Run run_pr09_ada_emission_baseline.py", labels)
+        self.assertLess(
+            labels.index("Run run_pr09_ada_emission_baseline.py"),
+            labels.index("Rebuild compiler after reproducibility gate"),
         )
 
     def test_build_steps_skips_unmapped_non_pr08_branch(self) -> None:

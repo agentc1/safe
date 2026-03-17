@@ -50,6 +50,23 @@ class Pr101AuditHardeningTests(unittest.TestCase):
         self.assertEqual(run_pr101_comprehensive_audit.parse_task_id("PR06.9.10"), (6, 9))
         self.assertEqual(run_pr101_comprehensive_audit.parse_task_id("PR10.3a"), (10, 3))
 
+    def test_pr101_audit_next_task_guard_accepts_pr112_and_beyond(self) -> None:
+        self.assertTrue(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr112("PR11.2"))
+        self.assertTrue(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr112("PR11.3a"))
+        self.assertTrue(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr112("PR12.1"))
+        self.assertFalse(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr112("PR11.1"))
+
+    def test_pr101_audit_tracks_pr111_acceptance_and_evidence(self) -> None:
+        self.assertEqual(
+            run_pr101_comprehensive_audit.EXPECTED_PR111_EVIDENCE,
+            ["execution/reports/pr111-language-evaluation-harness-report.json"],
+        )
+        self.assertEqual(len(run_pr101_comprehensive_audit.EXPECTED_PR111_ACCEPTANCE), 3)
+        self.assertIn(
+            "safe build <file.safe>",
+            run_pr101_comprehensive_audit.EXPECTED_PR111_ACCEPTANCE[0],
+        )
+
     def test_split_table_row_rejects_non_data_rows(self) -> None:
         self.assertEqual(
             run_pr101_comprehensive_audit.split_table_row("| `PR101-030` | `tooling` |"),

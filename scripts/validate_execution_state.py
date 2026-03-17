@@ -308,6 +308,7 @@ PORTABILITY_PATH_LOOKUP_SCRIPTS = [
     "scripts/run_local_pre_push.py",
 ]
 GLUE_SAFETY_AUDITED_SCRIPTS = [
+    "safe",
     "scripts/run_frontend_smoke.py",
     "scripts/run_pr05_d27_harness.py",
     "scripts/run_pr06_ownership_harness.py",
@@ -343,6 +344,10 @@ GLUE_SAFETY_AUDITED_SCRIPTS = [
     "scripts/run_pr104_gnatprove_evidence_parser_hardening.py",
     "scripts/run_pr105_ada_emitter_maintenance_hardening.py",
     "scripts/run_pr106_sequential_proof_corpus_expansion.py",
+    "scripts/safe_cli.py",
+    "scripts/safe_lsp.py",
+    "scripts/run_rosetta_corpus.py",
+    "scripts/run_pr111_language_evaluation_harness.py",
     "scripts/run_local_pre_push.py",
     "scripts/validate_execution_state.py",
     "scripts/validate_ast_output.py",
@@ -384,6 +389,8 @@ GLUE_SAFETY_REPORT_SCRIPTS = [
     "scripts/run_pr104_gnatprove_evidence_parser_hardening.py",
     "scripts/run_pr105_ada_emitter_maintenance_hardening.py",
     "scripts/run_pr106_sequential_proof_corpus_expansion.py",
+    "scripts/run_rosetta_corpus.py",
+    "scripts/run_pr111_language_evaluation_harness.py",
 ]
 GLUE_SAFETY_PATH_COMMANDS = ("python3", "alr", "git")
 GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS = {

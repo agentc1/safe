@@ -2,6 +2,7 @@
   "deterministic": true,
   "glue_script_safety": {
     "audited_scripts": [
+      "safe",
       "scripts/run_frontend_smoke.py",
       "scripts/run_pr05_d27_harness.py",
       "scripts/run_pr06_ownership_harness.py",
@@ -37,6 +38,10 @@
       "scripts/run_pr104_gnatprove_evidence_parser_hardening.py",
       "scripts/run_pr105_ada_emitter_maintenance_hardening.py",
       "scripts/run_pr106_sequential_proof_corpus_expansion.py",
+      "scripts/safe_cli.py",
+      "scripts/safe_lsp.py",
+      "scripts/run_rosetta_corpus.py",
+      "scripts/run_pr111_language_evaluation_harness.py",
       "scripts/run_local_pre_push.py",
       "scripts/validate_execution_state.py",
       "scripts/validate_ast_output.py",
@@ -85,7 +90,9 @@
       "scripts/run_pr103_sequential_proof_expansion.py",
       "scripts/run_pr104_gnatprove_evidence_parser_hardening.py",
       "scripts/run_pr105_ada_emitter_maintenance_hardening.py",
-      "scripts/run_pr106_sequential_proof_corpus_expansion.py"
+      "scripts/run_pr106_sequential_proof_corpus_expansion.py",
+      "scripts/run_rosetta_corpus.py",
+      "scripts/run_pr111_language_evaluation_harness.py"
     ],
     "safe_source_readers": [
       {
@@ -175,8 +182,8 @@
       "script": "scripts/run_frontend_smoke.py"
     }
   },
-  "repeat_sha256": "cfc6864858f409c76012bcc81bee685504546ee34933f671b3f790dbbde50064",
-  "report_sha256": "cfc6864858f409c76012bcc81bee685504546ee34933f671b3f790dbbde50064",
+  "repeat_sha256": "4d290127e43be828a424ccbb9101a3fb3781d6bc3e81569d3ca3cdb07a588132",
+  "report_sha256": "4d290127e43be828a424ccbb9101a3fb3781d6bc3e81569d3ca3cdb07a588132",
   "reruns": {
     "gate_quality": {
       "committed_report_path": "execution/reports/pr0697-gate-quality-report.json",

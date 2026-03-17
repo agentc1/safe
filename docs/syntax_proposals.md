@@ -2278,6 +2278,182 @@ package sensor_protocol {
 
 ---
 
+# Task Channel Direction Constraints
+
+## Motivation
+
+Safe's current concurrency model allows any task to `send` or `receive` on any
+visible channel within the same package. The Bronze analysis internally tracks
+which channels each task reads from and writes to, but there is no
+declaration-site constraint that the programmer can use to express intent or
+that the compiler can enforce as a legality rule.
+
+Go solved this at the type level: `chan<- int` is send-only, `<-chan int` is
+receive-only. The direction constraint prevents a goroutine from accidentally
+performing the wrong operation on a channel it was given. The compiler enforces
+it.
+
+Safe's concurrency model is different from Go's — channels are package-level
+declarations accessed by name, not values passed as function arguments. Tasks
+are declared entities, not spawned function calls. The direction constraint
+therefore belongs on the **task declaration** rather than on a parameter type.
+
+## Proposed Change
+
+Task declarations gain optional `sends` and `receives` clauses that name the
+channels the task is permitted to use in each direction. The compiler rejects
+a `send` statement on a channel not listed in `sends`, and a `receive`
+statement on a channel not listed in `receives`.
+
+```
+channel data_ch : sample capacity 4
+channel control_ch : command capacity 2
+
+task producer with priority = 10, sends data_ch, receives control_ch
+   loop
+      var cmd : command
+      select
+         when cmd : command from control_ch
+            if cmd == stop
+               return
+      or delay 0.0
+      send data_ch, compute_sample ()
+
+task consumer with priority = 10, receives data_ch
+   loop
+      var s : sample
+      receive data_ch, s
+      process (s)
+```
+
+If `producer` attempts `receive data_ch`, the compiler rejects it. If
+`consumer` attempts `send data_ch`, the compiler rejects it.
+
+## Syntax
+
+The `sends` and `receives` clauses appear after the `priority` attribute in
+the task declaration, separated by commas. Multiple channels are listed with
+commas:
+
+```
+task relay with priority = 10, receives input_ch, sends output_ch, sends log_ch
+```
+
+## Omission Semantics
+
+If neither `sends` nor `receives` is specified, the task has unrestricted
+channel access within its package — the current behavior. This preserves
+backward compatibility. Adding direction constraints is opt-in but
+compiler-enforced when present.
+
+If only `sends` is specified, the task may send to the listed channels but
+may also receive from any visible channel (and vice versa). To fully constrain
+a task, specify both:
+
+```
+task worker with priority = 10, sends output_ch, receives input_ch
+```
+
+A task that should neither send nor receive on any channel (pure computation)
+can be expressed by omitting both clauses — the absence of channel operations
+in the body is already enforced by the analyzer.
+
+## Relationship to Bronze Analysis
+
+The Bronze summary already computes per-task channel-access sets. The direction
+constraints make this internal analysis fact **user-visible and
+user-constrainable**. When direction clauses are present, the analyzer checks
+them against the actual channel operations in the task body and reports a
+diagnostic if they disagree.
+
+This is analogous to how SPARK's `Global` and `Depends` aspects make the
+data-flow analysis user-visible: the programmer declares intent, the prover
+verifies it.
+
+## Emitter Mapping
+
+The direction constraint is a source-level legality rule. It does not affect
+emitted Ada — the emitted task body uses the same channel-operation lowering
+regardless of whether direction constraints are present. The constraint is
+checked during `safec check` and does not propagate to GNATprove.
+
+## Examples
+
+### Pipeline with direction constraints
+
+```
+package pipeline
+
+   type sample is range 0 .. 10_000
+
+   channel raw_ch      : sample capacity 4
+   channel filtered_ch : sample capacity 4
+
+   task producer with priority = 10, sends raw_ch
+      var counter : sample = 0
+      loop
+         send raw_ch, counter
+         if counter < 10_000
+            counter = counter + 1
+         else
+            counter = 0
+
+   task filter with priority = 10, receives raw_ch, sends filtered_ch
+      loop
+         var s : sample
+         receive raw_ch, s
+         if s > 0
+            send filtered_ch, s
+
+   task consumer with priority = 10, receives filtered_ch
+      loop
+         var s : sample
+         receive filtered_ch, s
+```
+
+Each task's channel contract is visible in its declaration. A reviewer can
+verify the pipeline topology without reading the task bodies.
+
+### Select with direction constraints
+
+```
+task listener with priority = 10, receives msg_ch, receives control_ch, sends ack_ch
+   loop
+      select
+         when m : message from msg_ch
+            process (m)
+            send ack_ch, ((status = ok) as ack)
+         when c : command from control_ch
+            if c == shutdown
+               return
+      or delay 1.0
+```
+
+The `select` arms reference `msg_ch` and `control_ch` (both in `receives`)
+and the body sends to `ack_ch` (in `sends`). If someone adds a `send msg_ch`
+inside the body, the compiler rejects it.
+
+## What This Replaces
+
+No existing syntax is replaced. This is an additive feature. Existing task
+declarations without `sends`/`receives` remain valid and unrestricted.
+
+## Alternatives Considered
+
+1. **Channel direction on the channel declaration** — `channel data_ch : sample
+   capacity 4 direction send`. This restricts all tasks uniformly, which is too
+   coarse. Different tasks need different access to the same channel.
+
+2. **Direction on function parameters (Go model)** — `function relay (In :
+   receive channel, Out : send channel)`. Safe doesn't pass channels as
+   arguments; they're declared at package level. This model doesn't fit.
+
+3. **Direction inferred from usage** — the analyzer already does this. The
+   proposal makes it declarative rather than inferred, which is more useful for
+   review, documentation, and catching mistakes early.
+
+---
+
 # Capitalisation as Reference Signal
 
 ## Motivation
@@ -2513,6 +2689,232 @@ type definition.
 Capitalisation rules apply identically under both default and strict modes.
 `pragma Strict` controls block delimiters and closing labels, not identifier
 casing. Both modes enforce the same uppercase-means-reference rule.
+
+---
+
+# Capitalisation as Export Signal
+
+## Motivation
+
+The Capitalisation as Reference Signal proposal uses uppercase initials on
+variable/field/parameter names to indicate reference (access-typed) bindings.
+Function and type names are all lowercase under that proposal. This leaves
+export/visibility signaling to a separate mechanism (currently implicit: all
+package-level declarations are public).
+
+Go uses capitalisation for a single purpose: exported vs unexported. Safe can
+use it for **two** purposes without ambiguity because function names and
+variable names occupy disjoint syntactic positions. A name followed by `(` is
+a function call or declaration. A name followed by `:` or appearing as an
+expression argument is a variable. The parser already distinguishes these —
+capitalisation adds a visual signal that the grammar enforces.
+
+## Proposed Rule
+
+Function names follow the same uppercase/lowercase split as variable names,
+but with a different semantic:
+
+| Name | Followed by | Meaning |
+|------|-------------|---------|
+| `Lookup(` | `(` | Exported (public) function |
+| `lookup(` | `(` | Private (package-internal) function |
+| `Table` | `:` or expression position | Reference variable/parameter |
+| `table` | `:` or expression position | Value variable/parameter |
+
+The compiler enforces:
+
+- An uppercase-initial function name is visible to importing packages.
+- A lowercase-initial function name is private to the declaring package.
+- No `public`/`private` keyword or section is needed.
+- The rule is orthogonal to the reference-signal rule: they apply to different
+  syntactic categories and never conflict.
+
+## Combined Rule Set
+
+```
+Uppercase name followed by (   =  exported function
+Lowercase name followed by (   =  private function
+Uppercase name followed by :   =  reference (access-typed) binding
+Lowercase name followed by :   =  value binding
+Uppercase name as expression   =  reference being used
+Lowercase name as expression   =  value being used
+Type names                     =  always lowercase
+Package names                  =  always lowercase
+```
+
+## Examples
+
+### Package with mixed visibility
+
+```
+package key_value_store
+
+   type entry is record
+      key   : string_buffer (64)
+      value : string_buffer (256)
+
+   -- Exported: other packages can call Get and Put
+   function Get (Table : constant store.Map, k : key) returns lookup_result
+      ...
+   end Get
+
+   function Put (Table : store.Map, k : key, v : value, success : out boolean)
+      ...
+   end Put
+
+   -- Private: only used within this package
+   function validate_key (k : key) returns boolean
+      ...
+   end validate_key
+
+   function compact_storage (Table : store.Map)
+      ...
+   end compact_storage
+```
+
+At every call site, the reader sees:
+
+```
+key_value_store.Get (DB, my_key)           -- uppercase: public API
+key_value_store.Put (DB, my_key, my_val, ok)  -- uppercase: public API
+validate_key (k)                           -- lowercase: internal, only callable here
+```
+
+### Interaction with reference signal
+
+The two uses of capitalisation never conflict:
+
+```
+function Process (Table : store.Map, req : request) returns response
+--       ^^^^^^^  ^^^^^              ^^^
+--       exported  reference          value
+--       (function) (parameter)       (parameter)
+```
+
+`Process` is uppercase because it's exported. `Table` is uppercase because
+it's a reference. `req` is lowercase because it's a value. Each uppercase
+initial has exactly one meaning determined by its syntactic position.
+
+## What This Replaces
+
+The `public` / `private` keywords or sections that would otherwise be needed
+for visibility control. The export decision is visible at every mention of the
+function name throughout the codebase, not hidden at the declaration site.
+
+## Interaction with `pragma Strict`
+
+Export rules apply identically under both default and strict modes. `pragma
+Strict` controls block delimiters and closing labels, not identifier casing or
+visibility signaling.
+
+---
+
+# Unified Function Type
+
+## Motivation
+
+Safe currently has both `function` (returns a value) and `procedure` (performs
+an action, no return). This distinction is inherited from Ada. In practice,
+the two are identical except that a function has a return type and a procedure
+does not. The same keyword, parameter syntax, body structure, calling
+convention, and ownership rules apply to both.
+
+Every modern language has converged on a single function concept: Go's `func`,
+Rust's `fn`, Python's `def`, JavaScript's `function`. The split adds a keyword
+to learn, a decision to make ("should this be a function or procedure?"), and
+an asymmetry where converting a procedure to return a status value requires
+changing the keyword.
+
+## Proposed Change
+
+The `procedure` keyword is removed. All callable declarations use `function`.
+A function with no `returns` clause is what was previously called a procedure.
+
+```
+-- Returns a value
+function lookup (Table : constant store.Map, k : key) returns lookup_result
+   ...
+
+-- Returns nothing (was "procedure")
+function insert (Table : store.Map, k : key, v : value, success : out boolean)
+   ...
+```
+
+The absence of `returns` is the signal that the function produces no value.
+This is strictly less syntax to learn: one keyword instead of two, one rule
+instead of two.
+
+## Emitter Mapping
+
+The emitter produces Ada `function` or `procedure` based on whether a
+`returns` clause is present. The Safe source uses `function` uniformly; the
+emitted Ada uses the appropriate keyword. This is a surface-level mapping with
+no semantic complexity.
+
+## Interaction with Ownership
+
+Ownership rules for parameters (`in`, `out`, `in out`, access-typed borrows,
+`move`) are identical for functions and procedures today. Merging the keyword
+changes nothing about parameter passing, borrow semantics, or cleanup
+ordering.
+
+## Interaction with Capitalisation
+
+Under the Capitalisation as Export Signal proposal, function names follow the
+uppercase-exported / lowercase-private convention regardless of whether they
+return a value:
+
+```
+function Process (req : request) returns response   -- exported, returns value
+function insert (Table : store.Map, k : key, ...)   -- private, returns nothing
+```
+
+## Examples
+
+### Before (current syntax)
+
+```
+procedure insert (Table : access Store.Map;
+                  K : Key;
+                  V : Value;
+                  Success : out Boolean) is
+begin
+   ...
+end insert;
+
+function lookup (Table : access constant Store.Map;
+                 K : Key) return Lookup_Result is
+begin
+   ...
+end lookup;
+```
+
+### After (unified)
+
+```
+function insert (Table : store.Map, k : key, v : value, success : out boolean)
+   ...
+end insert
+
+function lookup (Table : constant store.Map, k : key) returns lookup_result
+   ...
+end lookup
+```
+
+## What This Replaces
+
+The `procedure` keyword. No other language construct is affected.
+
+## Alternatives Considered
+
+1. **Keep both keywords.** Status quo. Two keywords for one concept. Every
+   developer must choose between them for every callable declaration.
+
+2. **Use `def` instead of `function`.** Shorter, but loses the self-documenting
+   quality of `function` and departs further from Ada heritage than necessary.
+
+3. **Use `proc` and `func` abbreviations.** Still two keywords. Does not solve
+   the problem.
 
 ---
 

@@ -24,6 +24,7 @@ class Step:
 
 
 FOLLOWUP_SCRIPTS = (
+    "scripts/run_pr09_ada_emission_baseline.py",
     "scripts/run_pr0694_output_contract_stability.py",
     "scripts/run_pr0697_gate_quality.py",
     "scripts/run_pr0699_build_reproducibility.py",
@@ -72,6 +73,10 @@ PRIMARY_GATE_SCRIPTS = {
     ),
     "codex/pr106": (
         "scripts/run_pr106_sequential_proof_corpus_expansion.py",
+        "scripts/run_pr101_comprehensive_audit.py",
+    ),
+    "codex/pr111": (
+        "scripts/run_pr111_language_evaluation_harness.py",
         "scripts/run_pr101_comprehensive_audit.py",
     ),
 }
