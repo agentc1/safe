@@ -37,7 +37,7 @@ SURFACE_FIXTURES = [
     REPO_ROOT / "tests" / "positive" / "emitter_surface_record.safe",
     REPO_ROOT / "tests" / "positive" / "emitter_surface_proc.safe",
 ]
-DISCRIMINANT_FIXTURE = REPO_ROOT / "tests" / "negative" / "neg_pr09_emitter_discriminant.safe"
+DISCRIMINANT_FIXTURE = REPO_ROOT / "tests" / "positive" / "pr09_emitter_discriminant.safe"
 
 
 def seed_file(path: Path, contents: str) -> None:

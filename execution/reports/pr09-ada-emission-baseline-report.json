@@ -6,8 +6,8 @@
     "frontend_baseline": "docs/frontend_architecture_baseline.md",
     "readme": "README.md"
   },
-  "repeat_sha256": "0d26b6f00d4e7c35f8c872c0874d51be72eccc2b79897a0ee4fccbdf960bea64",
-  "report_sha256": "0d26b6f00d4e7c35f8c872c0874d51be72eccc2b79897a0ee4fccbdf960bea64",
+  "repeat_sha256": "e108ccd652b01db9118c5036ed7c90df315c15b740f87cf9a5777221ac1f9d9e",
+  "report_sha256": "e108ccd652b01db9118c5036ed7c90df315c15b740f87cf9a5777221ac1f9d9e",
   "retired_snapshots_absent": [
     "tests/golden/golden_sensors.ada",
     "tests/golden/golden_ownership.ada",
@@ -16,7 +16,7 @@
   "slice_reports": [
     {
       "deterministic": true,
-      "report_sha256": "f78fb5e9ecae3bce1dd3b2c36059e37efaf8c3da96c7d44e92e20bf6fa925fe6",
+      "report_sha256": "a1d55413737550edc4d9f5b2e6842fd0cde072d015cadae2e941543142dcce9b",
       "script": "scripts/run_pr09a_emitter_surface.py",
       "stdout": "pr09a emitter surface: OK ($TMPDIR/run_pr09a_emitter_surface.json)\n"
     },

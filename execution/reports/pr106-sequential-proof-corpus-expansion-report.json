@@ -10974,7 +10974,7 @@
         "body_regexes": [],
         "coverage_note": "Subrange iteration remains explicit through guarded bounds and direct in-range element access across the selected slice.",
         "source_fragments": [
-          "function Sum_Subrange",
+          "function Last_In_Subrange",
           "type Buffer"
         ],
         "spec_fragments": [],
@@ -16433,8 +16433,8 @@
       }
     }
   ],
-  "repeat_sha256": "cc05d05f6c201fc719e18f0227f5d4a87cf411c336bd127fe1d4f08cad786f06",
-  "report_sha256": "cc05d05f6c201fc719e18f0227f5d4a87cf411c336bd127fe1d4f08cad786f06",
+  "repeat_sha256": "68ddc1bf86854400d3c1956a88ee0efd541f83188671ecc61ff3ff340461503b",
+  "report_sha256": "68ddc1bf86854400d3c1956a88ee0efd541f83188671ecc61ff3ff340461503b",
   "status": "ok",
   "task": "PR10.6"
 }

@@ -8,8 +8,8 @@
 
 ## Repo Facts
 
-- `tests/positive`: 48
-- `tests/negative`: 78
+- `tests/positive`: 49
+- `tests/negative`: 77
 - `tests/golden`: 3
 - `tests/concurrency`: 14
 - `tests/diagnostics_golden`: 22

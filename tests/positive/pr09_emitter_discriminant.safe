@@ -1,16 +1,15 @@
--- Test: neg_pr09_emitter_discriminant
+-- Test: pr09_emitter_discriminant
 -- Description: Historical PR09a discriminant-surface regression fixture.
---   The path remains under tests/negative for continuity, but the current
---   boolean-discriminant subset is now emitted and compile-validated.
+--   The path now lives under tests/positive so future fixture-metadata
+--   tooling does not misclassify it as a rejecting negative case.
+--   The current boolean-discriminant subset is emitted and compile-validated.
 -- Expected: ACCEPT
 
 package PR09_Emitter_Discriminant is
-
    type Result (OK : Boolean = False) is record
       case OK is
          when True  then Value : Integer;
-         when False then Error : Integer;
+         when False then Error_Code : Integer;
       end case;
    end record;
-
 end PR09_Emitter_Discriminant;

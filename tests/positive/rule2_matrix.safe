@@ -22,7 +22,7 @@ package Safe_Matrix is
    begin
       for I in Row_Index loop
          --  I is Row_Index (1..4), also valid as Col_Index (1..4).
-         Sum = Sum + M (I, Col_Index (I));
+         Sum = Sum + Trace_Total (M (I, Col_Index (I)));
       end loop;
       return Sum;
    end Trace;

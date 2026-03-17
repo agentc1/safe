@@ -290,7 +290,7 @@ PR106_SEQUENTIAL_PROOF_CORPUS: list[dict[str, Any]] = [
         "family": "rule2",
         "coverage_note": "Subrange iteration remains explicit through guarded bounds and direct in-range element access across the selected slice.",
         "source_fragments": [
-            "function Sum_Subrange",
+            "function Last_In_Subrange",
             "type Buffer",
         ],
         "body_fragments": [

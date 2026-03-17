@@ -25,25 +25,25 @@
           "sha256": "64ae43169d0043bf70d0753c3e9814058dbda07f5abd2e56067e8047e152d042"
         },
         "pr09_emitter_discriminant.ads": {
-          "sha256": "3bad95b9af4938ff82e4841bc69799114f83c68288b854a262d210388f2d2476"
+          "sha256": "9668609f8cd686b70f607545b4fdf407e8d20f22c9f8f1de964ad79abff0a648"
         }
       },
       "json_and_interface": {
-        "neg_pr09_emitter_discriminant.ast.json": {
-          "sha256": "831edf9d3291354e2a3dfdb86c762d96d17e2b4f008e497001c21fd0faef915b"
+        "pr09_emitter_discriminant.ast.json": {
+          "sha256": "8b5fe61b4f85c7c8d6686ec7ee7039e5a2c2529a0b3594ab8e2dd18f1900980d"
         },
-        "neg_pr09_emitter_discriminant.mir.json": {
-          "sha256": "df83e654e55e3b44470da43f51ad22953e325245dea7e92d8fb94dc020fa99cd"
+        "pr09_emitter_discriminant.mir.json": {
+          "sha256": "376c122e16c88f027c28eaffe1ed2ba1a3e91a0240b0adc8c1f23f671c6eb9b7"
         },
-        "neg_pr09_emitter_discriminant.safei.json": {
+        "pr09_emitter_discriminant.safei.json": {
           "sha256": "56bd62139f4f8a0659295c7b33656a2334b7eb9a643408253cfbb57d4d351268"
         },
-        "neg_pr09_emitter_discriminant.typed.json": {
-          "sha256": "adef0b924d62d6705021be3ed8756db17d6466a794478a7b8308c58aa62862e9"
+        "pr09_emitter_discriminant.typed.json": {
+          "sha256": "7c4000acea3befe925e262b21a52610017e862c750e7ed8bb10d87c019e4e47f"
         }
       }
     },
-    "fixture": "tests/negative/neg_pr09_emitter_discriminant.safe",
+    "fixture": "tests/positive/pr09_emitter_discriminant.safe",
     "structural_assertions": {
       "pr09_emitter_discriminant.adb": [
         "package body PR09_Emitter_Discriminant with SPARK_Mode => On is"
@@ -171,8 +171,8 @@
       }
     }
   ],
-  "repeat_sha256": "f78fb5e9ecae3bce1dd3b2c36059e37efaf8c3da96c7d44e92e20bf6fa925fe6",
-  "report_sha256": "f78fb5e9ecae3bce1dd3b2c36059e37efaf8c3da96c7d44e92e20bf6fa925fe6",
+  "repeat_sha256": "a1d55413737550edc4d9f5b2e6842fd0cde072d015cadae2e941543142dcce9b",
+  "report_sha256": "a1d55413737550edc4d9f5b2e6842fd0cde072d015cadae2e941543142dcce9b",
   "shared_support_files_preserved": {
     "after": {
       "emitter_surface_record.adb": "a3fb9d8288299088f74ca336111548be69391a079576ee3fe10f393eb45b7f1b",

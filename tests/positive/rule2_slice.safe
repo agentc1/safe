@@ -12,12 +12,12 @@ package Safe_Slice is
    type Element is range 0 .. 255;
    type Buffer is array (Index) of Element;
 
-   --  Sum_Subrange: walks the selected subrange and retains the last seen element.
+   --  Last_In_Subrange: walks the selected subrange and retains the last seen element.
    --  Both First and Last are of type Index (1..100), so
    --  every array access within the loop is provably in bounds.
-   function Sum_Subrange (Buf : Buffer;
-                          First : Index;
-                          Last  : Index) return Element is
+   function Last_In_Subrange (Buf : Buffer;
+                              First : Index;
+                              Last  : Index) return Element is
       Current : Element = 0;
    begin
       if First <= Last then
@@ -28,6 +28,6 @@ package Safe_Slice is
          end loop;
       end if;
       return Current;
-   end Sum_Subrange;
+   end Last_In_Subrange;
 
 end Safe_Slice;
