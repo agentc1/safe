@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import sys
 import tempfile
 import unittest
@@ -13,6 +15,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 from validate_execution_state import (
     GLUE_SAFETY_AUDITED_SCRIPTS,
     GLUE_SAFETY_REPORT_SCRIPTS,
+    check_report_sync,
     check_dependencies,
     check_documentation_architecture_clarity,
     check_environment_assumptions,
@@ -28,11 +31,27 @@ from validate_execution_state import (
     glue_script_safety_report,
     legacy_frontend_cleanup_report,
     performance_scale_sanity_report,
+    report_sync_report,
     runtime_boundary_report,
 )
 
 
 class ValidateExecutionStateTests(unittest.TestCase):
+    @staticmethod
+    def _serialize_report(payload: dict[str, object]) -> str:
+        return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+    @classmethod
+    def _write_finalized_report(cls, path: Path, payload: dict[str, object]) -> str:
+        report_sha = hashlib.sha256(cls._serialize_report(payload).encode("utf-8")).hexdigest()
+        finalized = dict(payload)
+        finalized["deterministic"] = True
+        finalized["report_sha256"] = report_sha
+        finalized["repeat_sha256"] = report_sha
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(cls._serialize_report(finalized), encoding="utf-8")
+        return report_sha
+
     def test_pr111_glue_scripts_are_registered_for_safety_audit(self) -> None:
         self.assertIn("safe", GLUE_SAFETY_AUDITED_SCRIPTS)
         self.assertIn("scripts/safe_cli.py", GLUE_SAFETY_AUDITED_SCRIPTS)
@@ -41,6 +60,65 @@ class ValidateExecutionStateTests(unittest.TestCase):
         self.assertIn("scripts/run_pr111_language_evaluation_harness.py", GLUE_SAFETY_AUDITED_SCRIPTS)
         self.assertIn("scripts/run_rosetta_corpus.py", GLUE_SAFETY_REPORT_SCRIPTS)
         self.assertIn("scripts/run_pr111_language_evaluation_harness.py", GLUE_SAFETY_REPORT_SCRIPTS)
+
+    def test_report_sync_report_accepts_matching_child_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            child_path = repo_root / "execution" / "reports" / "child.json"
+            child_sha = self._write_finalized_report(child_path, {"status": "ok"})
+            umbrella_path = repo_root / "execution" / "reports" / "umbrella.json"
+            self._write_finalized_report(
+                umbrella_path,
+                {
+                    "slice_reports": [
+                        {
+                            "script": "scripts/run_child.py",
+                            "report_sha256": child_sha,
+                        }
+                    ]
+                },
+            )
+            report_specs = {
+                "execution/reports/umbrella.json": {
+                    "entry_list_key": "slice_reports",
+                    "entry_id_key": "script",
+                    "entry_sha_key": "report_sha256",
+                    "children": {"scripts/run_child.py": "execution/reports/child.json"},
+                }
+            }
+            report = report_sync_report(repo_root=repo_root, report_specs=report_specs)
+            self.assertEqual(report["child_report_sha_mismatches"], [])
+            check_report_sync(repo_root=repo_root, report_specs=report_specs)
+
+    def test_check_report_sync_rejects_stale_child_report_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            child_path = repo_root / "execution" / "reports" / "child.json"
+            self._write_finalized_report(child_path, {"status": "ok"})
+            umbrella_path = repo_root / "execution" / "reports" / "umbrella.json"
+            self._write_finalized_report(
+                umbrella_path,
+                {
+                    "slice_reports": [
+                        {
+                            "script": "scripts/run_child.py",
+                            "report_sha256": "0" * 64,
+                        }
+                    ]
+                },
+            )
+            report_specs = {
+                "execution/reports/umbrella.json": {
+                    "entry_list_key": "slice_reports",
+                    "entry_id_key": "script",
+                    "entry_sha_key": "report_sha256",
+                    "children": {"scripts/run_child.py": "execution/reports/child.json"},
+                }
+            }
+            report = report_sync_report(repo_root=repo_root, report_specs=report_specs)
+            self.assertEqual(len(report["child_report_sha_mismatches"]), 1)
+            with self.assertRaises(ValueError):
+                check_report_sync(repo_root=repo_root, report_specs=report_specs)
 
     def test_check_dependencies_rejects_cycles(self) -> None:
         tasks = [
