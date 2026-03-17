@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Set
 
-from _lib.harness_common import serialize_report
+from _lib.harness_common import serialize_report, sha256_text
 from _lib.platform_assumptions import (
     DOCUMENTED_PYTHON_FORMS,
     MACOS_SDK_DISCOVERY_FORMS,
@@ -132,6 +132,31 @@ EVIDENCE_FORBIDDEN_MARKERS = [
     "/Users/",
     "/home/runner/",
 ]
+FINALIZED_REPORT_METADATA_KEYS = frozenset({"deterministic", "report_sha256", "repeat_sha256"})
+REPORT_SYNC_SPECS = {
+    "execution/reports/pr09-ada-emission-baseline-report.json": {
+        "entry_list_key": "slice_reports",
+        "entry_id_key": "script",
+        "entry_sha_key": "report_sha256",
+        "children": {
+            "scripts/run_pr09a_emitter_surface.py": "execution/reports/pr09a-emitter-surface-report.json",
+            "scripts/run_pr09a_emitter_mvp.py": "execution/reports/pr09a-emitter-mvp-report.json",
+            "scripts/run_pr09b_sequential_semantics.py": "execution/reports/pr09b-sequential-semantics-report.json",
+            "scripts/run_pr09b_concurrency_output.py": "execution/reports/pr09b-concurrency-output-report.json",
+            "scripts/run_pr09b_snapshot_refresh.py": "execution/reports/pr09b-snapshot-refresh-report.json",
+        },
+    },
+    "execution/reports/pr10-emitted-baseline-report.json": {
+        "entry_list_key": "slice_reports",
+        "entry_id_key": "script",
+        "entry_sha_key": "report_sha256",
+        "children": {
+            "scripts/run_pr10_contract_baseline.py": "execution/reports/pr10-contract-baseline-report.json",
+            "scripts/run_pr10_emitted_flow.py": "execution/reports/pr10-emitted-flow-report.json",
+            "scripts/run_pr10_emitted_prove.py": "execution/reports/pr10-emitted-prove-report.json",
+        },
+    },
+}
 PERFORMANCE_DOC_REQUIREMENTS = {
     "docs/frontend_scale_limits.md": [
         "the exact current Rule 5 fixture corpus, sequential ownership, and the current boolean result-record discriminant pattern",
@@ -600,6 +625,139 @@ def check_dashboard_freshness(tracker: Dict[str, Any]) -> None:
     existing = DASHBOARD_PATH.read_text(encoding="utf-8")
     if rendered != existing:
         fail("execution/dashboard.md is stale; run scripts/render_execution_status.py --write")
+
+
+def finalized_report_sha(payload: Dict[str, Any]) -> str:
+    base_payload = {key: value for key, value in payload.items() if key not in FINALIZED_REPORT_METADATA_KEYS}
+    return sha256_text(serialize_report(base_payload))
+
+
+def report_sync_report(
+    *,
+    repo_root: Path = REPO_ROOT,
+    report_specs: Dict[str, Dict[str, Any]] = REPORT_SYNC_SPECS,
+) -> Dict[str, Any]:
+    umbrella_reports = sorted(report_specs)
+    child_reports_checked: Set[str] = set()
+    missing_files: List[str] = []
+    invalid_reports: List[str] = []
+    metadata_hash_violations: List[str] = []
+    missing_entries: List[str] = []
+    unexpected_entries: List[str] = []
+    child_report_sha_mismatches: List[str] = []
+
+    for umbrella_rel in umbrella_reports:
+        spec = report_specs[umbrella_rel]
+        umbrella_path = repo_root / umbrella_rel
+        if not umbrella_path.exists():
+            missing_files.append(umbrella_rel)
+            continue
+        try:
+            umbrella_payload = json.loads(umbrella_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            invalid_reports.append(f"{umbrella_rel}: invalid JSON ({exc.msg})")
+            continue
+        if not isinstance(umbrella_payload, dict):
+            invalid_reports.append(f"{umbrella_rel}: report root must be an object")
+            continue
+
+        umbrella_expected_sha = finalized_report_sha(umbrella_payload)
+        if (
+            umbrella_payload.get("deterministic") is not True
+            or umbrella_payload.get("report_sha256") != umbrella_expected_sha
+            or umbrella_payload.get("repeat_sha256") != umbrella_expected_sha
+        ):
+            metadata_hash_violations.append(
+                f"{umbrella_rel}: expected report_sha256/repeat_sha256 {umbrella_expected_sha}"
+            )
+
+        entries = umbrella_payload.get(spec["entry_list_key"])
+        if not isinstance(entries, list):
+            invalid_reports.append(f"{umbrella_rel}: missing list {spec['entry_list_key']}")
+            continue
+
+        actual_entries: Dict[str, str] = {}
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                invalid_reports.append(f"{umbrella_rel}: {spec['entry_list_key']}[{index}] must be an object")
+                continue
+            entry_id = entry.get(spec["entry_id_key"])
+            entry_sha = entry.get(spec["entry_sha_key"])
+            if not isinstance(entry_id, str) or not isinstance(entry_sha, str):
+                invalid_reports.append(
+                    f"{umbrella_rel}: {spec['entry_list_key']}[{index}] missing {spec['entry_id_key']} or {spec['entry_sha_key']}"
+                )
+                continue
+            actual_entries[entry_id] = entry_sha
+
+        expected_children: Dict[str, str] = spec["children"]
+        for entry_id in sorted(expected_children):
+            if entry_id not in actual_entries:
+                missing_entries.append(f"{umbrella_rel}:{entry_id}")
+                continue
+            child_rel = expected_children[entry_id]
+            child_reports_checked.add(child_rel)
+            child_path = repo_root / child_rel
+            if not child_path.exists():
+                missing_files.append(child_rel)
+                continue
+            try:
+                child_payload = json.loads(child_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                invalid_reports.append(f"{child_rel}: invalid JSON ({exc.msg})")
+                continue
+            if not isinstance(child_payload, dict):
+                invalid_reports.append(f"{child_rel}: report root must be an object")
+                continue
+
+            child_expected_sha = finalized_report_sha(child_payload)
+            if (
+                child_payload.get("deterministic") is not True
+                or child_payload.get("report_sha256") != child_expected_sha
+                or child_payload.get("repeat_sha256") != child_expected_sha
+            ):
+                metadata_hash_violations.append(
+                    f"{child_rel}: expected report_sha256/repeat_sha256 {child_expected_sha}"
+                )
+            if actual_entries[entry_id] != child_expected_sha:
+                child_report_sha_mismatches.append(
+                    f"{umbrella_rel}:{entry_id}->{child_rel} expected {actual_entries[entry_id]} actual {child_expected_sha}"
+                )
+
+        for entry_id in sorted(actual_entries):
+            if entry_id not in expected_children:
+                unexpected_entries.append(f"{umbrella_rel}:{entry_id}")
+
+    return {
+        "umbrella_reports": umbrella_reports,
+        "child_reports_checked": sorted(child_reports_checked),
+        "missing_files": missing_files,
+        "invalid_reports": invalid_reports,
+        "metadata_hash_violations": metadata_hash_violations,
+        "missing_entries": missing_entries,
+        "unexpected_entries": unexpected_entries,
+        "child_report_sha_mismatches": child_report_sha_mismatches,
+    }
+
+
+def check_report_sync(
+    *,
+    repo_root: Path = REPO_ROOT,
+    report_specs: Dict[str, Dict[str, Any]] = REPORT_SYNC_SPECS,
+) -> None:
+    report = report_sync_report(repo_root=repo_root, report_specs=report_specs)
+    if report["missing_files"]:
+        fail(f"missing synchronized reports: {report['missing_files']}")
+    if report["invalid_reports"]:
+        fail(f"invalid synchronized reports: {report['invalid_reports']}")
+    if report["metadata_hash_violations"]:
+        fail(f"synchronized report hash metadata drifted: {report['metadata_hash_violations']}")
+    if report["missing_entries"]:
+        fail(f"umbrella reports are missing expected child entries: {report['missing_entries']}")
+    if report["unexpected_entries"]:
+        fail(f"umbrella reports contain unexpected child entries: {report['unexpected_entries']}")
+    if report["child_report_sha_mismatches"]:
+        fail(f"umbrella reports reference stale child report hashes: {report['child_report_sha_mismatches']}")
 
 
 def find_nested_key_paths(value: Any, key: str, prefix: str = "") -> List[str]:
@@ -1398,6 +1556,7 @@ def main() -> int:
     check_test_distribution(tracker)
     check_dashboard_freshness(tracker)
     check_evidence_reproducibility(tracker)
+    check_report_sync()
     check_runtime_boundary()
     check_environment_assumptions()
     check_legacy_frontend_cleanup()
