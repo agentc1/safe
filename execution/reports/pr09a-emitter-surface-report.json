@@ -1,83 +1,62 @@
 {
-  "deterministic": true,
-  "negative_fixture": {
-    "atomic_outputs": {
-      "ada": [],
-      "iface": [],
-      "out": []
-    },
-    "fixture": "tests/negative/neg_pr09_emitter_discriminant.safe",
-    "result": {
+  "boolean_discriminant_fixture": {
+    "ada_files": [
+      "build.gpr",
+      "pr09_emitter_discriminant.adb",
+      "pr09_emitter_discriminant.ads"
+    ],
+    "compile": {
       "command": [
-        "compiler_impl/bin/safec",
-        "emit",
-        "tests/negative/neg_pr09_emitter_discriminant.safe",
-        "--out-dir",
-        "$TMPDIR/negative/out",
-        "--interface-dir",
-        "$TMPDIR/negative/iface",
-        "--ada-out-dir",
-        "$TMPDIR/negative/ada"
+        "alr",
+        "exec",
+        "--",
+        "gprbuild",
+        "-c",
+        "-P",
+        "$TMPDIR/discriminant/a/ada/build.gpr",
+        "pr09_emitter_discriminant.adb"
       ],
-      "cwd": "$REPO_ROOT",
-      "returncode": 1,
-      "stderr": "neg_pr09_emitter_discriminant.safe:1:1: error: PR09 emitter does not yet support discriminated or variant record emission\n  |\n  | 1 | -- Test: neg_pr09_emitter_discriminant\n  |   | ^\n  |\n",
-      "stdout": ""
+      "cwd": "$REPO_ROOT/compiler_impl",
+      "returncode": 0
     },
-    "stderr_first_line": "neg_pr09_emitter_discriminant.safe:1:1: error: PR09 emitter does not yet support discriminated or variant record emission"
-  },
-  "negative_fixture_seeded_outputs_preserved": {
-    "after": {
+    "determinism": {
       "ada": {
-        "gnat.adc": "118c2a7c221218305dcebf64872ca17035609286cb225a41fe528d2d89409f4c",
-        "pr09_emitter_discriminant.adb": "14eb4154b73988139044aff58a3963a33e9271a70696583f2792ecfc5e77ef4a",
-        "pr09_emitter_discriminant.ads": "7276779c5d472360294d448b7e7492501970fdbe34db2116dc28bb463c25fe11",
-        "safe_runtime.ads": "758ab91b32e877d42186fce700fafd56a7f8190e42b8a2fb630af1885ce9fea5"
+        "pr09_emitter_discriminant.adb": {
+          "sha256": "64ae43169d0043bf70d0753c3e9814058dbda07f5abd2e56067e8047e152d042"
+        },
+        "pr09_emitter_discriminant.ads": {
+          "sha256": "9668609f8cd686b70f607545b4fdf407e8d20f22c9f8f1de964ad79abff0a648"
+        }
       },
-      "iface": {
-        "neg_pr09_emitter_discriminant.safei.json": "0549f6f936253726066c21831e4955af1b94b9d6108ab0229c0a538f75853ed9"
-      },
-      "out": {
-        "neg_pr09_emitter_discriminant.ast.json": "5e181289aa7cbe668b6e4ee30da185081f47e59f9428613f872f5fcbcbc6dca0",
-        "neg_pr09_emitter_discriminant.mir.json": "234329f028fe8d2f4f7f429b287d3aae13f1dbfae4d9db55c7262008452ec304",
-        "neg_pr09_emitter_discriminant.typed.json": "33f948f08f7441d739510d51495162eb7a69c9687d49d87c6ee9abff92f527e7"
+      "json_and_interface": {
+        "pr09_emitter_discriminant.ast.json": {
+          "sha256": "8b5fe61b4f85c7c8d6686ec7ee7039e5a2c2529a0b3594ab8e2dd18f1900980d"
+        },
+        "pr09_emitter_discriminant.mir.json": {
+          "sha256": "376c122e16c88f027c28eaffe1ed2ba1a3e91a0240b0adc8c1f23f671c6eb9b7"
+        },
+        "pr09_emitter_discriminant.safei.json": {
+          "sha256": "56bd62139f4f8a0659295c7b33656a2334b7eb9a643408253cfbb57d4d351268"
+        },
+        "pr09_emitter_discriminant.typed.json": {
+          "sha256": "7c4000acea3befe925e262b21a52610017e862c750e7ed8bb10d87c019e4e47f"
+        }
       }
     },
-    "before": {
-      "ada": {
-        "gnat.adc": "118c2a7c221218305dcebf64872ca17035609286cb225a41fe528d2d89409f4c",
-        "pr09_emitter_discriminant.adb": "14eb4154b73988139044aff58a3963a33e9271a70696583f2792ecfc5e77ef4a",
-        "pr09_emitter_discriminant.ads": "7276779c5d472360294d448b7e7492501970fdbe34db2116dc28bb463c25fe11",
-        "safe_runtime.ads": "758ab91b32e877d42186fce700fafd56a7f8190e42b8a2fb630af1885ce9fea5"
-      },
-      "iface": {
-        "neg_pr09_emitter_discriminant.safei.json": "0549f6f936253726066c21831e4955af1b94b9d6108ab0229c0a538f75853ed9"
-      },
-      "out": {
-        "neg_pr09_emitter_discriminant.ast.json": "5e181289aa7cbe668b6e4ee30da185081f47e59f9428613f872f5fcbcbc6dca0",
-        "neg_pr09_emitter_discriminant.mir.json": "234329f028fe8d2f4f7f429b287d3aae13f1dbfae4d9db55c7262008452ec304",
-        "neg_pr09_emitter_discriminant.typed.json": "33f948f08f7441d739510d51495162eb7a69c9687d49d87c6ee9abff92f527e7"
-      }
-    },
-    "fixture": "tests/negative/neg_pr09_emitter_discriminant.safe",
-    "result": {
-      "command": [
-        "compiler_impl/bin/safec",
-        "emit",
-        "tests/negative/neg_pr09_emitter_discriminant.safe",
-        "--out-dir",
-        "$TMPDIR/negative-seeded/out",
-        "--interface-dir",
-        "$TMPDIR/negative-seeded/iface",
-        "--ada-out-dir",
-        "$TMPDIR/negative-seeded/ada"
+    "fixture": "tests/positive/pr09_emitter_discriminant.safe",
+    "structural_assertions": {
+      "pr09_emitter_discriminant.adb": [
+        "package body PR09_Emitter_Discriminant with SPARK_Mode => On is"
       ],
-      "cwd": "$REPO_ROOT",
-      "returncode": 1,
-      "stderr": "neg_pr09_emitter_discriminant.safe:1:1: error: PR09 emitter does not yet support discriminated or variant record emission\n  |\n  | 1 | -- Test: neg_pr09_emitter_discriminant\n  |   | ^\n  |\n",
-      "stdout": ""
+      "pr09_emitter_discriminant.ads": [
+        "type Result (OK : Boolean := False) is record",
+        "case OK is",
+        "when True =>",
+        "when False =>"
+      ]
     }
   },
+  "deterministic": true,
   "positive_fixtures": [
     {
       "ada_files": [
@@ -105,7 +84,7 @@
             "sha256": "a3fb9d8288299088f74ca336111548be69391a079576ee3fe10f393eb45b7f1b"
           },
           "emitter_surface_record.ads": {
-            "sha256": "f2fde886a83f1132c8a56669221e79131c5bb5a1ebce2c61813b217948b276c8"
+            "sha256": "f3aa7246afec0627bdbd66d3c3166a4e6fe2febc36798b2b1d71afee17ce5989"
           }
         },
         "json_and_interface": {
@@ -161,7 +140,7 @@
             "sha256": "c77c552a5b7bd9b7954d5fb9bff883e4173fbf43be6fc01396dd556a785b8e81"
           },
           "emitter_surface_proc.ads": {
-            "sha256": "1d78193ed3112e01e85490fb5fbf82edc7e267093d10403d823eb154f71024ba"
+            "sha256": "95581699c8ca9b6777d9912869dea158aba9d1662cbe5a455d400efdee8c1171"
           }
         },
         "json_and_interface": {
@@ -192,12 +171,12 @@
       }
     }
   ],
-  "repeat_sha256": "cd850c0f8df7316ab20380dd94ff2e58e8a550a171b1bfc5cf0dd994e5ab3028",
-  "report_sha256": "cd850c0f8df7316ab20380dd94ff2e58e8a550a171b1bfc5cf0dd994e5ab3028",
+  "repeat_sha256": "a1d55413737550edc4d9f5b2e6842fd0cde072d015cadae2e941543142dcce9b",
+  "report_sha256": "a1d55413737550edc4d9f5b2e6842fd0cde072d015cadae2e941543142dcce9b",
   "shared_support_files_preserved": {
     "after": {
       "emitter_surface_record.adb": "a3fb9d8288299088f74ca336111548be69391a079576ee3fe10f393eb45b7f1b",
-      "emitter_surface_record.ads": "f2fde886a83f1132c8a56669221e79131c5bb5a1ebce2c61813b217948b276c8",
+      "emitter_surface_record.ads": "f3aa7246afec0627bdbd66d3c3166a4e6fe2febc36798b2b1d71afee17ce5989",
       "gnat.adc": "118c2a7c221218305dcebf64872ca17035609286cb225a41fe528d2d89409f4c",
       "safe_runtime.ads": "758ab91b32e877d42186fce700fafd56a7f8190e42b8a2fb630af1885ce9fea5"
     },
