@@ -120,7 +120,8 @@ POSITIVE_CASES = (
         ),
         "safei_snippets": ("__tuple_result_Integer",),
         "ada_snippets": (
-            "type result (Message_Length : Natural := 0) is record",
+            "subtype Safe_Builtin_Result_Message_Length is Natural range 0 .. 65536;",
+            "type result (Message_Length : Safe_Builtin_Result_Message_Length := 0) is record",
             "type Safe_tuple_result_Integer is record",
             "Message_Length => String'(\"negative\")'Length",
             "F1 => (Message_Length => 0, Ok => True, Message => \"\")",

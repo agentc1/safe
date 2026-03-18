@@ -20,6 +20,12 @@ package body Safe_Frontend.Ada_Emit is
    use type GM.Scalar_Value_Kind;
 
    Indent_Width : constant Positive := 3;
+   Builtin_Result_Message_Length_Type_Name : constant String :=
+     "Safe_Builtin_Result_Message_Length";
+   --  Keep builtin result values proof-friendly without making unconstrained
+   --  tuple/result aggregates reserve pathological stack space in Ada.
+   Builtin_Result_Max_Message_Length : constant Long_Long_Integer :=
+     65_536;
 
    Emitter_Unsupported : exception;
    Emitter_Internal    : exception;
@@ -1623,9 +1629,17 @@ package body Safe_Frontend.Ada_Emit is
          return SU.To_String (Result);
       elsif Is_Result_Builtin (Type_Item) then
          return
-           "type "
+           "subtype "
+           & Builtin_Result_Message_Length_Type_Name
+           & " is Natural range 0 .. "
+           & Trim_Image (Builtin_Result_Max_Message_Length)
+           & ";"
+           & ASCII.LF
+           & "type "
            & Ada_Safe_Name (Name)
-           & " (Message_Length : Natural := 0) is record"
+           & " (Message_Length : "
+           & Builtin_Result_Message_Length_Type_Name
+           & " := 0) is record"
            & ASCII.LF
            & Indentation (1)
            & "Ok : Boolean := True;"
