@@ -44,6 +44,15 @@ POSITIVE_CASES = (
         "mir_tags": ("string",),
         "ada_snippets": ("case Flag is", "case Opcode is", 'return "unknown";'),
     },
+    {
+        "source": REPO_ROOT / "tests" / "positive" / "pr112_string_param.safe",
+        "mir_tags": ("string",),
+        "ada_snippets": (
+            "function Echo(Name : String) return String is",
+            'return Echo ("hello");',
+            "return Name;",
+        ),
+    },
 )
 
 NEGATIVE_CASES = (
@@ -71,6 +80,21 @@ NEGATIVE_CASES = (
         "source": REPO_ROOT / "tests" / "negative" / "neg_string_equality.safe",
         "reason": "unsupported_source_construct",
         "message": "string comparison and concatenation are outside the current PR11.2 text subset",
+    },
+    {
+        "source": REPO_ROOT / "tests" / "negative" / "neg_string_index.safe",
+        "reason": "unsupported_source_construct",
+        "message": "string indexing is outside the current PR11.2 text subset",
+    },
+    {
+        "source": REPO_ROOT / "tests" / "negative" / "neg_string_attribute.safe",
+        "reason": "unsupported_source_construct",
+        "message": "string attributes are outside the current PR11.2 text subset",
+    },
+    {
+        "source": REPO_ROOT / "tests" / "negative" / "neg_string_array_component.safe",
+        "reason": "unsupported_source_construct",
+        "message": "array component types of String are outside the current PR11.2 text subset",
     },
     {
         "source": REPO_ROOT / "tests" / "negative" / "neg_case_on_string.safe",
@@ -233,6 +257,8 @@ def generate_report(*, env: dict[str, str]) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="pr112-phase1-") as temp_root_str:
         temp_root = Path(temp_root_str)
         return {
+            "task": "PR11.2",
+            "status": "ok",
             "positive_fixtures": [
                 run_positive_case(
                     safec=safec,

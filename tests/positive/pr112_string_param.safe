@@ -1,0 +1,17 @@
+-- Test: pr112_string_param
+-- Description: String formals in mode in are accepted and can round-trip to a String result.
+-- Expected: ACCEPT
+
+package PR112_String_Param is
+
+   function Echo (Name : in String) return String is
+   begin
+      return Name;
+   end Echo;
+
+   function Greeting return String is
+   begin
+      return Echo ("hello");
+   end Greeting;
+
+end PR112_String_Param;

@@ -6,12 +6,14 @@ with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
+with Safe_Frontend.Builtin_Types;
 with Safe_Frontend.Mir_Bronze;
 with Safe_Frontend.Mir_Json;
 with Safe_Frontend.Mir_Validate;
 
 package body Safe_Frontend.Mir_Analyze is
    package MB renames Safe_Frontend.Mir_Bronze;
+   package BT renames Safe_Frontend.Builtin_Types;
    package GM renames Safe_Frontend.Mir_Model;
    package US renames Ada.Strings.Unbounded;
 
@@ -240,12 +242,6 @@ package body Safe_Frontend.Mir_Analyze is
    function Has_Text (Value : FT.UString) return Boolean;
    function Lower (Value : String) return String renames FT.Lowercase;
 
-   function Make_Builtin
-     (Name : String;
-      Low  : Wide_Integer;
-      High : Wide_Integer) return GM.Type_Descriptor;
-   function Make_Builtin_Float
-     (Name : String) return GM.Type_Descriptor;
    procedure Add_Builtins (Type_Env : in out Type_Maps.Map);
    function Resolve_Type
      (Name     : String;
@@ -794,68 +790,16 @@ package body Safe_Frontend.Mir_Analyze is
       return UString_Value (Value) /= "";
    end Has_Text;
 
-   function Make_Builtin
-     (Name : String;
-      Low  : Wide_Integer;
-      High : Wide_Integer) return GM.Type_Descriptor
-   is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString (Name);
-      Result.Kind := FT.To_UString ("integer");
-      Result.Has_Low := True;
-      Result.Low := Long_Long_Integer (Low);
-      Result.Has_High := True;
-      Result.High := Long_Long_Integer (High);
-      return Result;
-   end Make_Builtin;
-
-   function Make_Builtin_Float
-     (Name : String) return GM.Type_Descriptor
-   is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString (Name);
-      Result.Kind := FT.To_UString ("float");
-      Result.Has_Digits_Text := True;
-      Result.Digits_Text :=
-        FT.To_UString ((if Name = "Float" then "6" else "15"));
-      Result.Has_Float_Low_Text := True;
-      Result.Float_Low_Text := FT.To_UString ("-1.0E+308");
-      Result.Has_Float_High_Text := True;
-      Result.Float_High_Text := FT.To_UString ("1.0E+308");
-      return Result;
-   end Make_Builtin_Float;
-
-   function Make_Builtin_Character return GM.Type_Descriptor is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString ("Character");
-      Result.Kind := FT.To_UString ("character");
-      return Result;
-   end Make_Builtin_Character;
-
-   function Make_Builtin_String return GM.Type_Descriptor is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString ("String");
-      Result.Kind := FT.To_UString ("array");
-      Result.Has_Component_Type := True;
-      Result.Component_Type := FT.To_UString ("Character");
-      Result.Unconstrained := True;
-      return Result;
-   end Make_Builtin_String;
-
    procedure Add_Builtins (Type_Env : in out Type_Maps.Map) is
    begin
-      Type_Env.Include ("Integer", Make_Builtin ("Integer", INT64_LOW, INT64_HIGH));
-      Type_Env.Include ("Natural", Make_Builtin ("Natural", 0, INT64_HIGH));
-      Type_Env.Include ("Boolean", Make_Builtin ("Boolean", 0, 1));
-      Type_Env.Include ("Character", Make_Builtin_Character);
-      Type_Env.Include ("String", Make_Builtin_String);
-      Type_Env.Include ("Float", Make_Builtin_Float ("Float"));
-      Type_Env.Include ("Long_Float", Make_Builtin_Float ("Long_Float"));
-      Type_Env.Include ("Duration", Make_Builtin_Float ("Duration"));
+      Type_Env.Include ("Integer", BT.Integer_Type);
+      Type_Env.Include ("Natural", BT.Natural_Type);
+      Type_Env.Include ("Boolean", BT.Boolean_Type);
+      Type_Env.Include ("Character", BT.Character_Type);
+      Type_Env.Include ("String", BT.String_Type);
+      Type_Env.Include ("Float", BT.Float_Type (With_Analysis_Metadata => True));
+      Type_Env.Include ("Long_Float", BT.Long_Float_Type (With_Analysis_Metadata => True));
+      Type_Env.Include ("Duration", BT.Duration_Type (With_Analysis_Metadata => True));
    end Add_Builtins;
 
    function Parse_Anonymous_Access

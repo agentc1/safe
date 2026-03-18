@@ -1,9 +1,11 @@
 with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Strings.Fixed;
 with Ada.Strings.Hash;
+with Safe_Frontend.Builtin_Types;
 with Safe_Frontend.Types;
 
 package body Safe_Frontend.Check_Lower is
+   package BT renames Safe_Frontend.Builtin_Types;
    package FT renames Safe_Frontend.Types;
 
    INT64_LOW  : constant Long_Long_Integer := -(2 ** 63);
@@ -71,59 +73,16 @@ package body Safe_Frontend.Check_Lower is
       return FT.To_UString ("");
    end Empty_Block_Id;
 
-   function Make_Builtin
-     (Name : String;
-      Low  : Long_Long_Integer;
-      High : Long_Long_Integer) return GM.Type_Descriptor
-   is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString (Name);
-      Result.Kind := FT.To_UString ("integer");
-      Result.Has_Low := True;
-      Result.Low := Low;
-      Result.Has_High := True;
-      Result.High := High;
-      return Result;
-   end Make_Builtin;
-
-   function Make_Float_Builtin (Name : String) return GM.Type_Descriptor is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString (Name);
-      Result.Kind := FT.To_UString ("float");
-      return Result;
-   end Make_Float_Builtin;
-
-   function Make_Character_Builtin return GM.Type_Descriptor is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString ("Character");
-      Result.Kind := FT.To_UString ("character");
-      return Result;
-   end Make_Character_Builtin;
-
-   function Make_String_Builtin return GM.Type_Descriptor is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString ("String");
-      Result.Kind := FT.To_UString ("array");
-      Result.Has_Component_Type := True;
-      Result.Component_Type := FT.To_UString ("Character");
-      Result.Unconstrained := True;
-      return Result;
-   end Make_String_Builtin;
-
    procedure Add_Builtins (Type_Env : in out Type_Maps.Map) is
    begin
-      Type_Env.Include ("Integer", Make_Builtin ("Integer", INT64_LOW, INT64_HIGH));
-      Type_Env.Include ("Natural", Make_Builtin ("Natural", 0, INT64_HIGH));
-      Type_Env.Include ("Boolean", Make_Builtin ("Boolean", 0, 1));
-      Type_Env.Include ("Character", Make_Character_Builtin);
-      Type_Env.Include ("String", Make_String_Builtin);
-      Type_Env.Include ("Float", Make_Float_Builtin ("Float"));
-      Type_Env.Include ("Long_Float", Make_Float_Builtin ("Long_Float"));
-      Type_Env.Include ("Duration", Make_Float_Builtin ("Duration"));
+      Type_Env.Include ("Integer", BT.Integer_Type);
+      Type_Env.Include ("Natural", BT.Natural_Type);
+      Type_Env.Include ("Boolean", BT.Boolean_Type);
+      Type_Env.Include ("Character", BT.Character_Type);
+      Type_Env.Include ("String", BT.String_Type);
+      Type_Env.Include ("Float", BT.Float_Type);
+      Type_Env.Include ("Long_Float", BT.Long_Float_Type);
+      Type_Env.Include ("Duration", BT.Duration_Type);
    end Add_Builtins;
 
    function Resolve_Type
@@ -131,11 +90,11 @@ package body Safe_Frontend.Check_Lower is
       Type_Env : Type_Maps.Map) return GM.Type_Descriptor is
    begin
       if Name = "" then
-         return Make_Builtin ("Integer", INT64_LOW, INT64_HIGH);
+         return BT.Integer_Type;
       elsif Type_Env.Contains (Name) then
          return Type_Env.Element (Name);
       end if;
-      return Make_Builtin ("Integer", INT64_LOW, INT64_HIGH);
+      return BT.Integer_Type;
    end Resolve_Type;
 
    function Resolve_Type
@@ -176,7 +135,7 @@ package body Safe_Frontend.Check_Lower is
         (if Expr /= null then UString_Value (Expr.Type_Name) else "");
    begin
       if Expr = null then
-         return Make_Builtin ("Integer", INT64_LOW, INT64_HIGH);
+         return BT.Integer_Type;
       elsif Expr.Kind = CM.Expr_String then
          return Resolve_Type ("String", Type_Env);
       elsif Expr.Kind = CM.Expr_Char then
@@ -185,7 +144,7 @@ package body Safe_Frontend.Check_Lower is
          if Name'Length > 0 and then Type_Env.Contains (Name) then
             return Type_Env.Element (Name);
          end if;
-         return Make_Float_Builtin ("Long_Float");
+         return BT.Long_Float_Type;
       elsif Expr.Kind = CM.Expr_Ident then
          return Resolve_Type (UString_Value (Expr.Name), Var_Types, Type_Env);
       elsif Name'Length > 0 and then Type_Env.Contains (Name) then
@@ -193,7 +152,7 @@ package body Safe_Frontend.Check_Lower is
       elsif Name'Length > 0 and then Var_Types.Contains (Name) then
          return Var_Types.Element (Name);
       end if;
-      return Make_Builtin ("Integer", INT64_LOW, INT64_HIGH);
+      return BT.Integer_Type;
    end Expr_Type;
 
    function Mir_Kind (Expr : CM.Expr_Access) return GM.Expr_Kind is
@@ -755,7 +714,7 @@ package body Safe_Frontend.Check_Lower is
          return Result;
       end if;
 
-      return Make_Builtin ("Integer", INT64_LOW, INT64_HIGH);
+      return BT.Integer_Type;
    end Static_Loop_Type;
 
    procedure Static_Loop_Bounds

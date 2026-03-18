@@ -1,0 +1,12 @@
+-- Test: neg_string_index
+-- Description: String indexing remains outside the PR11.2 text subset.
+-- Expected: REJECT unsupported_source_construct
+
+package Neg_String_Index is
+
+   function First_Letter (Name : in String) return Character is
+   begin
+      return Name (1);
+   end First_Letter;
+
+end Neg_String_Index;

@@ -57,6 +57,39 @@
       }
     },
     {
+      "message": "string indexing is outside the current PR11.2 text subset",
+      "reason": "unsupported_source_construct",
+      "source": "tests/negative/neg_string_index.safe",
+      "span": {
+        "end_col": 21,
+        "end_line": 9,
+        "start_col": 14,
+        "start_line": 9
+      }
+    },
+    {
+      "message": "string attributes are outside the current PR11.2 text subset",
+      "reason": "unsupported_source_construct",
+      "source": "tests/negative/neg_string_attribute.safe",
+      "span": {
+        "end_col": 24,
+        "end_line": 9,
+        "start_col": 14,
+        "start_line": 9
+      }
+    },
+    {
+      "message": "array component types of String are outside the current PR11.2 text subset",
+      "reason": "unsupported_source_construct",
+      "source": "tests/negative/neg_string_array_component.safe",
+      "span": {
+        "end_col": 44,
+        "end_line": 8,
+        "start_col": 39,
+        "start_line": 8
+      }
+    },
+    {
       "message": "PR11.2 case expressions are limited to Boolean, integer, and Character",
       "reason": "unsupported_source_construct",
       "source": "tests/negative/neg_case_on_string.safe",
@@ -214,10 +247,65 @@
         "cwd": "$REPO_ROOT",
         "returncode": 0
       }
+    },
+    {
+      "check": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "check",
+          "tests/positive/pr112_string_param.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0
+      },
+      "compile": {
+        "command": [
+          "alr",
+          "exec",
+          "--",
+          "gprbuild",
+          "-c",
+          "-P",
+          "$TMPDIR/pr112_string_param/ada/build.gpr",
+          "pr112_string_param.adb"
+        ],
+        "cwd": "$REPO_ROOT/compiler_impl",
+        "returncode": 0
+      },
+      "emit": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "emit",
+          "tests/positive/pr112_string_param.safe",
+          "--out-dir",
+          "$TMPDIR/pr112_string_param/out",
+          "--interface-dir",
+          "$TMPDIR/pr112_string_param/iface",
+          "--ada-out-dir",
+          "$TMPDIR/pr112_string_param/ada"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0
+      },
+      "observed_mir_tags": [
+        "call",
+        "ident",
+        "string"
+      ],
+      "source": "tests/positive/pr112_string_param.safe",
+      "validate_mir": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "validate-mir",
+          "$TMPDIR/pr112_string_param/out/pr112_string_param.mir.json"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0
+      }
     }
   ],
-  "repeat_sha256": "3d332284f3f7b250283f874db7742d729a366e76c9c31138c3fc9a8994a6278d",
-  "report_sha256": "3d332284f3f7b250283f874db7742d729a366e76c9c31138c3fc9a8994a6278d",
+  "repeat_sha256": "6a307a9e182f94febe38fe894c316fd26facf90ee63a3063a3fab215d1fcc17f",
+  "report_sha256": "6a307a9e182f94febe38fe894c316fd26facf90ee63a3063a3fab215d1fcc17f",
   "rosetta_text_samples": [
     {
       "check": {
@@ -331,5 +419,7 @@
         "returncode": 0
       }
     }
-  ]
+  ],
+  "status": "ok",
+  "task": "PR11.2"
 }

@@ -492,6 +492,26 @@ Under `pragma Strict`, whitespace-significant blocks are rejected by the
 compiler. The two styles are mutually exclusive within a compilation unit —
 no mixing.
 
+### Current implementation status (PR11.2)
+
+PR11.2 lands only the strict/Ada-like **statement** form of `case`:
+
+```
+case expr is
+   when choice then
+      ...
+   end when;
+   when others then
+      ...
+   end when;
+end case;
+```
+
+The current compiler additionally requires a final `when others then` arm on
+every admitted `case`. The default-mode/whitespace `case` syntax and
+variant-part `case` remain future work; they are still proposal text here, not
+accepted PR11.2 compiler surface.
+
 ### Case-arm syntax: `then` replaces `=>`
 
 In default mode, case arms need no delimiter — indentation defines the block:

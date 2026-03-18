@@ -2,9 +2,11 @@ with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Hash;
 with System;
+with Safe_Frontend.Builtin_Types;
 with Safe_Frontend.Interfaces;
 with Safe_Frontend.Mir_Model;
 package body Safe_Frontend.Check_Resolve is
+   package BT renames Safe_Frontend.Builtin_Types;
    package GM renames Safe_Frontend.Mir_Model;
    package SI renames Safe_Frontend.Interfaces;
 
@@ -168,59 +170,16 @@ package body Safe_Frontend.Check_Resolve is
       return Map.Element (Canonical_Name (Name));
    end Get_Static_Value;
 
-   function Make_Builtin
-     (Name : String;
-      Low  : CM.Wide_Integer;
-      High : CM.Wide_Integer) return GM.Type_Descriptor
-   is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString (Name);
-      Result.Kind := FT.To_UString ("integer");
-      Result.Has_Low := True;
-      Result.Low := Long_Long_Integer (Low);
-      Result.Has_High := True;
-      Result.High := Long_Long_Integer (High);
-      return Result;
-   end Make_Builtin;
-
-   function Make_Float_Builtin (Name : String) return GM.Type_Descriptor is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString (Name);
-      Result.Kind := FT.To_UString ("float");
-      return Result;
-   end Make_Float_Builtin;
-
-   function Make_Character_Builtin return GM.Type_Descriptor is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString ("Character");
-      Result.Kind := FT.To_UString ("character");
-      return Result;
-   end Make_Character_Builtin;
-
-   function Make_String_Builtin return GM.Type_Descriptor is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString ("String");
-      Result.Kind := FT.To_UString ("array");
-      Result.Has_Component_Type := True;
-      Result.Component_Type := FT.To_UString ("Character");
-      Result.Unconstrained := True;
-      return Result;
-   end Make_String_Builtin;
-
    procedure Add_Builtins (Type_Env : in out Type_Maps.Map) is
    begin
-      Put_Type (Type_Env, "Integer", Make_Builtin ("Integer", -(2 ** 63), (2 ** 63) - 1));
-      Put_Type (Type_Env, "Natural", Make_Builtin ("Natural", 0, (2 ** 63) - 1));
-      Put_Type (Type_Env, "Boolean", Make_Builtin ("Boolean", 0, 1));
-      Put_Type (Type_Env, "Character", Make_Character_Builtin);
-      Put_Type (Type_Env, "String", Make_String_Builtin);
-      Put_Type (Type_Env, "Float", Make_Float_Builtin ("Float"));
-      Put_Type (Type_Env, "Long_Float", Make_Float_Builtin ("Long_Float"));
-      Put_Type (Type_Env, "Duration", Make_Float_Builtin ("Duration"));
+      Put_Type (Type_Env, "Integer", BT.Integer_Type);
+      Put_Type (Type_Env, "Natural", BT.Natural_Type);
+      Put_Type (Type_Env, "Boolean", BT.Boolean_Type);
+      Put_Type (Type_Env, "Character", BT.Character_Type);
+      Put_Type (Type_Env, "String", BT.String_Type);
+      Put_Type (Type_Env, "Float", BT.Float_Type);
+      Put_Type (Type_Env, "Long_Float", BT.Long_Float_Type);
+      Put_Type (Type_Env, "Duration", BT.Duration_Type);
    end Add_Builtins;
 
    procedure Raise_Diag (Item : CM.MD.Diagnostic) is
@@ -231,32 +190,32 @@ package body Safe_Frontend.Check_Resolve is
 
    function Default_Integer return GM.Type_Descriptor is
    begin
-      return Make_Builtin ("Integer", -(2 ** 63), (2 ** 63) - 1);
+      return BT.Integer_Type;
    end Default_Integer;
 
    function Default_Boolean return GM.Type_Descriptor is
    begin
-      return Make_Builtin ("Boolean", 0, 1);
+      return BT.Boolean_Type;
    end Default_Boolean;
 
    function Default_Character return GM.Type_Descriptor is
    begin
-      return Make_Character_Builtin;
+      return BT.Character_Type;
    end Default_Character;
 
    function Default_String return GM.Type_Descriptor is
    begin
-      return Make_String_Builtin;
+      return BT.String_Type;
    end Default_String;
 
    function Default_Float return GM.Type_Descriptor is
    begin
-      return Make_Float_Builtin ("Long_Float");
+      return BT.Long_Float_Type;
    end Default_Float;
 
    function Default_Duration return GM.Type_Descriptor is
    begin
-      return Make_Float_Builtin ("Duration");
+      return BT.Duration_Type;
    end Default_Duration;
 
    function Default_Task_Priority return Long_Long_Integer is
