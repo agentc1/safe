@@ -4,7 +4,10 @@
     "binary_path": "compiler_impl/bin/safec",
     "command": [
       "alr",
-      "build"
+      "build",
+      "--",
+      "-j1",
+      "-p"
     ],
     "cwd": "$REPO_ROOT/compiler_impl",
     "returncodes": [
@@ -15,9 +18,9 @@
   "delegated_reports": {
     "frontend_smoke": {
       "binary_deterministic": true,
-      "repeat_sha256": "523a8540a6b51e6d632289be814ef8170dc90dac99f2d655ebe9e600014716ad",
+      "repeat_sha256": "d8e4b8256e39c25ebe82b536dacc1b53c5f47e86dbcb6e70cafcef5927fa1610",
       "report_path": "execution/reports/pr00-pr04-frontend-smoke.json",
-      "report_sha256": "523a8540a6b51e6d632289be814ef8170dc90dac99f2d655ebe9e600014716ad",
+      "report_sha256": "d8e4b8256e39c25ebe82b536dacc1b53c5f47e86dbcb6e70cafcef5927fa1610",
       "run": {
         "command": [
           "python3",
@@ -30,9 +33,9 @@
       }
     },
     "gate_quality": {
-      "repeat_sha256": "f1414b5330d2003c81079a06a3818d1253f79cbcf21162598820f03b118c4578",
+      "repeat_sha256": "b79634613348e199d9b9fb6188ef57b9ac3b9f69bd201976637dab827a42547e",
       "report_path": "execution/reports/pr0697-gate-quality-report.json",
-      "report_sha256": "f1414b5330d2003c81079a06a3818d1253f79cbcf21162598820f03b118c4578",
+      "report_sha256": "b79634613348e199d9b9fb6188ef57b9ac3b9f69bd201976637dab827a42547e",
       "run": {
         "command": [
           "python3",
@@ -45,9 +48,9 @@
       }
     },
     "legacy_package_cleanup": {
-      "repeat_sha256": "79ea1419901a7de3866a948ee576fbfcdf04ddfc9703c5e331ba4a37190df0bc",
+      "repeat_sha256": "cc870743da0cc5157c2865970eef4027ea3e6e6de2e2ffa7bb987a8b1fc3555f",
       "report_path": "execution/reports/pr0698-legacy-package-cleanup-report.json",
-      "report_sha256": "79ea1419901a7de3866a948ee576fbfcdf04ddfc9703c5e331ba4a37190df0bc",
+      "report_sha256": "cc870743da0cc5157c2865970eef4027ea3e6e6de2e2ffa7bb987a8b1fc3555f",
       "run": {
         "command": [
           "python3",
@@ -61,8 +64,8 @@
     }
   },
   "deterministic": true,
-  "repeat_sha256": "815e4bd6a1bbf8086ffef05744acccbd8657ec9e2e02b556b8dc2370b9a88a8d",
-  "report_sha256": "815e4bd6a1bbf8086ffef05744acccbd8657ec9e2e02b556b8dc2370b9a88a8d",
+  "repeat_sha256": "b6152774c2cf2786a7e8804bcad36e1e60ac73c9356b02918a50dc0f789e7760",
+  "report_sha256": "b6152774c2cf2786a7e8804bcad36e1e60ac73c9356b02918a50dc0f789e7760",
   "status": "ok",
   "task": "PR06.9.9"
 }

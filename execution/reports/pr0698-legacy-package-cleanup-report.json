@@ -73,6 +73,7 @@
     "retained_legacy_packages": [],
     "scanned_source_files": [
       "compiler_impl/src/safe_frontend-ada_emit.adb",
+      "compiler_impl/src/safe_frontend-builtin_types.adb",
       "compiler_impl/src/safe_frontend-check_emit.adb",
       "compiler_impl/src/safe_frontend-check_lower.adb",
       "compiler_impl/src/safe_frontend-check_model.adb",
@@ -95,6 +96,7 @@
       "compiler_impl/src/safe_frontend-types.adb",
       "compiler_impl/src/safec.adb",
       "compiler_impl/src/safe_frontend-ada_emit.ads",
+      "compiler_impl/src/safe_frontend-builtin_types.ads",
       "compiler_impl/src/safe_frontend-check_emit.ads",
       "compiler_impl/src/safe_frontend-check_lower.ads",
       "compiler_impl/src/safe_frontend-check_model.ads",
@@ -118,8 +120,8 @@
       "compiler_impl/src/safe_frontend.ads"
     ]
   },
-  "repeat_sha256": "79ea1419901a7de3866a948ee576fbfcdf04ddfc9703c5e331ba4a37190df0bc",
-  "report_sha256": "79ea1419901a7de3866a948ee576fbfcdf04ddfc9703c5e331ba4a37190df0bc",
+  "repeat_sha256": "cc870743da0cc5157c2865970eef4027ea3e6e6de2e2ffa7bb987a8b1fc3555f",
+  "report_sha256": "cc870743da0cc5157c2865970eef4027ea3e6e6de2e2ffa7bb987a8b1fc3555f",
   "status": "ok",
   "task": "PR06.9.8"
 }

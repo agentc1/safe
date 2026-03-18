@@ -1,9 +1,11 @@
 with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Strings.Fixed;
 with Ada.Strings.Hash;
+with Safe_Frontend.Builtin_Types;
 with Safe_Frontend.Types;
 
 package body Safe_Frontend.Check_Lower is
+   package BT renames Safe_Frontend.Builtin_Types;
    package FT renames Safe_Frontend.Types;
 
    INT64_LOW  : constant Long_Long_Integer := -(2 ** 63);
@@ -71,38 +73,16 @@ package body Safe_Frontend.Check_Lower is
       return FT.To_UString ("");
    end Empty_Block_Id;
 
-   function Make_Builtin
-     (Name : String;
-      Low  : Long_Long_Integer;
-      High : Long_Long_Integer) return GM.Type_Descriptor
-   is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString (Name);
-      Result.Kind := FT.To_UString ("integer");
-      Result.Has_Low := True;
-      Result.Low := Low;
-      Result.Has_High := True;
-      Result.High := High;
-      return Result;
-   end Make_Builtin;
-
-   function Make_Float_Builtin (Name : String) return GM.Type_Descriptor is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString (Name);
-      Result.Kind := FT.To_UString ("float");
-      return Result;
-   end Make_Float_Builtin;
-
    procedure Add_Builtins (Type_Env : in out Type_Maps.Map) is
    begin
-      Type_Env.Include ("Integer", Make_Builtin ("Integer", INT64_LOW, INT64_HIGH));
-      Type_Env.Include ("Natural", Make_Builtin ("Natural", 0, INT64_HIGH));
-      Type_Env.Include ("Boolean", Make_Builtin ("Boolean", 0, 1));
-      Type_Env.Include ("Float", Make_Float_Builtin ("Float"));
-      Type_Env.Include ("Long_Float", Make_Float_Builtin ("Long_Float"));
-      Type_Env.Include ("Duration", Make_Float_Builtin ("Duration"));
+      Type_Env.Include ("Integer", BT.Integer_Type);
+      Type_Env.Include ("Natural", BT.Natural_Type);
+      Type_Env.Include ("Boolean", BT.Boolean_Type);
+      Type_Env.Include ("Character", BT.Character_Type);
+      Type_Env.Include ("String", BT.String_Type);
+      Type_Env.Include ("Float", BT.Float_Type);
+      Type_Env.Include ("Long_Float", BT.Long_Float_Type);
+      Type_Env.Include ("Duration", BT.Duration_Type);
    end Add_Builtins;
 
    function Resolve_Type
@@ -110,11 +90,11 @@ package body Safe_Frontend.Check_Lower is
       Type_Env : Type_Maps.Map) return GM.Type_Descriptor is
    begin
       if Name = "" then
-         return Make_Builtin ("Integer", INT64_LOW, INT64_HIGH);
+         return BT.Integer_Type;
       elsif Type_Env.Contains (Name) then
          return Type_Env.Element (Name);
       end if;
-      return Make_Builtin ("Integer", INT64_LOW, INT64_HIGH);
+      return BT.Integer_Type;
    end Resolve_Type;
 
    function Resolve_Type
@@ -155,12 +135,16 @@ package body Safe_Frontend.Check_Lower is
         (if Expr /= null then UString_Value (Expr.Type_Name) else "");
    begin
       if Expr = null then
-         return Make_Builtin ("Integer", INT64_LOW, INT64_HIGH);
+         return BT.Integer_Type;
+      elsif Expr.Kind = CM.Expr_String then
+         return Resolve_Type ("String", Type_Env);
+      elsif Expr.Kind = CM.Expr_Char then
+         return Resolve_Type ("Character", Type_Env);
       elsif Expr.Kind = CM.Expr_Real then
          if Name'Length > 0 and then Type_Env.Contains (Name) then
             return Type_Env.Element (Name);
          end if;
-         return Make_Float_Builtin ("Long_Float");
+         return BT.Long_Float_Type;
       elsif Expr.Kind = CM.Expr_Ident then
          return Resolve_Type (UString_Value (Expr.Name), Var_Types, Type_Env);
       elsif Name'Length > 0 and then Type_Env.Contains (Name) then
@@ -168,7 +152,7 @@ package body Safe_Frontend.Check_Lower is
       elsif Name'Length > 0 and then Var_Types.Contains (Name) then
          return Var_Types.Element (Name);
       end if;
-      return Make_Builtin ("Integer", INT64_LOW, INT64_HIGH);
+      return BT.Integer_Type;
    end Expr_Type;
 
    function Mir_Kind (Expr : CM.Expr_Access) return GM.Expr_Kind is
@@ -182,6 +166,10 @@ package body Safe_Frontend.Check_Lower is
             return GM.Expr_Int;
          when CM.Expr_Real =>
             return GM.Expr_Real;
+         when CM.Expr_String =>
+            return GM.Expr_String;
+         when CM.Expr_Char =>
+            return GM.Expr_Char;
          when CM.Expr_Bool =>
             return GM.Expr_Bool;
          when CM.Expr_Null =>
@@ -233,6 +221,8 @@ package body Safe_Frontend.Check_Lower is
             Result.Text := Expr.Text;
             Result.Int_Value := Long_Long_Integer (Expr.Int_Value);
          when CM.Expr_Real =>
+            Result.Text := Expr.Text;
+         when CM.Expr_String | CM.Expr_Char =>
             Result.Text := Expr.Text;
          when CM.Expr_Bool =>
             Result.Bool_Value := Expr.Bool_Value;
@@ -724,7 +714,7 @@ package body Safe_Frontend.Check_Lower is
          return Result;
       end if;
 
-      return Make_Builtin ("Integer", INT64_LOW, INT64_HIGH);
+      return BT.Integer_Type;
    end Static_Loop_Type;
 
    procedure Static_Loop_Bounds
@@ -903,6 +893,10 @@ package body Safe_Frontend.Check_Lower is
             if Stmt.Has_Else then
                Collect_Scopes (Stmt.Else_Stmts, Current_Visible, Parent_Id, Work, Locals);
             end if;
+         elsif Stmt.Kind = CM.Stmt_Case then
+            for Arm of Stmt.Case_Arms loop
+               Collect_Scopes (Arm.Statements, Current_Visible, Parent_Id, Work, Locals);
+            end loop;
          elsif Stmt.Kind in CM.Stmt_While | CM.Stmt_Loop then
             Collect_Scopes (Stmt.Body_Stmts, Current_Visible, Parent_Id, Work, Locals);
          elsif Stmt.Kind = CM.Stmt_Select then
@@ -1370,6 +1364,163 @@ package body Safe_Frontend.Check_Lower is
                   Terminator.Span := Stmt.Span;
                   Terminator.Target := Join_Id;
                   Set_Terminator (Work, UString_Value (Else_End), Terminator);
+                  Reached := True;
+               end if;
+
+               if Reached then
+                  return Join_Id;
+               end if;
+               return Empty_Block_Id;
+            end;
+
+         when CM.Stmt_Case =>
+            declare
+               Case_Type      : constant GM.Type_Descriptor :=
+                 Expr_Type (Stmt.Case_Expr, Visible_Types, Type_Env);
+               Scope_Id       : constant String :=
+                 "scope" & Trimmed (Natural (Work.Scopes.Length));
+               Temp_Name      : constant String :=
+                 "__safe_case_expr_" & Trimmed (Natural (Work.Locals.Length));
+               Scope          : GM.Scope_Entry := New_Scope (Scope_Id, Current_Scope_Id, "case");
+               Temp_Local_Id  : constant FT.UString :=
+                 Append_Local
+                   (Work.Locals,
+                    Temp_Name,
+                    "local",
+                    "in",
+                    Case_Type,
+                    Stmt.Case_Expr.Span,
+                    Scope_Id,
+                    Is_Constant => True);
+               Entry_Id       : constant FT.UString :=
+                 New_Block (Work, Stmt.Span, "case_entry", Scope_Id);
+               Join_Id        : constant FT.UString :=
+                 New_Block (Work, Stmt.Span, "case_join", Current_Scope_Id);
+               Current_Check  : FT.UString := Entry_Id;
+               Arm_End        : FT.UString;
+               Reached        : Boolean := False;
+               Case_Types     : Type_Maps.Map := Visible_Types;
+               Others_Arm     : constant CM.Case_Arm :=
+                 Stmt.Case_Arms (Stmt.Case_Arms.Last_Index);
+               Scope_Op       : GM.Op_Entry;
+               Temp_Target    : constant CM.Expr_Access :=
+                 Ident_Expr
+                   (Temp_Name,
+                    Stmt.Case_Expr.Span,
+                    UString_Value (Case_Type.Name));
+               procedure Close_Case_Scope
+                 (Block_Id : FT.UString;
+                  Span     : FT.Source_Span) is
+               begin
+                  Scope_Op := (others => <>);
+                  Scope_Op.Kind := GM.Op_Scope_Exit;
+                  Scope_Op.Span := Span;
+                  Scope_Op.Scope_Id := FT.To_UString (Scope_Id);
+                  Scope_Op.Locals.Append (FT.To_UString (Temp_Name));
+                  Add_Op (Work, UString_Value (Block_Id), Scope_Op);
+                  Register_Scope_Exit (Work, Scope_Id, UString_Value (Block_Id));
+               end Close_Case_Scope;
+            begin
+               Scope.Local_Ids.Append (Temp_Local_Id);
+               Register_Scope (Work, Scope);
+               Register_Scope_Entry (Work, Scope_Id, UString_Value (Entry_Id));
+
+               Terminator := (others => <>);
+               Terminator.Kind := GM.Terminator_Jump;
+               Terminator.Span := Stmt.Span;
+               Terminator.Target := Entry_Id;
+               Set_Terminator (Work, UString_Value (Current_Id), Terminator);
+
+               Case_Types.Include (Temp_Name, Case_Type);
+
+               Scope_Op := (others => <>);
+               Scope_Op.Kind := GM.Op_Scope_Enter;
+               Scope_Op.Span := Stmt.Span;
+               Scope_Op.Scope_Id := FT.To_UString (Scope_Id);
+               Scope_Op.Locals.Append (FT.To_UString (Temp_Name));
+               Add_Op (Work, UString_Value (Entry_Id), Scope_Op);
+
+               Assign_Op := (others => <>);
+               Assign_Op.Kind := GM.Op_Assign;
+               Assign_Op.Span := Stmt.Case_Expr.Span;
+               Assign_Op.Target := Lower_Target (Temp_Target, Case_Types, Type_Env);
+               Assign_Op.Value := Lower_Expr (Stmt.Case_Expr, Visible_Types, Type_Env);
+               Assign_Op.Type_Name := Case_Type.Name;
+               Assign_Op.Ownership_Effect := GM.Ownership_None;
+               Assign_Op.Declaration_Init := True;
+               Add_Op (Work, UString_Value (Entry_Id), Assign_Op);
+
+               if Stmt.Case_Arms.Length > 1 then
+                  for Index in Stmt.Case_Arms.First_Index .. Stmt.Case_Arms.Last_Index - 1 loop
+                     declare
+                        Arm      : constant CM.Case_Arm := Stmt.Case_Arms (Index);
+                        True_Id  : constant FT.UString :=
+                          New_Block (Work, Arm.Span, "case_arm", Scope_Id);
+                        False_Id : constant FT.UString :=
+                          (if Index = Stmt.Case_Arms.Last_Index - 1
+                           then New_Block (Work, Others_Arm.Span, "case_others", Scope_Id)
+                           else New_Block (Work, Arm.Span, "case_next", Scope_Id));
+                        Cond_Expr : constant CM.Expr_Access :=
+                          Binary_Expr ("==", Temp_Target, Arm.Choice, Arm.Span);
+                     begin
+                        Lower_Branch_Condition
+                          (Work,
+                           UString_Value (Current_Check),
+                           Cond_Expr,
+                           Case_Types,
+                           Type_Env,
+                           UString_Value (True_Id),
+                           UString_Value (False_Id),
+                           Scope_Id);
+
+                        Arm_End :=
+                          Lower_Statement_List
+                            (Work,
+                             True_Id,
+                             Arm.Statements,
+                             Case_Types,
+                             Type_Env,
+                             Scope_Id,
+                             Functions,
+                             Loop_Exit_Target);
+
+                        if Has_Block (Arm_End)
+                          and then not Block_Terminated (Work, UString_Value (Arm_End))
+                        then
+                           Close_Case_Scope (Arm_End, Arm.Span);
+                           Terminator := (others => <>);
+                           Terminator.Kind := GM.Terminator_Jump;
+                           Terminator.Span := Arm.Span;
+                           Terminator.Target := Join_Id;
+                           Set_Terminator (Work, UString_Value (Arm_End), Terminator);
+                           Reached := True;
+                        end if;
+
+                        Current_Check := False_Id;
+                     end;
+                  end loop;
+               end if;
+
+               Arm_End :=
+                 Lower_Statement_List
+                   (Work,
+                    Current_Check,
+                    Others_Arm.Statements,
+                    Case_Types,
+                    Type_Env,
+                    Scope_Id,
+                    Functions,
+                    Loop_Exit_Target);
+
+               if Has_Block (Arm_End)
+                 and then not Block_Terminated (Work, UString_Value (Arm_End))
+               then
+                  Close_Case_Scope (Arm_End, Others_Arm.Span);
+                  Terminator := (others => <>);
+                  Terminator.Kind := GM.Terminator_Jump;
+                  Terminator.Span := Others_Arm.Span;
+                  Terminator.Target := Join_Id;
+                  Set_Terminator (Work, UString_Value (Arm_End), Terminator);
                   Reached := True;
                end if;
 
@@ -2031,6 +2182,7 @@ package body Safe_Frontend.Check_Lower is
       end if;
 
       Finalize_Unknown_Terminators (Work, UString_Value (Result.Entry_BB));
+      Result.Locals := Work.Locals;
       Result.Scopes := Work.Scopes;
       Result.Blocks := Work.Blocks;
       return Result;
@@ -2197,6 +2349,7 @@ package body Safe_Frontend.Check_Lower is
       end if;
 
       Finalize_Unknown_Terminators (Work, UString_Value (Result.Entry_BB));
+      Result.Locals := Work.Locals;
       Result.Scopes := Work.Scopes;
       Result.Blocks := Work.Blocks;
       return Result;

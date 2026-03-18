@@ -6,12 +6,14 @@ with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
+with Safe_Frontend.Builtin_Types;
 with Safe_Frontend.Mir_Bronze;
 with Safe_Frontend.Mir_Json;
 with Safe_Frontend.Mir_Validate;
 
 package body Safe_Frontend.Mir_Analyze is
    package MB renames Safe_Frontend.Mir_Bronze;
+   package BT renames Safe_Frontend.Builtin_Types;
    package GM renames Safe_Frontend.Mir_Model;
    package US renames Ada.Strings.Unbounded;
 
@@ -240,12 +242,6 @@ package body Safe_Frontend.Mir_Analyze is
    function Has_Text (Value : FT.UString) return Boolean;
    function Lower (Value : String) return String renames FT.Lowercase;
 
-   function Make_Builtin
-     (Name : String;
-      Low  : Wide_Integer;
-      High : Wide_Integer) return GM.Type_Descriptor;
-   function Make_Builtin_Float
-     (Name : String) return GM.Type_Descriptor;
    procedure Add_Builtins (Type_Env : in out Type_Maps.Map);
    function Resolve_Type
      (Name     : String;
@@ -794,47 +790,16 @@ package body Safe_Frontend.Mir_Analyze is
       return UString_Value (Value) /= "";
    end Has_Text;
 
-   function Make_Builtin
-     (Name : String;
-      Low  : Wide_Integer;
-      High : Wide_Integer) return GM.Type_Descriptor
-   is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString (Name);
-      Result.Kind := FT.To_UString ("integer");
-      Result.Has_Low := True;
-      Result.Low := Long_Long_Integer (Low);
-      Result.Has_High := True;
-      Result.High := Long_Long_Integer (High);
-      return Result;
-   end Make_Builtin;
-
-   function Make_Builtin_Float
-     (Name : String) return GM.Type_Descriptor
-   is
-      Result : GM.Type_Descriptor;
-   begin
-      Result.Name := FT.To_UString (Name);
-      Result.Kind := FT.To_UString ("float");
-      Result.Has_Digits_Text := True;
-      Result.Digits_Text :=
-        FT.To_UString ((if Name = "Float" then "6" else "15"));
-      Result.Has_Float_Low_Text := True;
-      Result.Float_Low_Text := FT.To_UString ("-1.0E+308");
-      Result.Has_Float_High_Text := True;
-      Result.Float_High_Text := FT.To_UString ("1.0E+308");
-      return Result;
-   end Make_Builtin_Float;
-
    procedure Add_Builtins (Type_Env : in out Type_Maps.Map) is
    begin
-      Type_Env.Include ("Integer", Make_Builtin ("Integer", INT64_LOW, INT64_HIGH));
-      Type_Env.Include ("Natural", Make_Builtin ("Natural", 0, INT64_HIGH));
-      Type_Env.Include ("Boolean", Make_Builtin ("Boolean", 0, 1));
-      Type_Env.Include ("Float", Make_Builtin_Float ("Float"));
-      Type_Env.Include ("Long_Float", Make_Builtin_Float ("Long_Float"));
-      Type_Env.Include ("Duration", Make_Builtin_Float ("Duration"));
+      Type_Env.Include ("Integer", BT.Integer_Type);
+      Type_Env.Include ("Natural", BT.Natural_Type);
+      Type_Env.Include ("Boolean", BT.Boolean_Type);
+      Type_Env.Include ("Character", BT.Character_Type);
+      Type_Env.Include ("String", BT.String_Type);
+      Type_Env.Include ("Float", BT.Float_Type (With_Analysis_Metadata => True));
+      Type_Env.Include ("Long_Float", BT.Long_Float_Type (With_Analysis_Metadata => True));
+      Type_Env.Include ("Duration", BT.Duration_Type (With_Analysis_Metadata => True));
    end Add_Builtins;
 
    function Parse_Anonymous_Access
@@ -924,6 +889,8 @@ package body Safe_Frontend.Mir_Analyze is
          return (Low => 0, High => INT64_HIGH, Excludes_Zero => False);
       elsif UString_Value (Info.Name) = "Boolean" then
          return (Low => 0, High => 1, Excludes_Zero => False);
+      elsif UString_Value (Info.Name) = "Character" then
+         return (Low => 0, High => 255, Excludes_Zero => False);
       end if;
       return (Low => INT64_LOW, High => INT64_HIGH, Excludes_Zero => False);
    end Range_Interval;
@@ -1284,6 +1251,8 @@ package body Safe_Frontend.Mir_Analyze is
          when GM.Expr_Int =>
             return UString_Value (Expr.Text);
          when GM.Expr_Real =>
+            return UString_Value (Expr.Text);
+         when GM.Expr_String | GM.Expr_Char =>
             return UString_Value (Expr.Text);
          when GM.Expr_Bool =>
             if Expr.Bool_Value then
@@ -3239,6 +3208,20 @@ package body Safe_Frontend.Mir_Analyze is
               (Low           => Wide_Integer (Expr.Int_Value),
                High          => Wide_Integer (Expr.Int_Value),
                Excludes_Zero => Expr.Int_Value /= 0);
+         when GM.Expr_Char =>
+            declare
+               Text  : constant String := UString_Value (Expr.Text);
+               Value : Wide_Integer := 0;
+            begin
+               if Text'Length = 3 then
+                  Value := Wide_Integer (Character'Pos (Text (Text'First + 1)));
+                  return
+                    (Low           => Value,
+                     High          => Value,
+                     Excludes_Zero => Value /= 0);
+               end if;
+               return (Low => 0, High => 255, Excludes_Zero => False);
+            end;
          when GM.Expr_Bool =>
             return
               (Low           => (if Expr.Bool_Value then 1 else 0),
@@ -4453,6 +4436,8 @@ package body Safe_Frontend.Mir_Analyze is
                Current.Float_Facts.Include (Target_Name, Float_Value);
             end if;
             return Null_Diagnostic;
+         elsif UString_Value (Target_Type.Name) = "String" then
+            return Null_Diagnostic;
          elsif Lower (UString_Value (Target_Type.Kind)) = "record" then
             return Null_Diagnostic;
          end if;
@@ -5013,6 +4998,28 @@ package body Safe_Frontend.Mir_Analyze is
          if Has_Diag then
             return Diag;
          end if;
+         return Null_Diagnostic;
+      elsif UString_Value (Return_Type.Name) = "Boolean"
+        or else UString_Value (Return_Type.Name) = "Character"
+        or else UString_Value (Return_Type.Name) = "String"
+      then
+         declare
+            Actual_Type : constant GM.Type_Descriptor :=
+              Expr_Type (Expr, Var_Types, Type_Env, Functions);
+         begin
+            if UString_Value (Actual_Type.Name) /= UString_Value (Return_Type.Name) then
+               Diag.Reason := FT.To_UString ("type_check_failure");
+               Diag.Message := FT.To_UString ("return expression type does not match function result type");
+               Diag.Span := Expr.Span;
+               Diag.Has_Highlight_Span := True;
+               Diag.Highlight_Span := Expr.Span;
+               Diag.Notes.Append
+                 (FT.To_UString ("expected result type '" & UString_Value (Return_Type.Name) & "'"));
+               Diag.Notes.Append
+                 (FT.To_UString ("expression has type '" & UString_Value (Actual_Type.Name) & "'"));
+               return Diag;
+            end if;
+         end;
          return Null_Diagnostic;
       end if;
 
