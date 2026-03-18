@@ -821,8 +821,8 @@
       "python3.11": "$TMPDIR/python-mask/python3.11"
     }
   },
-  "repeat_sha256": "c214eaa36f4cdf82c2ba1c83403ecb8a8d15ccc968ec800d87252d9b88d25879",
-  "report_sha256": "c214eaa36f4cdf82c2ba1c83403ecb8a8d15ccc968ec800d87252d9b88d25879",
+  "repeat_sha256": "33a317f01cd0808c4dd04e5064f14b7e8e1a2084799985c62e74de7e06762c47",
+  "report_sha256": "33a317f01cd0808c4dd04e5064f14b7e8e1a2084799985c62e74de7e06762c47",
   "runtime_rule": {
     "banned_tokens_absent": [
       "Run_Backend",
@@ -835,6 +835,7 @@
     "legacy_backend_removed": true,
     "scanned_files": [
       "compiler_impl/src/safe_frontend-ada_emit.adb",
+      "compiler_impl/src/safe_frontend-builtin_types.adb",
       "compiler_impl/src/safe_frontend-check_emit.adb",
       "compiler_impl/src/safe_frontend-check_lower.adb",
       "compiler_impl/src/safe_frontend-check_model.adb",
@@ -856,6 +857,7 @@
       "compiler_impl/src/safe_frontend-source.adb",
       "compiler_impl/src/safe_frontend-types.adb",
       "compiler_impl/src/safe_frontend-ada_emit.ads",
+      "compiler_impl/src/safe_frontend-builtin_types.ads",
       "compiler_impl/src/safe_frontend-check_emit.ads",
       "compiler_impl/src/safe_frontend-check_lower.ads",
       "compiler_impl/src/safe_frontend-check_model.ads",

@@ -25,6 +25,7 @@
     ],
     "runtime_source_files": [
       "compiler_impl/src/safe_frontend-ada_emit.adb",
+      "compiler_impl/src/safe_frontend-builtin_types.adb",
       "compiler_impl/src/safe_frontend-check_emit.adb",
       "compiler_impl/src/safe_frontend-check_lower.adb",
       "compiler_impl/src/safe_frontend-check_model.adb",
@@ -47,6 +48,7 @@
       "compiler_impl/src/safe_frontend-types.adb",
       "compiler_impl/src/safec.adb",
       "compiler_impl/src/safe_frontend-ada_emit.ads",
+      "compiler_impl/src/safe_frontend-builtin_types.ads",
       "compiler_impl/src/safe_frontend-check_emit.ads",
       "compiler_impl/src/safe_frontend-check_lower.ads",
       "compiler_impl/src/safe_frontend-check_model.ads",
@@ -106,8 +108,8 @@
     "execution/reports/pr068-ada-ast-emit-no-python-report.json",
     "execution/reports/pr06910-portability-environment-report.json"
   ],
-  "repeat_sha256": "246e558da4d0326723a24d9bfb5f96300fb3d9de14a9bccd92e481e0ce0544c2",
-  "report_sha256": "246e558da4d0326723a24d9bfb5f96300fb3d9de14a9bccd92e481e0ce0544c2",
+  "repeat_sha256": "e6f4c0da5073976b09a8f4f1a1474ec820c29c4d4a266e6cf00e51ad239124a1",
+  "report_sha256": "e6f4c0da5073976b09a8f4f1a1474ec820c29c4d4a266e6cf00e51ad239124a1",
   "reruns": {
     "ast_emit_no_python": {
       "committed_report_path": "execution/reports/pr068-ada-ast-emit-no-python-report.json",
