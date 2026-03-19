@@ -3,6 +3,7 @@
   "glue_script_safety": {
     "audited_scripts": [
       "safe",
+      "scripts/_lib/gate_manifest.py",
       "scripts/run_frontend_smoke.py",
       "scripts/run_pr05_d27_harness.py",
       "scripts/run_pr06_ownership_harness.py",
@@ -46,6 +47,7 @@
       "scripts/run_pr113_discriminated_types_tuples_structured_returns.py",
       "scripts/run_pr113a_proof_checkpoint1.py",
       "scripts/run_pr114_signature_control_flow_syntax.py",
+      "scripts/run_gate_pipeline.py",
       "scripts/run_local_pre_push.py",
       "scripts/validate_execution_state.py",
       "scripts/validate_ast_output.py",
@@ -59,6 +61,10 @@
       "alr",
       "git"
     ],
+    "policy_sections_used": [
+      "glue_safety"
+    ],
+    "policy_sha256": "7e1c53c70104d1567e915022e7c5b134bffab65f407fb28589231c787ef5cba0",
     "report_helper_violations": [],
     "report_scripts": [
       "scripts/run_frontend_smoke.py",
@@ -166,6 +172,10 @@
     "execution/reports/pr06910-portability-environment-report.json",
     "execution/reports/pr06911-glue-script-safety-report.json"
   ],
+  "policy_sections_used": [
+    "glue_safety"
+  ],
+  "policy_sha256": "7e1c53c70104d1567e915022e7c5b134bffab65f407fb28589231c787ef5cba0",
   "referenced_deterministic_reports": {
     "build_reproducibility": {
       "committed_report_path": "execution/reports/pr0699-build-reproducibility-report.json",
@@ -178,8 +188,8 @@
       "script": "scripts/run_frontend_smoke.py"
     }
   },
-  "repeat_sha256": "f426c138609932d8bc22968fdf71436398bdc0fadc2e62d035c4d07e2271f1fc",
-  "report_sha256": "f426c138609932d8bc22968fdf71436398bdc0fadc2e62d035c4d07e2271f1fc",
+  "repeat_sha256": "e1be158a933ad41a7765e8465ff14270ef0bda4bcc2a84402c1b6055703d912d",
+  "report_sha256": "e1be158a933ad41a7765e8465ff14270ef0bda4bcc2a84402c1b6055703d912d",
   "reruns": {
     "gate_quality": {
       "committed_report_path": "execution/reports/pr0697-gate-quality-report.json",
@@ -195,14 +205,6 @@
       "committed_report_path": "execution/reports/pr0693-runtime-boundary-report.json",
       "matches_committed_report": true,
       "script": "scripts/run_pr0693_runtime_boundary.py"
-    },
-    "validate_execution_state": {
-      "command": [
-        "python3",
-        "scripts/validate_execution_state.py"
-      ],
-      "cwd": "$REPO_ROOT",
-      "returncode": 0
     }
   },
   "status": "ok",

@@ -19,6 +19,7 @@ from _lib.gate_expectations import (
     PR102_RULE5_POSITIVE_CASES,
 )
 from _lib.harness_common import (
+    compact_result,
     display_path,
     ensure_sdkroot,
     extract_expected_block,
@@ -83,15 +84,6 @@ EXPECTED_PARITY_DIAGNOSTIC = {
     "notes": [],
     "suggestions": [],
 }
-
-
-def compact_result(result: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "command": result["command"],
-        "cwd": result["cwd"],
-        "returncode": result["returncode"],
-    }
-
 
 def first_diag(payload: dict[str, Any], label: str) -> dict[str, Any]:
     diagnostics = payload.get("diagnostics", [])

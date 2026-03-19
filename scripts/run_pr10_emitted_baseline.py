@@ -16,7 +16,12 @@ from _lib.harness_common import (
     ensure_sdkroot,
     finalize_deterministic_report,
     find_command,
+    load_pipeline_input,
+    load_evidence_policy,
     require,
+    require_pipeline_report,
+    require_pipeline_result,
+    resolve_generated_path,
     run,
     write_report,
 )
@@ -42,6 +47,12 @@ EXPECTED_EVIDENCE = [
     "execution/reports/pr10-emitted-prove-report.json",
     "execution/reports/pr10-emitted-baseline-report.json",
 ]
+SLICE_PIPELINE_IDS = {
+    "run_pr10_contract_baseline.py": "pr10_contract_baseline",
+    "run_pr10_emitted_flow.py": "pr10_emitted_flow",
+    "run_pr10_emitted_prove.py": "pr10_emitted_prove",
+}
+EVIDENCE_POLICY = load_evidence_policy()
 
 
 def load_tracker() -> dict[str, object]:
@@ -70,7 +81,33 @@ def next_task_is_at_or_beyond_pr10(value: object) -> bool:
     return parsed is not None and parsed[0] >= 10
 
 
-def generate_report(*, env: dict[str, str]) -> dict[str, object]:
+def canonicalize_pipeline_slice_stdout(*, script: Path, node_id: str, stdout: str) -> str:
+    normalized = stdout.replace(f"$TMPDIR/{node_id}.json", f"$TMPDIR/{script.stem}.json")
+    return re.sub(r"\$TMPDIR/[^\s)]+\.json", f"$TMPDIR/{script.stem}.json", normalized)
+
+
+def build_slice_reports_from_pipeline(*, pipeline_input: dict[str, object]) -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
+    for script in SLICE_SCRIPTS:
+        node_id = SLICE_PIPELINE_IDS[script.name]
+        result = require_pipeline_result(pipeline_input, node_id=node_id)
+        payload = require_pipeline_report(pipeline_input, node_id=node_id)
+        results.append(
+            {
+                "script": display_path(script, repo_root=REPO_ROOT),
+                "stdout": canonicalize_pipeline_slice_stdout(
+                    script=script,
+                    node_id=node_id,
+                    stdout=result["stdout"],
+                ),
+                "report_sha256": payload["report_sha256"],
+                "deterministic": payload["deterministic"],
+            }
+        )
+    return results
+
+
+def build_slice_reports_standalone(*, env: dict[str, str]) -> list[dict[str, object]]:
     python = find_command("python3")
     with tempfile.TemporaryDirectory(prefix="pr10-baseline-") as temp_root_str:
         temp_root = Path(temp_root_str)
@@ -92,108 +129,134 @@ def generate_report(*, env: dict[str, str]) -> dict[str, object]:
                     "deterministic": payload["deterministic"],
                 }
             )
+    return results
 
-        tracker = load_tracker()
-        task_map = {task["id"]: task for task in tracker["tasks"]}  # type: ignore[index]
-        require(
-            next_task_is_at_or_beyond_pr10(tracker.get("next_task_id")),
-            "tracker next_task_id must remain at or beyond PR10 for the PR10 baseline",
-        )
-        require(task_map["PR10"]["status"] == "done", "PR10 must be marked done")
-        require(
-            task_map["PR10"]["evidence"] == EXPECTED_EVIDENCE,
-            "PR10 evidence must list the committed PR10 reports in order",
-        )
 
-        rendered_dashboard = run([python, "scripts/render_execution_status.py"], cwd=REPO_ROOT, env=env)
-        dashboard_text = DASHBOARD_PATH.read_text(encoding="utf-8")
-        require(
-            dashboard_text == rendered_dashboard["stdout"],
-            "execution/dashboard.md must match scripts/render_execution_status.py output",
-        )
-        next_task_match = re.search(
-            r"- \*\*Next task:\*\* `(PR\d+(?:\.[0-9]+(?:\.[0-9]+)?[A-Za-z0-9]*)?|none)`",
-            dashboard_text,
-        )
-        require(
-            next_task_match is not None
-            and next_task_is_at_or_beyond_pr10(
-                None if next_task_match.group(1) == "none" else next_task_match.group(1)
-            ),
-            "execution/dashboard.md: expected PR10-or-later as next task until milestone completion, then none",
-        )
-        require_contains(dashboard_text, "| PR10 | done | PR09 | 4 |", "execution/dashboard.md")
+def generate_report(
+    *,
+    env: dict[str, str],
+    results: list[dict[str, object]],
+    generated_root: Path | None,
+) -> dict[str, object]:
+    python = find_command("python3")
+    tracker = load_tracker()
+    task_map = {task["id"]: task for task in tracker["tasks"]}  # type: ignore[index]
+    require(
+        next_task_is_at_or_beyond_pr10(tracker.get("next_task_id")),
+        "tracker next_task_id must remain at or beyond PR10 for the PR10 baseline",
+    )
+    require(task_map["PR10"]["status"] == "done", "PR10 must be marked done")
+    require(
+        task_map["PR10"]["evidence"] == EXPECTED_EVIDENCE,
+        "PR10 evidence must list the committed PR10 reports in order",
+    )
 
-        baseline_text = FRONTEND_BASELINE_PATH.read_text(encoding="utf-8")
-        require_contains(
-            baseline_text,
-            "PR10 adds selected emitted-output GNATprove `flow` / `prove` verification on top",
-            "docs/frontend_architecture_baseline.md",
-        )
+    rendered_dashboard = run([python, "scripts/render_execution_status.py"], cwd=REPO_ROOT, env=env)
+    dashboard_text = resolve_generated_path(
+        DASHBOARD_PATH,
+        generated_root=generated_root,
+        policy=EVIDENCE_POLICY,
+        repo_root=REPO_ROOT,
+    ).read_text(encoding="utf-8")
+    require(
+        dashboard_text == rendered_dashboard["stdout"],
+        "execution/dashboard.md must match scripts/render_execution_status.py output",
+    )
+    next_task_match = re.search(
+        r"- \*\*Next task:\*\* `(PR\d+(?:\.[0-9]+(?:\.[0-9]+)?[A-Za-z0-9]*)?|none)`",
+        dashboard_text,
+    )
+    require(
+        next_task_match is not None
+        and next_task_is_at_or_beyond_pr10(
+            None if next_task_match.group(1) == "none" else next_task_match.group(1)
+        ),
+        "execution/dashboard.md: expected PR10-or-later as next task until milestone completion, then none",
+    )
+    require_contains(dashboard_text, "| PR10 | done | PR09 | 4 |", "execution/dashboard.md")
 
-        matrix_text = MATRIX_PATH.read_text(encoding="utf-8")
-        require_contains(matrix_text, "zero justified checks", "docs/emitted_output_verification_matrix.md")
-        require_contains(matrix_text, "zero unproved checks", "docs/emitted_output_verification_matrix.md")
+    baseline_text = FRONTEND_BASELINE_PATH.read_text(encoding="utf-8")
+    require_contains(
+        baseline_text,
+        "PR10 adds selected emitted-output GNATprove `flow` / `prove` verification on top",
+        "docs/frontend_architecture_baseline.md",
+    )
 
-        post_pr10_text = POST_PR10_SCOPE_PATH.read_text(encoding="utf-8")
-        require_contains(
-            post_pr10_text,
-            "Faithful source-level `select ... or delay ...` semantics beyond the current emitted polling-based lowering",
-            "docs/post_pr10_scope.md",
-        )
-        require_contains(post_pr10_text, "PS-018", "docs/post_pr10_scope.md")
-        require_contains(post_pr10_text, "PS-019", "docs/post_pr10_scope.md")
+    matrix_text = MATRIX_PATH.read_text(encoding="utf-8")
+    require_contains(matrix_text, "zero justified checks", "docs/emitted_output_verification_matrix.md")
+    require_contains(matrix_text, "zero unproved checks", "docs/emitted_output_verification_matrix.md")
 
-        readme_text = README_PATH.read_text(encoding="utf-8")
-        require_contains(
-            readme_text,
-            "the PR10 emitted-output GNATprove contract/flow/prove/baseline jobs",
-            "README.md",
-        )
-        require_contains(
-            readme_text,
-            "known `codex/pr08...`, `codex/pr09...`, and `codex/pr10...` branches",
-            "README.md",
-        )
+    post_pr10_text = POST_PR10_SCOPE_PATH.read_text(encoding="utf-8")
+    require_contains(
+        post_pr10_text,
+        "Faithful source-level `select ... or delay ...` semantics beyond the current emitted polling-based lowering",
+        "docs/post_pr10_scope.md",
+    )
+    require_contains(post_pr10_text, "PS-018", "docs/post_pr10_scope.md")
+    require_contains(post_pr10_text, "PS-019", "docs/post_pr10_scope.md")
 
-        compiler_readme_text = COMPILER_README_PATH.read_text(encoding="utf-8")
-        require_contains(
-            compiler_readme_text,
-            "The PR10 emitted baseline gate is:",
-            "compiler_impl/README.md",
-        )
-        require_contains(
-            compiler_readme_text,
-            "later tracked milestones may exist",
-            "compiler_impl/README.md",
-        )
+    readme_text = README_PATH.read_text(encoding="utf-8")
+    require_contains(
+        readme_text,
+        "the PR10 emitted-output GNATprove contract/flow/prove/baseline jobs",
+        "README.md",
+    )
+    require_contains(
+        readme_text,
+        "known `codex/pr08...`, `codex/pr09...`, and `codex/pr10...` branches",
+        "README.md",
+    )
 
-        return {
-            "slice_reports": results,
-            "tracker": {
-                "next_task_id": tracker["next_task_id"],
-                "pr10_status": task_map["PR10"]["status"],
-                "pr10_evidence": task_map["PR10"]["evidence"],
-            },
-            "docs": {
-                "dashboard_synced": True,
-                "frontend_baseline": display_path(FRONTEND_BASELINE_PATH, repo_root=REPO_ROOT),
-                "matrix": display_path(MATRIX_PATH, repo_root=REPO_ROOT),
-                "post_pr10_scope": display_path(POST_PR10_SCOPE_PATH, repo_root=REPO_ROOT),
-                "readme": display_path(README_PATH, repo_root=REPO_ROOT),
-                "compiler_readme": display_path(COMPILER_README_PATH, repo_root=REPO_ROOT),
-            },
-        }
+    compiler_readme_text = COMPILER_README_PATH.read_text(encoding="utf-8")
+    require_contains(
+        compiler_readme_text,
+        "The PR10 emitted baseline gate is:",
+        "compiler_impl/README.md",
+    )
+    require_contains(
+        compiler_readme_text,
+        "later tracked milestones may exist",
+        "compiler_impl/README.md",
+    )
+
+    return {
+        "slice_reports": results,
+        "tracker": {
+            "next_task_id": tracker["next_task_id"],
+            "pr10_status": task_map["PR10"]["status"],
+            "pr10_evidence": task_map["PR10"]["evidence"],
+        },
+        "docs": {
+            "dashboard_synced": True,
+            "frontend_baseline": display_path(FRONTEND_BASELINE_PATH, repo_root=REPO_ROOT),
+            "matrix": display_path(MATRIX_PATH, repo_root=REPO_ROOT),
+            "post_pr10_scope": display_path(POST_PR10_SCOPE_PATH, repo_root=REPO_ROOT),
+            "readme": display_path(README_PATH, repo_root=REPO_ROOT),
+            "compiler_readme": display_path(COMPILER_README_PATH, repo_root=REPO_ROOT),
+        },
+    }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--pipeline-input", type=Path)
+    parser.add_argument("--generated-root", type=Path)
     args = parser.parse_args()
 
     env = ensure_sdkroot(os.environ.copy())
+    pipeline_input = load_pipeline_input(args.pipeline_input)
+    results = (
+        build_slice_reports_from_pipeline(pipeline_input=pipeline_input)
+        if pipeline_input
+        else build_slice_reports_standalone(env=env)
+    )
     report = finalize_deterministic_report(
-        lambda: generate_report(env=env),
+        lambda: generate_report(
+            env=env,
+            results=results,
+            generated_root=args.generated_root,
+        ),
         label="PR10 emitted baseline",
     )
     write_report(args.report, report)

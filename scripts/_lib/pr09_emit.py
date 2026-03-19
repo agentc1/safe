@@ -15,7 +15,7 @@ from .harness_common import (
     find_command,
     read_diag_json,
     require,
-    require_repo_command,
+    require_safec,
     run,
     sha256_file,
 )
@@ -30,10 +30,6 @@ def repo_arg(path: Path) -> str:
         return str(path.relative_to(REPO_ROOT))
     except ValueError:
         return str(path)
-
-
-def require_safec() -> Path:
-    return require_repo_command(COMPILER_ROOT / "bin" / "safec", "safec")
 
 
 def alr_command() -> str:

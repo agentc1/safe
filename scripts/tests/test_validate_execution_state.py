@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
@@ -13,6 +14,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from validate_execution_state import (
+    EVIDENCE_POLICY_SHA256,
     GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS,
     GLUE_SAFETY_AUDITED_SCRIPTS,
     GLUE_SAFETY_REPORT_SCRIPTS,
@@ -33,6 +35,8 @@ from validate_execution_state import (
     legacy_frontend_cleanup_report,
     performance_scale_sanity_report,
     report_sync_report,
+    run_final_phase,
+    run_preflight_phase,
     runtime_boundary_report,
 )
 
@@ -76,6 +80,8 @@ class ValidateExecutionStateTests(unittest.TestCase):
         self.assertIn("scripts/run_pr113a_proof_checkpoint1.py", GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS)
         self.assertIn("scripts/run_pr114_signature_control_flow_syntax.py", GLUE_SAFETY_AUDITED_SCRIPTS)
         self.assertIn("scripts/run_pr114_signature_control_flow_syntax.py", GLUE_SAFETY_REPORT_SCRIPTS)
+        self.assertIn("scripts/_lib/gate_manifest.py", GLUE_SAFETY_AUDITED_SCRIPTS)
+        self.assertIn("scripts/run_gate_pipeline.py", GLUE_SAFETY_AUDITED_SCRIPTS)
         self.assertIn(
             "scripts/run_pr114_signature_control_flow_syntax.py",
             GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS,
@@ -654,6 +660,7 @@ class ValidateExecutionStateTests(unittest.TestCase):
                 "with tempfile.TemporaryDirectory() as temp_dir:\n"
                 "    pass\n"
                 "safec = COMPILER_ROOT / 'bin' / 'safec'\n"
+                "run([str(safec), 'check'], cwd=Path('.'))\n"
                 "run(['git', 'status'], cwd=Path('.'))\n"
                 "report = finalize_deterministic_report(lambda: {'status': 'ok'}, label='sample')\n"
                 "write_report(DEFAULT_REPORT, report)\n",
@@ -668,6 +675,31 @@ class ValidateExecutionStateTests(unittest.TestCase):
             self.assertIn("scripts/runtime_gate.py:TemporaryDirectory", report["tempdir_violations"])
             self.assertIn("scripts/runtime_gate.py:git", report["command_lookup_violations"])
             self.assertIn("scripts/runtime_gate.py:safec", report["command_lookup_violations"])
+
+    def test_glue_script_safety_report_allows_cleanup_only_repo_local_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            scripts_dir = repo_root / "scripts"
+            scripts_dir.mkdir()
+            (scripts_dir / "runtime_gate.py").write_text(
+                "from pathlib import Path\n"
+                "from _lib.harness_common import finalize_deterministic_report, write_report\n"
+                "DEFAULT_REPORT = Path('execution/reports/sample.json')\n"
+                "COMPILER_ROOT = Path('compiler_impl')\n"
+                "safec = COMPILER_ROOT / 'bin' / 'safec'\n"
+                "if safec.exists():\n"
+                "    safec.unlink()\n"
+                "report = finalize_deterministic_report(lambda: {'status': 'ok'}, label='sample')\n"
+                "write_report(DEFAULT_REPORT, report)\n",
+                encoding="utf-8",
+            )
+            report = glue_script_safety_report(
+                repo_root=repo_root,
+                audited_scripts=("scripts/runtime_gate.py",),
+                report_scripts=("scripts/runtime_gate.py",),
+                path_commands=(),
+            )
+            self.assertFalse(report["command_lookup_violations"])
 
     def test_glue_script_safety_report_detects_aliased_tempfile_usage(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1145,6 +1177,102 @@ class ValidateExecutionStateTests(unittest.TestCase):
                     "README.md": ["PR00–PR06.9.1 sequential frontend landed"],
                 },
             )
+
+    def test_run_preflight_phase_checks_environment_without_evidence_files(self) -> None:
+        tracker = {"tasks": []}
+        with mock.patch("validate_execution_state.check_tracker_schema"), mock.patch(
+            "validate_execution_state.check_status_rules"
+        ), mock.patch("validate_execution_state.check_dependencies"), mock.patch(
+            "validate_execution_state.check_frozen_sha",
+            return_value="a" * 40,
+        ), mock.patch("validate_execution_state.check_documented_sha"), mock.patch(
+            "validate_execution_state.check_test_distribution"
+        ), mock.patch(
+            "validate_execution_state.check_environment_preconditions",
+            return_value={"authority": "local"},
+        ):
+            report = run_preflight_phase(tracker=tracker, authority="local", env={})
+        self.assertEqual(report["phase"], "preflight")
+        self.assertEqual(report["policy_sha256"], EVIDENCE_POLICY_SHA256)
+        self.assertEqual(report["preconditions"]["authority"], "local")
+
+    def test_run_final_phase_resolves_generated_root_and_embeds_policy_metadata(self) -> None:
+        tracker = {"tasks": []}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            generated_root = Path(temp_dir)
+            with mock.patch(
+                "validate_execution_state.check_frozen_sha",
+                return_value="a" * 40,
+            ), mock.patch("validate_execution_state.check_documented_sha"), mock.patch(
+                "validate_execution_state.check_dashboard_freshness"
+            ) as check_dashboard_freshness, mock.patch(
+                "validate_execution_state.check_evidence_reproducibility"
+            ) as check_evidence_reproducibility, mock.patch(
+                "validate_execution_state.check_report_sync"
+            ) as check_report_sync, mock.patch(
+                "validate_execution_state.check_runtime_boundary"
+            ), mock.patch(
+                "validate_execution_state.check_environment_assumptions"
+            ), mock.patch(
+                "validate_execution_state.check_legacy_frontend_cleanup"
+            ), mock.patch(
+                "validate_execution_state.check_glue_script_safety"
+            ), mock.patch(
+                "validate_execution_state.check_performance_scale_sanity"
+            ), mock.patch(
+                "validate_execution_state.check_documentation_architecture_clarity"
+            ), mock.patch(
+                "validate_execution_state.check_policy_anchoring",
+                return_value=[],
+            ):
+                report = run_final_phase(
+                    tracker=tracker,
+                    authority="ci",
+                    env={},
+                    generated_root=generated_root,
+                )
+        check_dashboard_freshness.assert_called_once_with(tracker, generated_root=generated_root)
+        check_evidence_reproducibility.assert_called_once_with(tracker, generated_root=generated_root)
+        check_report_sync.assert_called_once_with(generated_root=generated_root)
+        self.assertEqual(report["phase"], "final")
+        self.assertEqual(report["authority"], "ci")
+        self.assertEqual(report["policy_sha256"], EVIDENCE_POLICY_SHA256)
+        self.assertIn("documentation_architecture", report["policy_sections_used"])
+
+    def test_check_policy_anchoring_detects_mismatched_hash(self) -> None:
+        from validate_execution_state import check_policy_anchoring
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            generated_root = Path(temp_dir)
+            report_paths = [
+                generated_root / "execution" / "reports" / "pr06910-portability-environment-report.json",
+                generated_root / "execution" / "reports" / "pr06911-glue-script-safety-report.json",
+                generated_root / "execution" / "reports" / "pr06913-documentation-architecture-clarity-report.json",
+            ]
+            for path in report_paths:
+                self._write_finalized_report(
+                    path,
+                    {
+                        "status": "ok",
+                        "policy_sha256": EVIDENCE_POLICY_SHA256,
+                        "policy_sections_used": ["environment"],
+                    },
+                )
+            self._write_finalized_report(
+                report_paths[1],
+                {
+                    "status": "ok",
+                    "policy_sha256": "0" * 64,
+                    "policy_sections_used": ["glue_safety"],
+                },
+            )
+
+            violations = check_policy_anchoring(generated_root=generated_root)
+
+        self.assertEqual(
+            violations,
+            ["execution/reports/pr06911-glue-script-safety-report.json:policy_sha256"],
+        )
 
 
 if __name__ == "__main__":

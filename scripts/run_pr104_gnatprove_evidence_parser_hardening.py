@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from _lib.harness_common import (
+    compact_result,
     display_path,
     ensure_sdkroot,
     finalize_deterministic_report,
@@ -59,15 +60,6 @@ EXPECTED_GNATPROVE_PROFILE_SNIPPETS = [
     "deterministic reports plus normalized GNATprove summaries",
     "GNATprove session artifacts are not committed and are not part of the reproducibility contract",
 ]
-
-
-def compact_result(result: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "command": result["command"],
-        "cwd": result["cwd"],
-        "returncode": result["returncode"],
-    }
-
 
 def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))

@@ -13,7 +13,11 @@ from _lib.harness_common import (
     display_path,
     finalize_deterministic_report,
     find_command,
+    load_pipeline_input,
+    load_evidence_policy,
     require,
+    require_pipeline_result,
+    resolve_generated_path,
     run,
     write_report,
 )
@@ -33,6 +37,21 @@ SUBGATE_SCRIPTS = (
     "scripts/run_pr083a_public_constants.py",
     "scripts/run_pr084_transitive_concurrency_integration.py",
 )
+SUBGATE_PIPELINE_IDS = {
+    "run_pr081_local_concurrency_frontend.py": "pr081_local_concurrency_frontend",
+    "run_pr082_local_concurrency_analysis.py": "pr082_local_concurrency_analysis",
+    "run_pr083_interface_contracts.py": "pr083_interface_contracts",
+    "run_pr083a_public_constants.py": "pr083a_public_constants",
+    "run_pr084_transitive_concurrency_integration.py": "pr084_transitive_concurrency",
+}
+SUBGATE_REPORTS = {
+    "run_pr081_local_concurrency_frontend.py": REPO_ROOT / "execution" / "reports" / "pr081-local-concurrency-frontend-report.json",
+    "run_pr082_local_concurrency_analysis.py": REPO_ROOT / "execution" / "reports" / "pr082-local-concurrency-analysis-report.json",
+    "run_pr083_interface_contracts.py": REPO_ROOT / "execution" / "reports" / "pr083-interface-contracts-report.json",
+    "run_pr083a_public_constants.py": REPO_ROOT / "execution" / "reports" / "pr083a-public-constants-report.json",
+    "run_pr084_transitive_concurrency_integration.py": REPO_ROOT / "execution" / "reports" / "pr084-transitive-concurrency-integration-report.json",
+}
+EVIDENCE_POLICY = load_evidence_policy()
 
 
 def compact_result(result: dict[str, Any]) -> dict[str, Any]:
@@ -42,6 +61,21 @@ def compact_result(result: dict[str, Any]) -> dict[str, Any]:
         if isinstance(text, str) and len(text) > 400:
             compact[key] = f"<{len(text)} chars>"
     return compact
+
+
+def canonicalize_pipeline_subgate_result(*, script_name: str, result: dict[str, Any]) -> dict[str, Any]:
+    canonical = dict(result)
+    command = list(canonical.get("command", []))
+    if "--report" in command:
+        index = command.index("--report")
+        del command[index:index + 2]
+    canonical["command"] = command
+    report_display = display_path(SUBGATE_REPORTS[script_name], repo_root=REPO_ROOT)
+    for key in ("stdout", "stderr"):
+        text = canonical.get(key, "")
+        if isinstance(text, str):
+            canonical[key] = re.sub(r"\$TMPDIR/[^\s)]+", report_display, text)
+    return canonical
 
 
 def load_tracker() -> dict[str, Any]:
@@ -82,10 +116,23 @@ def run_subgates(*, python: str) -> dict[str, Any]:
     return results
 
 
+def pipeline_subgates(*, pipeline_input: dict[str, Any]) -> dict[str, Any]:
+    results: dict[str, Any] = {}
+    for script_name, node_id in SUBGATE_PIPELINE_IDS.items():
+        results[script_name] = compact_result(
+            canonicalize_pipeline_subgate_result(
+                script_name=script_name,
+                result=require_pipeline_result(pipeline_input, node_id=node_id),
+            )
+        )
+    return results
+
+
 def generate_report(
     *,
     python: str,
     subgate_results: dict[str, Any],
+    generated_root: Path | None,
 ) -> dict[str, Any]:
     tracker = load_tracker()
     task_map = {task["id"]: task for task in tracker["tasks"]}
@@ -103,7 +150,12 @@ def generate_report(
     )
 
     rendered_dashboard = run([python, "scripts/render_execution_status.py"], cwd=REPO_ROOT)
-    dashboard_text = DASHBOARD_PATH.read_text(encoding="utf-8")
+    dashboard_text = resolve_generated_path(
+        DASHBOARD_PATH,
+        generated_root=generated_root,
+        policy=EVIDENCE_POLICY,
+        repo_root=REPO_ROOT,
+    ).read_text(encoding="utf-8")
     require(
         dashboard_text == rendered_dashboard["stdout"],
         "execution/dashboard.md must match scripts/render_execution_status.py output",
@@ -189,12 +241,22 @@ def generate_report(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--pipeline-input", type=Path)
+    parser.add_argument("--generated-root", type=Path)
     args = parser.parse_args()
 
     python = find_command("python3")
-    subgate_results = run_subgates(python=python)
+    pipeline_input = load_pipeline_input(args.pipeline_input)
+    if pipeline_input:
+        subgate_results = pipeline_subgates(pipeline_input=pipeline_input)
+    else:
+        subgate_results = run_subgates(python=python)
     report = finalize_deterministic_report(
-        lambda: generate_report(python=python, subgate_results=subgate_results),
+        lambda: generate_report(
+            python=python,
+            subgate_results=subgate_results,
+            generated_root=args.generated_root,
+        ),
         label="PR08 frontend baseline",
     )
     write_report(args.report, report)

@@ -11,6 +11,10 @@
     ],
     "missing_doc_files": [],
     "missing_required_links": [],
+    "policy_sections_used": [
+      "documentation_architecture"
+    ],
+    "policy_sha256": "7e1c53c70104d1567e915022e7c5b134bffab65f407fb28589231c787ef5cba0",
     "stale_boundary_violations": [],
     "unresolved_local_links": []
   },
@@ -24,8 +28,12 @@
     "execution/dashboard.md",
     "execution/reports/pr06913-documentation-architecture-clarity-report.json"
   ],
-  "repeat_sha256": "ac8c002e8662dcc4d7585aaba788d24f02e1ca4aad8b76d08b79b2ffaac5690d",
-  "report_sha256": "ac8c002e8662dcc4d7585aaba788d24f02e1ca4aad8b76d08b79b2ffaac5690d",
+  "policy_sections_used": [
+    "documentation_architecture"
+  ],
+  "policy_sha256": "7e1c53c70104d1567e915022e7c5b134bffab65f407fb28589231c787ef5cba0",
+  "repeat_sha256": "8b93ce2a596386f6ff75c0b8d9785a807707853c207675a9484e7681e81b3e6a",
+  "report_sha256": "8b93ce2a596386f6ff75c0b8d9785a807707853c207675a9484e7681e81b3e6a",
   "reruns": {
     "gate_quality": {
       "committed_report_path": "execution/reports/pr0697-gate-quality-report.json",
@@ -56,16 +64,6 @@
       "committed_report_path": "execution/reports/pr0693-runtime-boundary-report.json",
       "matches_committed_report": true,
       "script": "scripts/run_pr0693_runtime_boundary.py"
-    },
-    "validate_execution_state": {
-      "command": [
-        "python3",
-        "scripts/validate_execution_state.py"
-      ],
-      "cwd": "$REPO_ROOT",
-      "returncode": 0,
-      "stderr": "",
-      "stdout": "execution state: OK\n"
     }
   },
   "status": "ok",

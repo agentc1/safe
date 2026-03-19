@@ -14,11 +14,17 @@ from pathlib import Path
 from typing import Any
 
 from _lib.harness_common import (
+    compact_result,
     display_path,
     ensure_sdkroot,
     finalize_deterministic_report,
     find_command,
+    load_pipeline_input,
+    load_evidence_policy,
     require,
+    require_pipeline_report,
+    require_pipeline_result,
+    resolve_generated_path,
     run,
     sha256_file,
     sha256_text,
@@ -44,6 +50,13 @@ BASELINE_SCRIPTS = [
     REPO_ROOT / "scripts" / "run_pr10_emitted_baseline.py",
     REPO_ROOT / "scripts" / "run_emitted_hardening_regressions.py",
 ]
+PIPELINE_BASELINE_IDS = {
+    "run_pr08_frontend_baseline.py": "pr08_frontend_baseline",
+    "run_pr09_ada_emission_baseline.py": "pr09_ada_emission_baseline",
+    "run_pr10_emitted_baseline.py": "pr10_emitted_baseline",
+    "run_emitted_hardening_regressions.py": "emitted_hardening_regressions",
+}
+EVIDENCE_POLICY = load_evidence_policy()
 EXPECTED_PR101_ACCEPTANCE = [
     "Authoritative PR08, PR09, PR10, supplemental hardening, companion/template verification, and execution-state baselines rerun serially and establish the audit truth baseline.",
     "docs/pr10_refinement_audit.md classifies every current post-PR10 residual and current PR10/post-PR10 claim surface using the required finding schema and allowed dispositions.",
@@ -333,15 +346,6 @@ def task_is_at_or_beyond_pr115(value: object) -> bool:
     major, minor = parsed
     return major > 11 or (major == 11 and minor is not None and minor >= 5)
 
-
-def compact_result(result: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "command": result["command"],
-        "cwd": result["cwd"],
-        "returncode": result["returncode"],
-    }
-
-
 def split_table_row(line: str) -> list[str] | None:
     stripped = line.strip()
     if not stripped.startswith("|") or not stripped.endswith("|"):
@@ -580,7 +584,45 @@ def run_baseline_truth(*, env: dict[str, str]) -> dict[str, Any]:
         }
 
 
-def build_report(*, baseline_truth: dict[str, Any]) -> dict[str, Any]:
+def canonicalize_pipeline_gate_result(*, script: Path, result: dict[str, Any]) -> dict[str, Any]:
+    canonical = dict(result)
+    command = list(canonical["command"])
+    if "--pipeline-input" in command:
+        index = command.index("--pipeline-input")
+        del command[index:index + 2]
+    if "--generated-root" in command:
+        index = command.index("--generated-root")
+        del command[index:index + 2]
+    if "--report" in command:
+        index = command.index("--report")
+        command[index + 1] = f"$TMPDIR/{script.stem}.json"
+    canonical["command"] = command
+    return canonical
+
+
+def pipeline_baseline_truth(*, env: dict[str, Any], pipeline_input: dict[str, Any]) -> dict[str, Any]:
+    gates: list[dict[str, Any]] = []
+    for script in BASELINE_SCRIPTS:
+        node_id = PIPELINE_BASELINE_IDS[script.name]
+        result = require_pipeline_result(pipeline_input, node_id=node_id)
+        payload = require_pipeline_report(pipeline_input, node_id=node_id)
+        gates.append(
+            {
+                "script": display_path(script, repo_root=REPO_ROOT),
+                "result": compact_result(canonicalize_pipeline_gate_result(script=script, result=result)),
+                "report_sha256": payload["report_sha256"],
+                "deterministic": payload["deterministic"],
+            }
+        )
+
+    return {
+        "python_gates": gates,
+        "companion_verify": run_companion_verify(env=env),
+        "templates_verify": run_templates_verify(env=env),
+    }
+
+
+def build_report(*, baseline_truth: dict[str, Any], generated_root: Path | None) -> dict[str, Any]:
     tracker = load_tracker()
     task_map = {task["id"]: task for task in tracker["tasks"]}
     require(task_map["PR10"]["status"] == "done", "PR10 must remain marked done")
@@ -741,7 +783,12 @@ def build_report(*, baseline_truth: dict[str, Any]) -> dict[str, Any]:
     )
 
     rendered_dashboard = run([find_command("python3"), "scripts/render_execution_status.py"], cwd=REPO_ROOT, env=ensure_sdkroot(os.environ.copy()))
-    dashboard_text = DASHBOARD_PATH.read_text(encoding="utf-8")
+    dashboard_text = resolve_generated_path(
+        DASHBOARD_PATH,
+        generated_root=generated_root,
+        policy=EVIDENCE_POLICY,
+        repo_root=REPO_ROOT,
+    ).read_text(encoding="utf-8")
     require(dashboard_text == rendered_dashboard["stdout"], "execution/dashboard.md must match render_execution_status.py")
     require_contains(dashboard_text, "| PR10.1 | done | PR10 | 1 |", "execution/dashboard.md")
     require_contains(dashboard_text, "| PR10.3 | done | PR10.1 | 1 |", "execution/dashboard.md")
@@ -928,15 +975,22 @@ def build_report(*, baseline_truth: dict[str, Any]) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--pipeline-input", type=Path)
+    parser.add_argument("--generated-root", type=Path)
     args = parser.parse_args()
 
     env = ensure_sdkroot(os.environ.copy())
-    baseline_truth = run_baseline_truth(env=env)
-    baseline_truth["execution_state_validation"] = compact_result(
-        run([find_command("python3"), "scripts/validate_execution_state.py"], cwd=REPO_ROOT, env=env)
+    pipeline_input = load_pipeline_input(args.pipeline_input)
+    baseline_truth = (
+        pipeline_baseline_truth(env=env, pipeline_input=pipeline_input)
+        if pipeline_input
+        else run_baseline_truth(env=env)
     )
     report = finalize_deterministic_report(
-        lambda: build_report(baseline_truth=baseline_truth),
+        lambda: build_report(
+            baseline_truth=baseline_truth,
+            generated_root=args.generated_root,
+        ),
         label="PR10.1 comprehensive audit",
     )
     write_report(args.report, report)

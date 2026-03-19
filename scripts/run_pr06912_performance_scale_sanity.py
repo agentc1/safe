@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import statistics
 import tempfile
 import time
@@ -27,6 +28,7 @@ from _lib.harness_common import (
     run,
     write_report,
 )
+from migrate_pr114_syntax import split_segments
 from validate_execution_state import check_performance_scale_sanity, performance_scale_sanity_report
 
 
@@ -70,16 +72,109 @@ SIZE_RATIO_CAPS = {
     "safei": 2.0,
 }
 
+DECLARATION_START_RE = re.compile(r"^\s*(?:public\s+)?function\b")
+FUNCTION_DECL_RE = re.compile(r"^(\s*(?:public\s+)?)function\b")
+NO_RESULT_SIGNATURE_KIND_RE = re.compile(r'"kind":"function","signature":"function(?P<sig>\s+[A-Za-z_][^"]*)"')
+SIGNATURE_RETURNS_RE = re.compile(r'("signature":"function[^"]*?)\breturns\b')
+MIR_VOID_KIND_RE = re.compile(
+    r'"kind":"function"(?P<middle>,"entry_bb":"[^"]+","span":\{[^{}]*\},"return_type":null)'
+)
+
 
 def repo_arg(path: Path) -> str:
     return str(path.relative_to(REPO_ROOT))
+
+
+def legacy_surface_normalize(text: str) -> str:
+    lines = text.splitlines(keepends=True)
+    rewritten: list[str] = []
+    inside_signature = False
+    paren_depth = 0
+
+    for line in lines:
+        segments = split_segments(line)
+        visible_code = "".join(segment for kind, segment in segments if kind == "code")
+        if DECLARATION_START_RE.match(visible_code):
+            inside_signature = True
+            paren_depth = 0
+
+        has_returns = "returns" in visible_code
+        replaced_returns = False
+        first_code = True
+        updated_segments: list[str] = []
+
+        for kind, segment in segments:
+            if kind != "code":
+                updated_segments.append(segment)
+                continue
+
+            updated = segment
+            if first_code and inside_signature and not has_returns:
+                updated = FUNCTION_DECL_RE.sub(r"\1procedure", updated, count=1)
+                first_code = False
+            elif first_code:
+                first_code = False
+
+            if inside_signature and has_returns and not replaced_returns and re.search(r"\breturns\b", updated):
+                updated = re.sub(r"\breturns\b", "return", updated, count=1)
+                replaced_returns = True
+
+            updated = re.sub(r"\belse\s+if\b", "elsif", updated)
+            updated_segments.append(updated)
+
+        rewritten_line = "".join(updated_segments)
+        rewritten.append(rewritten_line)
+
+        visible_rewritten = "".join(
+            segment for kind, segment in split_segments(rewritten_line) if kind == "code"
+        )
+        if inside_signature:
+            paren_depth += visible_rewritten.count("(") - visible_rewritten.count(")")
+            if paren_depth <= 0 and (
+                re.search(r"\bis\b", visible_rewritten) or visible_rewritten.rstrip().endswith(";")
+            ):
+                inside_signature = False
+                paren_depth = 0
+
+    return "".join(rewritten)
+
+
+def stable_source_size(path: Path, *, text: str) -> int:
+    if path.suffix == ".safe":
+        return len(legacy_surface_normalize(text).encode("utf-8"))
+    return path.stat().st_size
+
+
+def stable_typed_or_safei_text(text: str) -> str:
+    def replace_signature(match: re.Match[str]) -> str:
+        sig = match.group("sig")
+        full_sig = "function" + sig
+        if " return " in full_sig or " returns " in full_sig:
+            return match.group(0)
+        return f'"kind":"procedure","signature":"procedure{sig}"'
+
+    updated = NO_RESULT_SIGNATURE_KIND_RE.sub(replace_signature, text)
+    return SIGNATURE_RETURNS_RE.sub(r"\1return", updated)
+
+
+def stable_mir_text(text: str) -> str:
+    return MIR_VOID_KIND_RE.sub(r'"kind":"procedure"\g<middle>', text)
+
+
+def stable_emitted_artifact_size(path: Path) -> int:
+    text = path.read_text(encoding="utf-8")
+    if path.name.endswith(".typed.json") or path.name.endswith(".safei.json"):
+        return len(stable_typed_or_safei_text(text).encode("utf-8"))
+    if path.name.endswith(".mir.json"):
+        return len(stable_mir_text(text).encode("utf-8"))
+    return path.stat().st_size
 
 
 def sample_metadata(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
     return {
         "path": display_path(path, repo_root=REPO_ROOT),
-        "bytes": path.stat().st_size,
+        "bytes": stable_source_size(path, text=text),
         "lines": len(text.splitlines()),
     }
 
@@ -139,7 +234,8 @@ def measure_emit_scenarios(*, safec: Path, env: dict[str, str]) -> tuple[list[di
     summaries: list[dict[str, Any]] = []
     medians: dict[str, float] = {}
     for sample in EMIT_SCENARIOS:
-        source_bytes = sample.stat().st_size
+        source_text = sample.read_text(encoding="utf-8")
+        source_bytes = stable_source_size(sample, text=source_text)
         times_ms: list[float] = []
         artifact_sizes: dict[str, int] = {}
         with tempfile.TemporaryDirectory(prefix=f"pr06912-emit-{sample.stem.lower()}-") as temp_root_str:
@@ -179,10 +275,10 @@ def measure_emit_scenarios(*, safec: Path, env: dict[str, str]) -> tuple[list[di
                     f"emit file set drift for {sample.name}: expected {sorted(expected_files)}, got {sorted(observed_files)}",
                 )
                 current_sizes = {
-                    "ast": paths["ast"].stat().st_size,
-                    "typed": paths["typed"].stat().st_size,
-                    "mir": paths["mir"].stat().st_size,
-                    "safei": paths["safei"].stat().st_size,
+                    "ast": stable_emitted_artifact_size(paths["ast"]),
+                    "typed": stable_emitted_artifact_size(paths["typed"]),
+                    "mir": stable_emitted_artifact_size(paths["mir"]),
+                    "safei": stable_emitted_artifact_size(paths["safei"]),
                 }
                 if not artifact_sizes:
                     artifact_sizes = current_sizes
@@ -317,7 +413,13 @@ def run_supported_positive_check_sweep(*, safec: Path, env: dict[str, str]) -> d
         total_ms <= CHECK_SWEEP_BUDGET_MS,
         f"supported-positive check sweep exceeded budget: {total_ms:.2f} ms > {CHECK_SWEEP_BUDGET_MS:.2f} ms",
     )
-    largest = max(cases, key=lambda path: (path.stat().st_size, str(path)))
+    largest = max(
+        cases,
+        key=lambda path: (
+            stable_source_size(path, text=path.read_text(encoding="utf-8")),
+            str(path),
+        ),
+    )
     print(f"pr06912 full check sweep: total={total_ms:.2f} ms over {len(cases)} cases")
     return {
         "count": len(cases),

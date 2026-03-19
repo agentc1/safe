@@ -16,6 +16,7 @@ from typing import Any, Callable
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPILER_ROOT = REPO_ROOT / "compiler_impl"
 DEFAULT_MACOS_SDKROOT = Path("/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk")
+EVIDENCE_POLICY_PATH = REPO_ROOT / "execution" / "evidence_policy.json"
 
 
 def normalize_text(text: str, *, temp_root: Path | None = None, repo_root: Path = REPO_ROOT) -> str:
@@ -69,10 +70,30 @@ def require_repo_command(path: Path, name: str) -> Path:
     raise FileNotFoundError(f"required repo-local command not found: {name} at {path}")
 
 
+def require_safec() -> Path:
+    return require_repo_command(COMPILER_ROOT / "bin" / "safec", "safec")
+
+
 def compiler_build_argv(alr: str) -> list[str]:
     # Keep Alire's workspace/config generation, but force gprbuild itself to
     # run serially to avoid occasional corrupt dependency archives on macOS.
     return [alr, "build", "--", "-j1", "-p"]
+
+
+def ensure_deterministic_env(
+    env: dict[str, str],
+    *,
+    required: dict[str, str] | None = None,
+) -> dict[str, str]:
+    updated = env.copy()
+    policy_required = required or {
+        "PYTHONHASHSEED": "0",
+        "LC_ALL": "C.UTF-8",
+        "TZ": "UTC",
+    }
+    for key, value in policy_required.items():
+        updated.setdefault(key, value)
+    return updated
 
 
 def run(
@@ -247,11 +268,106 @@ def stable_binary_sha256(path: Path) -> str:
         return sha256_file(projected)
 
 
+def load_evidence_policy(path: Path = EVIDENCE_POLICY_PATH) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    require(isinstance(payload, dict), f"{path}: evidence policy root must be an object")
+    return payload
+
+
+def evidence_policy_sha256(payload: dict[str, Any]) -> str:
+    return sha256_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def policy_metadata(
+    *,
+    policy_sha256: str,
+    sections: list[str],
+) -> dict[str, Any]:
+    return {
+        "policy_sha256": policy_sha256,
+        "policy_sections_used": sections,
+    }
+
+
+def generated_output_paths(policy: dict[str, Any]) -> tuple[Path, Path]:
+    outputs = policy["generated_outputs"]
+    return Path(outputs["reports_root"]), Path(outputs["dashboard"])
+
+
+def resolve_generated_path(
+    path: Path,
+    *,
+    generated_root: Path | None,
+    policy: dict[str, Any],
+    repo_root: Path = REPO_ROOT,
+) -> Path:
+    if generated_root is None:
+        return path
+    try:
+        relative = path.relative_to(repo_root)
+    except ValueError:
+        return path
+    reports_root, dashboard_path = generated_output_paths(policy)
+    if relative == dashboard_path or reports_root in relative.parents:
+        return generated_root / relative
+    return path
+
+
 def display_path(path: Path, *, repo_root: Path = REPO_ROOT) -> str:
     try:
         return str(path.relative_to(repo_root))
     except ValueError:
         return str(path)
+
+
+def normalize_source_text(text: str) -> str:
+    return " ".join(text.split())
+
+
+def normalized_source_fragments(
+    item: dict[str, Any],
+    *,
+    key: str = "source_fragments",
+) -> tuple[str, ...]:
+    return tuple(normalize_source_text(fragment) for fragment in item[key])
+
+
+def assert_text_fragments(*, text: str, fragments: list[str], label: str) -> list[str]:
+    for fragment in fragments:
+        require(fragment in text, f"{label} missing required fragment: {fragment}")
+    return fragments
+
+
+def assert_regexes(*, text: str, patterns: list[str], label: str) -> list[str]:
+    for pattern in patterns:
+        require(re.search(pattern, text, flags=re.MULTILINE) is not None, f"{label} missing required pattern: {pattern}")
+    return patterns
+
+
+def assert_order(*, text: str, fragments: list[str], label: str) -> list[str]:
+    cursor = -1
+    for fragment in fragments:
+        index = text.find(fragment, cursor + 1)
+        require(index >= 0, f"{label} missing ordered fragment: {fragment}")
+        require(index > cursor, f"{label} fragment out of order: {fragment}")
+        cursor = index
+    return fragments
+
+
+def compact_result(result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "command": result["command"],
+        "cwd": result["cwd"],
+        "returncode": result["returncode"],
+    }
+
+
+def strip_safe_comments(text: str) -> str:
+    lines: list[str] = []
+    for line in text.splitlines():
+        marker = line.find("--")
+        lines.append(line if marker < 0 else line[:marker])
+    return "\n".join(lines)
 
 
 def serialize_report(report: dict[str, Any]) -> str:
@@ -345,28 +461,72 @@ def reference_committed_report(
     *,
     script: Path,
     committed_report_path: Path,
+    generated_root: Path | None = None,
+    policy: dict[str, Any] | None = None,
     repo_root: Path = REPO_ROOT,
 ) -> dict[str, Any]:
-    require(committed_report_path.exists(), f"missing committed report: {committed_report_path}")
-    committed_text = committed_report_path.read_text(encoding="utf-8")
+    resolved_report_path = (
+        resolve_generated_path(
+            committed_report_path,
+            generated_root=generated_root,
+            policy=policy or load_evidence_policy(),
+            repo_root=repo_root,
+        )
+        if generated_root is not None
+        else committed_report_path
+    )
+    require(resolved_report_path.exists(), f"missing committed report: {resolved_report_path}")
+    committed_text = resolved_report_path.read_text(encoding="utf-8")
     committed_payload = json.loads(committed_text)
     require(
         isinstance(committed_payload, dict),
-        f"{display_path(committed_report_path, repo_root=repo_root)}: report root must be an object",
+        f"{display_path(resolved_report_path, repo_root=repo_root)}: report root must be an object",
     )
     require(
         committed_payload.get("deterministic") is True,
-        f"{display_path(committed_report_path, repo_root=repo_root)}: expected deterministic committed report",
+        f"{display_path(resolved_report_path, repo_root=repo_root)}: expected deterministic committed report",
     )
     require(
         committed_payload.get("report_sha256") == committed_payload.get("repeat_sha256"),
-        f"{display_path(committed_report_path, repo_root=repo_root)}: committed report hashes must match",
+        f"{display_path(resolved_report_path, repo_root=repo_root)}: committed report hashes must match",
     )
     return {
         "script": display_path(script, repo_root=repo_root),
         "committed_report_path": display_path(committed_report_path, repo_root=repo_root),
         "matches_committed_report": True,
     }
+
+
+def load_pipeline_input(path: Path | None) -> dict[str, Any]:
+    if path is None:
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    require(isinstance(payload, dict), f"{path}: pipeline input root must be an object")
+    return payload
+
+
+def require_pipeline_result(
+    pipeline_input: dict[str, Any],
+    *,
+    node_id: str,
+) -> dict[str, Any]:
+    entry = pipeline_input.get(node_id)
+    require(isinstance(entry, dict), f"pipeline input missing node {node_id}")
+    result = entry.get("result")
+    require(isinstance(result, dict), f"pipeline input node {node_id} missing result payload")
+    return result
+
+
+def require_pipeline_report(
+    pipeline_input: dict[str, Any],
+    *,
+    node_id: str,
+) -> dict[str, Any]:
+    entry = pipeline_input.get(node_id)
+    require(isinstance(entry, dict), f"pipeline input missing node {node_id}")
+    report = entry.get("report")
+    require(isinstance(report, dict), f"pipeline input node {node_id} missing report payload")
+    return report
 
 
 def extract_expected_block(path: Path) -> str:

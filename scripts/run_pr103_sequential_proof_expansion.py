@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import sys
 import tempfile
 from pathlib import Path
@@ -13,9 +12,14 @@ from typing import Any
 
 from _lib.gate_expectations import PR103_OWNERSHIP_PROOF_CASES
 from _lib.harness_common import (
+    assert_order,
+    assert_regexes,
+    assert_text_fragments,
+    compact_result,
     display_path,
     ensure_sdkroot,
     finalize_deterministic_report,
+    normalize_source_text,
     require,
     write_report,
 )
@@ -33,45 +37,10 @@ from _lib.pr103_sequential import normalized_source_fragments, ownership_proof_c
 
 DEFAULT_REPORT = REPO_ROOT / "execution" / "reports" / "pr103-sequential-proof-expansion-report.json"
 
-
-def compact_result(result: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "command": result["command"],
-        "cwd": result["cwd"],
-        "returncode": result["returncode"],
-    }
-
-
-def normalize_source_text(text: str) -> str:
-    return " ".join(text.split())
-
-
 def assert_normalized_source_fragments(path: Path, fragments: list[str]) -> list[str]:
     normalized = normalize_source_text(path.read_text(encoding="utf-8"))
     for fragment in fragments:
         require(fragment in normalized, f"{display_path(path, repo_root=REPO_ROOT)} missing source fragment: {fragment}")
-    return fragments
-
-
-def assert_text_fragments(*, text: str, fragments: list[str], label: str) -> list[str]:
-    for fragment in fragments:
-        require(fragment in text, f"{label} missing required fragment: {fragment}")
-    return fragments
-
-
-def assert_regexes(*, text: str, patterns: list[str], label: str) -> list[str]:
-    for pattern in patterns:
-        require(re.search(pattern, text, flags=re.MULTILINE) is not None, f"{label} missing required pattern: {pattern}")
-    return patterns
-
-
-def assert_order(*, text: str, fragments: list[str], label: str) -> list[str]:
-    cursor = -1
-    for fragment in fragments:
-        index = text.find(fragment, cursor + 1)
-        require(index >= 0, f"{label} missing ordered fragment: {fragment}")
-        require(index > cursor, f"{label} fragment out of order: {fragment}")
-        cursor = index
     return fragments
 
 

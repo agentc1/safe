@@ -4,8 +4,8 @@
     "doc_policy_violations": [],
     "docs_scanned": [
       "compiler_impl/README.md",
-      "release/frontend_runtime_decision.md",
-      "docs/macos_alire_toolchain_repair.md"
+      "docs/macos_alire_toolchain_repair.md",
+      "release/frontend_runtime_decision.md"
     ],
     "masked_python_interpreters": [
       "python",
@@ -108,8 +108,13 @@
     "execution/reports/pr068-ada-ast-emit-no-python-report.json",
     "execution/reports/pr06910-portability-environment-report.json"
   ],
-  "repeat_sha256": "e6f4c0da5073976b09a8f4f1a1474ec820c29c4d4a266e6cf00e51ad239124a1",
-  "report_sha256": "e6f4c0da5073976b09a8f4f1a1474ec820c29c4d4a266e6cf00e51ad239124a1",
+  "policy_sections_used": [
+    "environment",
+    "portability"
+  ],
+  "policy_sha256": "7e1c53c70104d1567e915022e7c5b134bffab65f407fb28589231c787ef5cba0",
+  "repeat_sha256": "b785d284d030082cd8d89da7f11cdb17204a1eaae6af3409416bc064a21ebe78",
+  "report_sha256": "b785d284d030082cd8d89da7f11cdb17204a1eaae6af3409416bc064a21ebe78",
   "reruns": {
     "ast_emit_no_python": {
       "committed_report_path": "execution/reports/pr068-ada-ast-emit-no-python-report.json",
@@ -140,14 +145,6 @@
         "returncode": 0
       },
       "script": "scripts/run_pr0693_runtime_boundary.py"
-    },
-    "validate_execution_state": {
-      "command": [
-        "python3",
-        "scripts/validate_execution_state.py"
-      ],
-      "cwd": "$REPO_ROOT",
-      "returncode": 0
     }
   },
   "status": "ok",
