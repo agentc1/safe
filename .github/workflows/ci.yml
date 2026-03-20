@@ -43,7 +43,7 @@ jobs:
 
       - name: Validate execution tracker and repo facts
         working-directory: .
-        run: python3 scripts/validate_execution_state.py
+        run: python3 scripts/validate_execution_state.py --authority ci
 
   lint-safe-syntax:
     name: Lint Safe Surface Syntax

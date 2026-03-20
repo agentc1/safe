@@ -7,8 +7,9 @@ import argparse
 import os
 from pathlib import Path
 
-from _lib.harness_common import ensure_sdkroot, find_command, run
-from run_gate_pipeline import current_branch, print_plan, verify_pipeline
+from _lib.gate_manifest import resolve_branch
+from _lib.harness_common import ensure_deterministic_env, ensure_sdkroot, find_command, run
+from run_gate_pipeline import EVIDENCE_POLICY, current_branch, print_plan, verify_pipeline
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -45,7 +46,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    env = ensure_sdkroot(os.environ.copy())
+    env = ensure_deterministic_env(
+        ensure_sdkroot(os.environ.copy()),
+        required=EVIDENCE_POLICY["environment"]["required_env"],
+    )
     git = find_command("git")
     python = find_command("python3")
     alr = find_command("alr", fallback=Path.home() / "bin" / "alr")
@@ -53,6 +57,10 @@ def main() -> int:
 
     if args.dry_run:
         return print_plan(branch)
+    if not resolve_branch(branch):
+        print(f"[pre-push] branch: {branch}")
+        print("[pre-push] no enforced local gate chain for this branch")
+        return 0
 
     verify_pipeline(authority="local", python=python, git=git, alr=alr, env=env)
     if not args.skip_diff:

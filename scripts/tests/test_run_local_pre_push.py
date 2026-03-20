@@ -37,11 +37,19 @@ class RunLocalPrePushTests(unittest.TestCase):
         with mock.patch.object(run_local_pre_push, "parse_args", return_value=args), mock.patch.object(
             run_local_pre_push,
             "ensure_sdkroot",
+            side_effect=lambda env: env,
+        ), mock.patch.object(
+            run_local_pre_push,
+            "ensure_deterministic_env",
             return_value={},
         ), mock.patch.object(
             run_local_pre_push,
             "find_command",
             side_effect=["git", "python3", "alr"],
+        ), mock.patch.object(
+            run_local_pre_push,
+            "resolve_branch",
+            return_value=[object()],
         ), mock.patch.object(
             run_local_pre_push,
             "verify_pipeline",
@@ -75,11 +83,19 @@ class RunLocalPrePushTests(unittest.TestCase):
         with mock.patch.object(run_local_pre_push, "parse_args", return_value=args), mock.patch.object(
             run_local_pre_push,
             "ensure_sdkroot",
+            side_effect=lambda env: env,
+        ), mock.patch.object(
+            run_local_pre_push,
+            "ensure_deterministic_env",
             return_value={},
         ), mock.patch.object(
             run_local_pre_push,
             "find_command",
             side_effect=["git", "python3", "alr"],
+        ), mock.patch.object(
+            run_local_pre_push,
+            "resolve_branch",
+            return_value=[object()],
         ), mock.patch.object(
             run_local_pre_push,
             "verify_pipeline",
@@ -105,6 +121,10 @@ class RunLocalPrePushTests(unittest.TestCase):
         with mock.patch.object(run_local_pre_push, "parse_args", return_value=args), mock.patch.object(
             run_local_pre_push,
             "ensure_sdkroot",
+            side_effect=lambda env: env,
+        ), mock.patch.object(
+            run_local_pre_push,
+            "ensure_deterministic_env",
             return_value={},
         ), mock.patch.object(
             run_local_pre_push,
@@ -116,12 +136,49 @@ class RunLocalPrePushTests(unittest.TestCase):
             return_value="codex/pr114-signature-control-flow-syntax",
         ) as current_branch, mock.patch.object(
             run_local_pre_push,
+            "resolve_branch",
+            return_value=[object()],
+        ), mock.patch.object(
+            run_local_pre_push,
             "verify_pipeline",
             return_value=0,
         ):
             with redirect_stdout(io.StringIO()):
                 self.assertEqual(run_local_pre_push.main(), 0)
         current_branch.assert_called_once()
+
+    def test_main_noops_when_branch_has_no_enforced_plan(self) -> None:
+        args = argparse.Namespace(branch="codex/misc-cleanup", dry_run=False, skip_diff=False)
+        stdout = io.StringIO()
+        with mock.patch.object(run_local_pre_push, "parse_args", return_value=args), mock.patch.object(
+            run_local_pre_push,
+            "ensure_sdkroot",
+            side_effect=lambda env: env,
+        ), mock.patch.object(
+            run_local_pre_push,
+            "ensure_deterministic_env",
+            return_value={},
+        ), mock.patch.object(
+            run_local_pre_push,
+            "find_command",
+            side_effect=["git", "python3", "alr"],
+        ), mock.patch.object(
+            run_local_pre_push,
+            "resolve_branch",
+            return_value=[],
+        ), mock.patch.object(
+            run_local_pre_push,
+            "verify_pipeline",
+        ) as verify_pipeline, mock.patch.object(
+            run_local_pre_push,
+            "run",
+        ) as run_command:
+            with redirect_stdout(stdout):
+                self.assertEqual(run_local_pre_push.main(), 0)
+        self.assertIn("[pre-push] branch: codex/misc-cleanup", stdout.getvalue())
+        self.assertIn("[pre-push] no enforced local gate chain for this branch", stdout.getvalue())
+        verify_pipeline.assert_not_called()
+        run_command.assert_not_called()
 
 
 if __name__ == "__main__":
