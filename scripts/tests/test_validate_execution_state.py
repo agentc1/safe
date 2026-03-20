@@ -387,6 +387,26 @@ class ValidateExecutionStateTests(unittest.TestCase):
             }
             check_evidence_reproducibility(tracker, repo_root=repo_root)
 
+    def test_evidence_reproducibility_report_ignores_in_flight_execution_state_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            tracker = {
+                "tasks": [
+                    {
+                        "id": "PR00",
+                        "status": "done",
+                        "evidence": ["execution/reports/execution-state-validation-report.json"],
+                    }
+                ]
+            }
+            report = evidence_reproducibility_report(
+                tracker=tracker,
+                repo_root=repo_root,
+                ignored_evidence=("execution/reports/execution-state-validation-report.json",),
+            )
+            self.assertEqual(report["evidence_files"], [])
+            self.assertEqual(report["missing_files"], [])
+
     def test_environment_assumptions_report_detects_python_variants(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             repo_root = Path(temp_dir)
@@ -1190,11 +1210,38 @@ class ValidateExecutionStateTests(unittest.TestCase):
         ), mock.patch(
             "validate_execution_state.check_environment_preconditions",
             return_value={"authority": "local"},
+        ), mock.patch(
+            "validate_execution_state.check_generated_output_cleanliness"
         ):
             report = run_preflight_phase(tracker=tracker, authority="local", env={})
         self.assertEqual(report["phase"], "preflight")
         self.assertEqual(report["policy_sha256"], EVIDENCE_POLICY_SHA256)
         self.assertEqual(report["preconditions"]["authority"], "local")
+
+    def test_run_preflight_phase_rejects_dirty_generated_outputs(self) -> None:
+        tracker = {"tasks": []}
+        with mock.patch("validate_execution_state.check_tracker_schema"), mock.patch(
+            "validate_execution_state.check_status_rules"
+        ), mock.patch("validate_execution_state.check_dependencies"), mock.patch(
+            "validate_execution_state.check_frozen_sha",
+            return_value="a" * 40,
+        ), mock.patch("validate_execution_state.check_documented_sha"), mock.patch(
+            "validate_execution_state.check_test_distribution"
+        ), mock.patch(
+            "validate_execution_state.run",
+            return_value={
+                "command": ["git", "status"],
+                "cwd": "$REPO_ROOT",
+                "returncode": 0,
+                "stdout": " M execution/reports/pr10-emitted-baseline-report.json\n M execution/dashboard.md\n",
+                "stderr": "",
+            },
+        ):
+            with self.assertRaises(ValueError) as exc:
+                run_preflight_phase(tracker=tracker, authority="local", env={})
+        self.assertIn("ratchet-owned generated outputs must be clean before preflight", str(exc.exception))
+        self.assertIn(" M execution/dashboard.md", str(exc.exception))
+        self.assertIn(" M execution/reports/pr10-emitted-baseline-report.json", str(exc.exception))
 
     def test_run_final_phase_resolves_generated_root_and_embeds_policy_metadata(self) -> None:
         tracker = {"tasks": []}
@@ -1232,10 +1279,16 @@ class ValidateExecutionStateTests(unittest.TestCase):
                     generated_root=generated_root,
                 )
         check_dashboard_freshness.assert_called_once_with(tracker, generated_root=generated_root)
-        check_evidence_reproducibility.assert_called_once_with(tracker, generated_root=generated_root)
+        check_evidence_reproducibility.assert_called_once_with(
+            tracker,
+            generated_root=generated_root,
+            ignored_evidence=("execution/reports/execution-state-validation-report.json",),
+        )
         check_report_sync.assert_called_once_with(generated_root=generated_root)
         self.assertEqual(report["phase"], "final")
         self.assertEqual(report["authority"], "ci")
+        self.assertIsNone(report["generated_root"])
+        self.assertEqual(report["dashboard_path"], "execution/dashboard.md")
         self.assertEqual(report["policy_sha256"], EVIDENCE_POLICY_SHA256)
         self.assertIn("documentation_architecture", report["policy_sections_used"])
 

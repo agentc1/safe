@@ -15,6 +15,7 @@ from _lib.harness_common import (
     finalize_deterministic_report,
     write_report,
 )
+from _lib.proof_report import build_three_way_report, split_proof_fixtures
 from _lib.pr10_emit import REPO_ROOT, compile_and_prove_fixture, corpus_paths
 
 
@@ -36,13 +37,21 @@ def generate_report(*, env: dict[str, str]) -> dict[str, object]:
                 )
             )
 
-        return {
-            "fixtures": fixtures,
-            "notes": [
-                "PR10 selected emitted outputs compile and pass GNATprove flow with warnings treated as errors.",
-                "Concurrency fixtures run GNATprove with gnat.adc applied explicitly via -cargs -gnatec.",
-            ],
-        }
+        semantic_floor, canonical_fixtures, machine_fixtures = split_proof_fixtures(fixtures)
+        return build_three_way_report(
+            identity={},
+            semantic_floor=semantic_floor,
+            canonical_proof_detail={
+                "fixtures": canonical_fixtures,
+                "notes": [
+                    "PR10 selected emitted outputs compile and pass GNATprove flow with warnings treated as errors.",
+                    "Concurrency fixtures run GNATprove with gnat.adc applied explicitly via -cargs -gnatec.",
+                ],
+            },
+            machine_sensitive={
+                "fixtures": machine_fixtures,
+            },
+        )
 
 
 def main() -> int:

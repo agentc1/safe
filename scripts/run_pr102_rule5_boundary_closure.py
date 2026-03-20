@@ -32,6 +32,11 @@ from _lib.harness_common import (
     run,
     write_report,
 )
+from _lib.proof_report import (
+    build_three_way_report,
+    split_command_result,
+    split_proof_fixtures,
+)
 from _lib.pr09_emit import COMPILER_ROOT, REPO_ROOT, compile_emitted_ada, repo_arg
 from _lib.pr10_emit import emit_fixture, gnatprove_emitted_ada
 
@@ -156,6 +161,14 @@ def run_positive_fixture(source: Path, *, env: dict[str, str], temp_root: Path) 
         mode="prove",
     )
     require(
+        flow_result["summary"]["total"]["justified"]["count"] == 0,
+        f"{repo_arg(source)}: flow justified checks must be zero",
+    )
+    require(
+        flow_result["summary"]["total"]["unproved"]["count"] == 0,
+        f"{repo_arg(source)}: flow unproved checks must be zero",
+    )
+    require(
         prove_result["summary"]["total"]["justified"]["count"] == 0,
         f"{repo_arg(source)}: justified checks must be zero",
     )
@@ -240,28 +253,83 @@ def run_parity_fixture(*, safec: Path, env: dict[str, str], temp_root: Path) -> 
     }
 
 
+def split_negative_fixture(fixture: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    diag_canonical, diag_machine = split_command_result(fixture["check_diag_json"])
+    human_canonical, human_machine = split_command_result(fixture["check_human"])
+    canonical = {
+        "fixture": fixture["fixture"],
+        "golden": fixture["golden"],
+        "expected_reason": fixture["expected_reason"],
+        "diagnostic": fixture["diagnostic"],
+        "check_diag_json": diag_canonical,
+        "check_human": human_canonical,
+    }
+    machine = {
+        "fixture": fixture["fixture"],
+        "check_diag_json": diag_machine,
+        "check_human": human_machine,
+    }
+    return canonical, machine
+
+
+def split_parity_fixture(fixture: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    analyze_canonical, analyze_machine = split_command_result(fixture["analyze_mir"])
+    canonical = {
+        "fixture": fixture["fixture"],
+        "diagnostic": fixture["diagnostic"],
+        "analyze_mir": analyze_canonical,
+    }
+    machine = {
+        "fixture": fixture["fixture"],
+        "analyze_mir": analyze_machine,
+    }
+    return canonical, machine
+
+
 def generate_report(*, env: dict[str, str]) -> dict[str, Any]:
     safec = require_repo_command(COMPILER_ROOT / "bin" / "safec", "safec")
     with tempfile.TemporaryDirectory(prefix="pr102-rule5-") as temp_root_str:
         temp_root = Path(temp_root_str)
-        return {
+        positive_fixtures = [
+            run_positive_fixture(REPO_ROOT / source_rel, env=env, temp_root=temp_root)
+            for source_rel in EXPECTED_RULE5_POSITIVES
+        ]
+        negative_fixtures = [
+            run_negative_fixture(source_rel, golden_rel, safec=safec, env=env, temp_root=temp_root)
+            for source_rel, golden_rel in EXPECTED_NEGATIVE_GOLDENS
+        ]
+        parity_fixture = run_parity_fixture(safec=safec, env=env, temp_root=temp_root)
+
+    semantic_floor, canonical_positive, machine_positive = split_proof_fixtures(positive_fixtures)
+    canonical_negative: list[dict[str, Any]] = []
+    machine_negative: list[dict[str, Any]] = []
+    for fixture in negative_fixtures:
+        canonical, machine = split_negative_fixture(fixture)
+        canonical_negative.append(canonical)
+        machine_negative.append(machine)
+    canonical_parity, machine_parity = split_parity_fixture(parity_fixture)
+    return build_three_way_report(
+        identity={
             "task": "PR10.2",
+        },
+        semantic_floor=semantic_floor,
+        canonical_proof_detail={
             "contract": verify_corpus_contract(),
-            "positive_rule5_corpus": [
-                run_positive_fixture(REPO_ROOT / source_rel, env=env, temp_root=temp_root)
-                for source_rel in EXPECTED_RULE5_POSITIVES
-            ],
-            "negative_diagnostics": [
-                run_negative_fixture(source_rel, golden_rel, safec=safec, env=env, temp_root=temp_root)
-                for source_rel, golden_rel in EXPECTED_NEGATIVE_GOLDENS
-            ],
-            "mir_parity": run_parity_fixture(safec=safec, env=env, temp_root=temp_root),
+            "positive_rule5_corpus": canonical_positive,
+            "negative_diagnostics": canonical_negative,
+            "mir_parity": canonical_parity,
             "notes": [
                 "PR10.2 closes the live accepted Rule 5 surface by merging the PR07 Rule 5 positives with the frozen PR10 Rule 5 emitted representative.",
                 "Rule 5 remains a narrowing-point proof boundary: IEEE 754 intermediate NaN and infinity are allowed, but narrowing points must be provably safe.",
                 "While-loop conditions outside the current derivable Loop_Variant surface are rejected during safec check rather than deferred to emitted GNATprove failure.",
             ],
-        }
+        },
+        machine_sensitive={
+            "positive_rule5_corpus": machine_positive,
+            "negative_diagnostics": machine_negative,
+            "mir_parity": machine_parity,
+        },
+    )
 
 
 def main() -> int:

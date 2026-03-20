@@ -22,6 +22,12 @@ from _lib.harness_common import (
     run,
     write_report,
 )
+from _lib.proof_report import (
+    build_three_way_report,
+    command_profile,
+    split_command_result,
+    split_proof_fixtures,
+)
 from _lib.pr09_emit import COMPILER_ROOT, REPO_ROOT, compile_emitted_ada, repo_arg
 from _lib.pr10_emit import (
     PROVE_SWITCHES,
@@ -130,6 +136,14 @@ def verify_concurrency_evidence(*, env: dict[str, str], temp_root: Path) -> dict
     require(PROVE_SWITCHES == EXPECTED_PROVE_SWITCHES, "shared PROVE_SWITCHES must match the committed PR10 profile")
     require_command_contains(prove_result["command"], EXPECTED_PROVE_SWITCHES, label=repo_arg(CONCURRENCY_FIXTURE))
     require(
+        flow_result["summary"]["total"]["justified"]["count"] == 0,
+        f"{repo_arg(CONCURRENCY_FIXTURE)}: flow justified checks must be zero",
+    )
+    require(
+        flow_result["summary"]["total"]["unproved"]["count"] == 0,
+        f"{repo_arg(CONCURRENCY_FIXTURE)}: flow unproved checks must be zero",
+    )
+    require(
         prove_result["summary"]["total"]["justified"]["count"] == 0,
         f"{repo_arg(CONCURRENCY_FIXTURE)}: justified checks must be zero",
     )
@@ -212,14 +226,40 @@ def generate_report(*, python: str, env: dict[str, str]) -> dict[str, Any]:
     require_repo_command(COMPILER_ROOT / "bin" / "safec", "safec")
     with tempfile.TemporaryDirectory(prefix="pr104-evidence-hardening-") as temp_root_str:
         temp_root = Path(temp_root_str)
-        return {
+        parser_regressions = verify_parser_tests(python=python, env=env, temp_root=temp_root)
+        emitted_concurrency_evidence = verify_concurrency_evidence(env=env, temp_root=temp_root)
+        gnatprove_profile_doc = verify_proof_profile_doc()
+        de_cascaded_reports = verify_decascaded_reports()
+
+    semantic_floor, canonical_fixtures, machine_fixtures = split_proof_fixtures(
+        [emitted_concurrency_evidence]
+    )
+    parser_canonical, parser_machine = split_command_result(parser_regressions)
+    prove_profile = canonical_fixtures[0].pop("prove_profile")
+    canonical_fixtures[0]["prove_profile"] = {
+        "shared_switches": prove_profile["shared_switches"],
+        "command_profile": command_profile(prove_profile["actual_command"]),
+    }
+    machine_fixtures[0]["prove_profile"] = {
+        "actual_command": prove_profile["actual_command"],
+    }
+    return build_three_way_report(
+        identity={
             "task": "PR10.4",
             "status": "ok",
-            "parser_regressions": verify_parser_tests(python=python, env=env, temp_root=temp_root),
-            "emitted_concurrency_evidence": verify_concurrency_evidence(env=env, temp_root=temp_root),
-            "gnatprove_profile_doc": verify_proof_profile_doc(),
-            "de_cascaded_reports": verify_decascaded_reports(),
-        }
+        },
+        semantic_floor=semantic_floor,
+        canonical_proof_detail={
+            "parser_regressions": parser_canonical,
+            "emitted_concurrency_evidence": canonical_fixtures[0],
+            "gnatprove_profile_doc": gnatprove_profile_doc,
+            "de_cascaded_reports": de_cascaded_reports,
+        },
+        machine_sensitive={
+            "parser_regressions": parser_machine,
+            "emitted_concurrency_evidence": machine_fixtures[0],
+        },
+    )
 
 
 def main() -> int:

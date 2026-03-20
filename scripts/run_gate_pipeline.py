@@ -35,6 +35,7 @@ from _lib.harness_common import (
     resolve_generated_path,
     run,
 )
+from _lib.proof_report import validate_pr101_semantic_floor, validate_semantic_floor
 from render_execution_status import load_tracker, render_dashboard
 
 
@@ -46,6 +47,18 @@ BUILD_LABELS = {
 EVIDENCE_POLICY = load_evidence_policy()
 REPORTS_ROOT_REL = Path(EVIDENCE_POLICY["generated_outputs"]["reports_root"])
 DASHBOARD_REL = Path(EVIDENCE_POLICY["generated_outputs"]["dashboard"])
+PROOF_SEMANTIC_FLOOR_NODE_IDS = frozenset(
+    {
+        "pr10_emitted_flow",
+        "pr10_emitted_prove",
+        "pr102_rule5_boundary_closure",
+        "pr103_sequential_proof_expansion",
+        "pr104_gnatprove_evidence",
+        "pr106_sequential_proof_corpus",
+        "pr113a_proof_checkpoint",
+        "emitted_hardening_regressions",
+    }
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -85,11 +98,16 @@ def tracked_diff_snapshot(
     argv = [git, "status", "--porcelain", "--untracked-files=no"]
     if paths:
         argv.extend(["--", *[str(path) for path in paths]])
-    return run(
+    stdout = run(
         argv,
         cwd=REPO_ROOT,
         env=env,
     )["stdout"]
+    lines = stdout.splitlines()
+    lines.sort()
+    if not lines:
+        return ""
+    return "\n".join(lines) + "\n"
 
 
 def diff_context(*, expected: str, actual: str, label: str) -> str:
@@ -248,6 +266,19 @@ def reuse_ci_authoritative_report(
     return result, payload, generated_report_path
 
 
+def validate_local_reused_authoritative_report(
+    *,
+    node: Node,
+    payload: dict[str, Any],
+    pipeline_context: dict[str, Any],
+) -> None:
+    if node.id in PROOF_SEMANTIC_FLOOR_NODE_IDS:
+        validate_semantic_floor(payload)
+        return
+    if node.id == "pr101_comprehensive_audit":
+        validate_pr101_semantic_floor(payload, pipeline_context=pipeline_context)
+
+
 def write_pipeline_input(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -330,6 +361,12 @@ def execute_pipeline(
                 authority=authority,
                 compare_root=compare_root,
                 write_generated_root=write_generated_root,
+            )
+            require(payload is not None, f"{node.id}: missing reused report payload")
+            validate_local_reused_authoritative_report(
+                node=node,
+                payload=payload,
+                pipeline_context=pipeline_context,
             )
         else:
             result, payload, generated_report_path = run_node(

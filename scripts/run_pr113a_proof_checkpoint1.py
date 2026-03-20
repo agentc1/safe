@@ -25,6 +25,7 @@ from _lib.harness_common import (
     require,
     write_report,
 )
+from _lib.proof_report import build_three_way_report, split_proof_fixtures
 from _lib.pr09_emit import (
     REPO_ROOT,
     compile_emitted_ada,
@@ -123,6 +124,14 @@ def run_fixture(item: dict[str, Any], *, env: dict[str, str], temp_root: Path) -
         mode="prove",
     )
     require(
+        flow_result["summary"]["total"]["justified"]["count"] == 0,
+        f"{repo_arg(source)}: flow justified checks must be zero",
+    )
+    require(
+        flow_result["summary"]["total"]["unproved"]["count"] == 0,
+        f"{repo_arg(source)}: flow unproved checks must be zero",
+    )
+    require(
         prove_result["summary"]["total"]["justified"]["count"] == 0,
         f"{repo_arg(source)}: justified checks must be zero",
     )
@@ -162,12 +171,21 @@ def generate_report(*, env: dict[str, str]) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="pr113a-proof-") as temp_root_str:
         temp_root = Path(temp_root_str)
         fixtures = [run_fixture(item, env=env, temp_root=temp_root) for item in corpus]
-    return {
-        "task": "PR11.3a",
-        "status": "ok",
-        "corpus_contract": verify_corpus_contract(corpus),
-        "fixtures": fixtures,
-    }
+    semantic_floor, canonical_fixtures, machine_fixtures = split_proof_fixtures(fixtures)
+    return build_three_way_report(
+        identity={
+            "task": "PR11.3a",
+            "status": "ok",
+        },
+        semantic_floor=semantic_floor,
+        canonical_proof_detail={
+            "corpus_contract": verify_corpus_contract(corpus),
+            "fixtures": canonical_fixtures,
+        },
+        machine_sensitive={
+            "fixtures": machine_fixtures,
+        },
+    )
 
 
 def main() -> int:

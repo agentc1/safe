@@ -31,6 +31,12 @@ from _lib.harness_common import (
     write_report,
 )
 from _lib.pr09_emit import REPO_ROOT, alr_command
+from _lib.proof_report import (
+    PR101_ANCHOR_GROUPS,
+    PR101_ANCHOR_KEYS,
+    build_three_way_report,
+    split_command_result,
+)
 
 
 DEFAULT_REPORT = REPO_ROOT / "execution" / "reports" / "pr101-comprehensive-audit-report.json"
@@ -622,6 +628,78 @@ def pipeline_baseline_truth(*, env: dict[str, Any], pipeline_input: dict[str, An
     }
 
 
+def baseline_gate_hashes(*, baseline_truth: dict[str, Any]) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    for gate in baseline_truth["python_gates"]:
+        node_id = PIPELINE_BASELINE_IDS[Path(gate["script"]).name]
+        hashes[node_id] = gate["report_sha256"]
+    return hashes
+
+
+def semantic_floor_from_baseline_truth(*, baseline_truth: dict[str, Any]) -> dict[str, Any]:
+    floor: dict[str, Any] = {
+        "baseline_gate_hashes": baseline_gate_hashes(baseline_truth=baseline_truth),
+    }
+    for group in PR101_ANCHOR_GROUPS:
+        floor[group] = {
+            key: baseline_truth[group][key]
+            for key in PR101_ANCHOR_KEYS
+        }
+    return floor
+
+
+def split_python_gate_entry(gate: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    canonical_result, machine_result = split_command_result(gate["result"])
+    canonical = {
+        "script": gate["script"],
+        "result": canonical_result,
+        "report_sha256": gate["report_sha256"],
+        "deterministic": gate["deterministic"],
+    }
+    machine = {
+        "script": gate["script"],
+        "result": machine_result,
+    }
+    return canonical, machine
+
+
+def split_verification_group(group: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    canonical: dict[str, Any] = {}
+    machine: dict[str, Any] = {}
+    for key in ("build", "flow", "prove", "extract_assumptions", "diff_assumptions"):
+        canonical[key], machine[key] = split_command_result(group[key])
+    for key in PR101_ANCHOR_KEYS:
+        canonical[key] = group[key]
+    return canonical, machine
+
+
+def split_baseline_truth(
+    *,
+    baseline_truth: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    canonical_python: list[dict[str, Any]] = []
+    machine_python: list[dict[str, Any]] = []
+    for gate in baseline_truth["python_gates"]:
+        canonical_gate, machine_gate = split_python_gate_entry(gate)
+        canonical_python.append(canonical_gate)
+        machine_python.append(machine_gate)
+
+    companion_canonical, companion_machine = split_verification_group(baseline_truth["companion_verify"])
+    templates_canonical, templates_machine = split_verification_group(baseline_truth["templates_verify"])
+
+    canonical = {
+        "python_gates": canonical_python,
+        "companion_verify": companion_canonical,
+        "templates_verify": templates_canonical,
+    }
+    machine = {
+        "python_gates": machine_python,
+        "companion_verify": companion_machine,
+        "templates_verify": templates_machine,
+    }
+    return canonical, machine
+
+
 def build_report(*, baseline_truth: dict[str, Any], generated_root: Path | None) -> dict[str, Any]:
     tracker = load_tracker()
     task_map = {task["id"]: task for task in tracker["tasks"]}
@@ -918,58 +996,66 @@ def build_report(*, baseline_truth: dict[str, Any], generated_root: Path | None)
         "compiler_readme": sha256_file(COMPILER_README_PATH),
         "workflow": sha256_file(WORKFLOW_PATH),
     }
+    semantic_floor = semantic_floor_from_baseline_truth(baseline_truth=baseline_truth)
+    canonical_baseline_truth, machine_baseline_truth = split_baseline_truth(baseline_truth=baseline_truth)
 
-    return {
-        "task": "PR10.1",
-        "audited_surfaces": [
-            "spec/TBD consistency",
-            "frontend parser/resolver/analyzer supported surface",
-            "emitted Ada/SPARK proof surface",
-            "ownership/concurrency/runtime boundaries",
-            "companion and emission-template verification",
-            "tooling/evidence/report determinism",
-            "traceability and docs",
-            "open review and deferred concerns",
-        ],
-        "baseline_truth": baseline_truth,
-        "finding_counts": {
-            "total": len(findings),
-            "by_area": dict(sorted(area_counts.items())),
-            "by_disposition": dict(sorted(disposition_counts.items())),
-        },
-        "promoted_follow_on_candidates": [
-            {
-                "task": task_id,
-                "title": task_map[task_id]["title"],
-                "finding_ids": promoted_candidates[task_id],
-            }
-            for task_id in PROMOTED_TASKS
-        ],
-        "retained_post_pr10_residuals": [
-            {
-                "id": item["id"],
-                "priority": item["priority"],
-                "area": item["area"],
-            }
-            for item in residuals
-        ],
-        "closed_removed_residuals": closed_removed,
-        "artifact_hashes": artifact_hashes,
-        "tracker": {
-            "next_task_id": tracker["next_task_id"],
-            "pr101_status": task_map["PR10.1"]["status"],
-            "pr101_evidence": task_map["PR10.1"]["evidence"],
-            "pr111_status": task_map["PR11.1"]["status"],
-            "pr111_evidence": task_map["PR11.1"]["evidence"],
-            "promoted_tasks": {
-                task_id: {
-                    "status": task_map[task_id]["status"],
-                    "depends_on": task_map[task_id]["depends_on"],
+    return build_three_way_report(
+        identity={"task": "PR10.1"},
+        semantic_floor=semantic_floor,
+        canonical_proof_detail={
+            "audited_surfaces": [
+                "spec/TBD consistency",
+                "frontend parser/resolver/analyzer supported surface",
+                "emitted Ada/SPARK proof surface",
+                "ownership/concurrency/runtime boundaries",
+                "companion and emission-template verification",
+                "tooling/evidence/report determinism",
+                "traceability and docs",
+                "open review and deferred concerns",
+            ],
+            "baseline_truth": canonical_baseline_truth,
+            "finding_counts": {
+                "total": len(findings),
+                "by_area": dict(sorted(area_counts.items())),
+                "by_disposition": dict(sorted(disposition_counts.items())),
+            },
+            "promoted_follow_on_candidates": [
+                {
+                    "task": task_id,
+                    "title": task_map[task_id]["title"],
+                    "finding_ids": promoted_candidates[task_id],
                 }
                 for task_id in PROMOTED_TASKS
+            ],
+            "retained_post_pr10_residuals": [
+                {
+                    "id": item["id"],
+                    "priority": item["priority"],
+                    "area": item["area"],
+                }
+                for item in residuals
+            ],
+            "closed_removed_residuals": closed_removed,
+            "artifact_hashes": artifact_hashes,
+            "tracker": {
+                "next_task_id": tracker["next_task_id"],
+                "pr101_status": task_map["PR10.1"]["status"],
+                "pr101_evidence": task_map["PR10.1"]["evidence"],
+                "pr111_status": task_map["PR11.1"]["status"],
+                "pr111_evidence": task_map["PR11.1"]["evidence"],
+                "promoted_tasks": {
+                    task_id: {
+                        "status": task_map[task_id]["status"],
+                        "depends_on": task_map[task_id]["depends_on"],
+                    }
+                    for task_id in PROMOTED_TASKS
+                },
             },
         },
-    }
+        machine_sensitive={
+            "baseline_truth": machine_baseline_truth,
+        },
+    )
 
 
 def main() -> int:

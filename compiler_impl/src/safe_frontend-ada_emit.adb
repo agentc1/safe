@@ -2968,7 +2968,10 @@ package body Safe_Frontend.Ada_Emit is
       return "(" & Join_Names (Items) & ")";
    end Render_Initializes_Aspect;
 
-   function Render_Global_Aspect (Summary : MB.Graph_Summary) return String is
+   function Render_Global_Aspect
+     (Unit    : CM.Resolved_Unit;
+      Summary : MB.Graph_Summary) return String
+   is
       Inputs  : FT.UString_Vectors.Vector;
       Outputs : FT.UString_Vectors.Vector;
       In_Outs : FT.UString_Vectors.Vector;
@@ -3004,6 +3007,7 @@ package body Safe_Frontend.Ada_Emit is
             if Starts_With (FT.To_String (Item), "param:")
               or else FT.To_String (Item) = "return"
               or else not Is_Aspect_State_Name (Name)
+              or else Is_Constant_Object_Name (Unit, Name)
             then
                null;
             elsif Contains (Summary.Writes, FT.To_String (Item)) then
@@ -3021,6 +3025,7 @@ package body Safe_Frontend.Ada_Emit is
             if Starts_With (FT.To_String (Item), "param:")
               or else FT.To_String (Item) = "return"
               or else not Is_Aspect_State_Name (Name)
+              or else Is_Constant_Object_Name (Unit, Name)
             then
                null;
             elsif not Contains (Summary.Reads, FT.To_String (Item)) then
@@ -3082,7 +3087,8 @@ package body Safe_Frontend.Ada_Emit is
    end Render_Global_Aspect;
 
    function Render_Depends_Aspect
-     (Subprogram : CM.Resolved_Subprogram;
+     (Unit       : CM.Resolved_Unit;
+      Subprogram : CM.Resolved_Subprogram;
       Summary    : MB.Graph_Summary) return String
    is
       Result : SU.Unbounded_String;
@@ -3149,6 +3155,7 @@ package body Safe_Frontend.Ada_Emit is
             if not Starts_With (FT.To_String (Item), "param:")
               and then FT.To_String (Item) /= "return"
               and then Is_Aspect_State_Name (Name)
+              and then not Is_Constant_Object_Name (Unit, Name)
             then
                Add_Unique (Allowed_Inputs, Name);
             end if;
@@ -3163,6 +3170,7 @@ package body Safe_Frontend.Ada_Emit is
             if not Starts_With (FT.To_String (Item), "param:")
               and then FT.To_String (Item) /= "return"
               and then Is_Aspect_State_Name (Name)
+              and then not Is_Constant_Object_Name (Unit, Name)
             then
                Add_Unique (Allowed_Outputs, Name);
             end if;
@@ -3188,6 +3196,7 @@ package body Safe_Frontend.Ada_Emit is
             if not Starts_With (FT.To_String (Item.Output_Name), "param:")
               and then FT.To_String (Item.Output_Name) /= "return"
               and then Is_Aspect_State_Name (Output_Name)
+              and then not Is_Constant_Object_Name (Unit, Output_Name)
             then
                Add_Unique (Allowed_Outputs, Output_Name);
             end if;
@@ -3199,6 +3208,7 @@ package body Safe_Frontend.Ada_Emit is
                   if not Starts_With (FT.To_String (Input), "param:")
                     and then FT.To_String (Input) /= "return"
                     and then Is_Aspect_State_Name (Name)
+                    and then not Is_Constant_Object_Name (Unit, Name)
                   then
                      Add_Unique (Allowed_Inputs, Name);
                   end if;
@@ -3240,7 +3250,9 @@ package body Safe_Frontend.Ada_Emit is
                          (FT.To_String (Subprogram.Name),
                           FT.To_String (Input));
                   begin
-                     if not Is_Aspect_State_Name (Name) then
+                     if not Is_Aspect_State_Name (Name)
+                       or else Is_Constant_Object_Name (Unit, Name)
+                     then
                         null;
                      elsif not Contains (Allowed_Inputs, Name) then
                         Raise_Internal
@@ -3929,9 +3941,9 @@ package body Safe_Frontend.Ada_Emit is
    is
       Summary : constant MB.Graph_Summary :=
         Find_Graph_Summary (Bronze, FT.To_String (Subprogram.Name));
-      Global_Image  : constant String := Render_Global_Aspect (Summary);
+      Global_Image  : constant String := Render_Global_Aspect (Unit, Summary);
       Depends_Image : constant String :=
-        Render_Depends_Aspect (Subprogram, Summary);
+        Render_Depends_Aspect (Unit, Subprogram, Summary);
       Pre_Image : constant String :=
         Render_Access_Param_Precondition (Unit, Document, Subprogram, State);
       Post_Image : constant String :=

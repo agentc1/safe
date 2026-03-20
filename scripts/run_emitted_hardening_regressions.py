@@ -18,6 +18,11 @@ from _lib.harness_common import (
     run,
     write_report,
 )
+from _lib.proof_report import (
+    build_three_way_report,
+    split_command_result,
+    split_proof_fixtures,
+)
 from _lib.pr09_emit import (
     REPO_ROOT,
     compile_emitted_ada,
@@ -127,6 +132,9 @@ def supplemental_proof_fixture(*, source: Path, env: dict[str, str], temp_root: 
         mode="prove",
     )
     require_explicit_gnat_adc(prove_result["command"], fixture=source, label="prove")
+    flow_summary = flow_result["summary"]["total"]
+    require(flow_summary["justified"]["count"] == 0, f"{source}: flow justified checks must be zero")
+    require(flow_summary["unproved"]["count"] == 0, f"{source}: flow unproved checks must be zero")
     summary = prove_result["summary"]["total"]
     require(summary["justified"]["count"] == 0, f"{source}: justified checks must be zero")
     require(summary["unproved"]["count"] == 0, f"{source}: unproved checks must be zero")
@@ -204,27 +212,81 @@ def rejected_channel_fixture(
     }
 
 
+def split_ownership_fixture(fixture: dict[str, object]) -> tuple[dict[str, object], dict[str, object]]:
+    compile_canonical, compile_machine = split_command_result(fixture["compile"])  # type: ignore[arg-type]
+    canonical = {
+        "fixture": fixture["fixture"],
+        "compile": compile_canonical,
+        "structural_assertions": fixture["structural_assertions"],
+    }
+    machine = {
+        "fixture": fixture["fixture"],
+        "compile": compile_machine,
+    }
+    return canonical, machine
+
+
+def split_rejected_fixture(fixture: dict[str, object]) -> tuple[dict[str, object], dict[str, object]]:
+    check_canonical, check_machine = split_command_result(fixture["check"])  # type: ignore[arg-type]
+    emit_canonical, emit_machine = split_command_result(fixture["emit"])  # type: ignore[arg-type]
+    canonical = {
+        "fixture": fixture["fixture"],
+        "check": check_canonical,
+        "emit": emit_canonical,
+        "first_diagnostic": fixture["first_diagnostic"],
+    }
+    machine = {
+        "fixture": fixture["fixture"],
+        "check": check_machine,
+        "emit": emit_machine,
+    }
+    return canonical, machine
+
+
 def generate_report(*, env: dict[str, str]) -> dict[str, object]:
     safec = require_safec()
     with tempfile.TemporaryDirectory(prefix="emitted-hardening-") as temp_root_str:
         temp_root = Path(temp_root_str)
-        return {
-            "ownership_early_return": ownership_early_return_regression(env=env, temp_root=temp_root),
-            "supplemental_proof_fixtures": [
-                supplemental_proof_fixture(source=fixture, env=env, temp_root=temp_root)
-                for fixture in PROOF_FIXTURES
-            ],
-            "rejected_access_channel_fixtures": [
-                rejected_channel_fixture(safec=safec, source=fixture, env=env, temp_root=temp_root)
-                for fixture in REJECTED_CHANNEL_FIXTURES
-            ],
+        ownership = ownership_early_return_regression(env=env, temp_root=temp_root)
+        supplemental_proof_fixtures = [
+            supplemental_proof_fixture(source=fixture, env=env, temp_root=temp_root)
+            for fixture in PROOF_FIXTURES
+        ]
+        rejected_access_channel_fixtures = [
+            rejected_channel_fixture(safec=safec, source=fixture, env=env, temp_root=temp_root)
+            for fixture in REJECTED_CHANNEL_FIXTURES
+        ]
+
+    semantic_floor, canonical_proof_fixtures, machine_proof_fixtures = split_proof_fixtures(
+        supplemental_proof_fixtures
+    )
+    ownership_canonical, ownership_machine = split_ownership_fixture(ownership)
+    canonical_rejected: list[dict[str, object]] = []
+    machine_rejected: list[dict[str, object]] = []
+    for fixture in rejected_access_channel_fixtures:
+        canonical, machine = split_rejected_fixture(fixture)
+        canonical_rejected.append(canonical)
+        machine_rejected.append(machine)
+    return build_three_way_report(
+        identity={},
+        semantic_floor=semantic_floor,
+        canonical_proof_detail={
+            "ownership_early_return": ownership_canonical,
+            "supplemental_proof_fixtures": canonical_proof_fixtures,
+            "rejected_access_channel_fixtures": canonical_rejected,
             "notes": [
                 "This gate hardens emitted-output regressions beyond the frozen PR10 selected corpus.",
                 "Ownership early-return ordering remains a structural emitted-Ada regression rather than a PR10 prove target.",
                 "Supplemental concurrency fixtures require explicit -gnatec application for compile, flow, and prove.",
                 "Access-typed channel element declarations are now rejected by the frontend and must not emit Ada artifacts.",
             ],
-        }
+        },
+        machine_sensitive={
+            "ownership_early_return": ownership_machine,
+            "supplemental_proof_fixtures": machine_proof_fixtures,
+            "rejected_access_channel_fixtures": machine_rejected,
+        },
+    )
 
 
 def main() -> int:

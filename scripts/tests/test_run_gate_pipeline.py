@@ -28,6 +28,60 @@ class RunGatePipelineTests(unittest.TestCase):
             "repeat_sha256": "1" * 64,
         }
 
+    @staticmethod
+    def _proof_payload(
+        *,
+        fixture_name: str = "tests/positive/sample.safe",
+        compile_returncode: int = 0,
+        prove_returncode: int = 0,
+        prove_justified: int = 0,
+        prove_unproved: int = 0,
+    ) -> dict[str, object]:
+        return {
+            "semantic_floor": {
+                "fixture_count": 1,
+                "fixtures": [
+                    {
+                        "fixture": fixture_name,
+                        "compile_returncode": compile_returncode,
+                        "prove_returncode": prove_returncode,
+                        "prove_justified": prove_justified,
+                        "prove_unproved": prove_unproved,
+                        "prove_total_checks": 3,
+                    }
+                ],
+            },
+            "canonical_proof_detail": {"fixtures": []},
+            "machine_sensitive": {"fixtures": []},
+            "deterministic": True,
+            "report_sha256": "1" * 64,
+            "repeat_sha256": "1" * 64,
+        }
+
+    @staticmethod
+    def _pr101_payload(*, baseline_gate_hashes: dict[str, str]) -> dict[str, object]:
+        return {
+            "task": "PR10.1",
+            "semantic_floor": {
+                "baseline_gate_hashes": baseline_gate_hashes,
+                "companion_verify": {
+                    "assumptions_extracted_sha256": "5" * 64,
+                    "prove_golden_sha256": "6" * 64,
+                    "gnatprove_summary_sha256": "7" * 64,
+                },
+                "templates_verify": {
+                    "assumptions_extracted_sha256": "8" * 64,
+                    "prove_golden_sha256": "9" * 64,
+                    "gnatprove_summary_sha256": "a" * 64,
+                },
+            },
+            "canonical_proof_detail": {},
+            "machine_sensitive": {},
+            "deterministic": True,
+            "report_sha256": "b" * 64,
+            "repeat_sha256": "b" * 64,
+        }
+
     @classmethod
     def _write_report(cls, path: Path, payload: dict[str, object]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -51,6 +105,23 @@ class RunGatePipelineTests(unittest.TestCase):
         self.assertIn("[gate-pipeline] branch: codex/pr114-signature-control-flow-syntax", text)
         self.assertIn("[gate-pipeline] 1. build_initial [build] build build_initial", text)
         self.assertIn("[gate-pipeline] 2. sample_gate [gate]", text)
+
+    def test_tracked_diff_snapshot_sorts_status_lines(self) -> None:
+        with mock.patch.object(
+            run_gate_pipeline,
+            "run",
+            return_value={
+                "command": ["git", "status", "--porcelain", "--untracked-files=no"],
+                "cwd": "$REPO_ROOT",
+                "returncode": 0,
+                "stdout": " M scripts/z.py\n D docs/a.md\n M scripts/a.py\n",
+                "stderr": "",
+            },
+        ):
+            self.assertEqual(
+                run_gate_pipeline.tracked_diff_snapshot(git="git", env={}),
+                " D docs/a.md\n M scripts/a.py\n M scripts/z.py\n",
+            )
 
     def test_verify_fails_on_mismatched_report(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -187,6 +258,161 @@ class RunGatePipelineTests(unittest.TestCase):
                         0,
                     )
             run_node.assert_called_once()
+
+    def test_verify_local_reuse_rejects_ci_proof_report_missing_three_way_sections(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            expected_path = Path(temp_dir) / "expected.json"
+            self._write_report(expected_path, self._report_payload("authoritative"))
+            node = Node(
+                id="pr10_emitted_flow",
+                kind=NodeKind.GATE,
+                script=Path("/tmp/run_pr10_emitted_flow.py"),
+                report_path=expected_path,
+                determinism_class=DeterminismClass.CI_AUTHORITATIVE,
+            )
+            with mock.patch.object(run_gate_pipeline, "NODES", (node,)), mock.patch.object(
+                run_gate_pipeline,
+                "tracked_diff_snapshot",
+                side_effect=["", ""],
+            ):
+                with redirect_stdout(io.StringIO()):
+                    with self.assertRaises(RuntimeError) as exc:
+                        run_gate_pipeline.verify_pipeline(
+                            authority="local",
+                            python="python3",
+                            git="git",
+                            alr="alr",
+                            env={},
+                        )
+        self.assertIn("missing semantic_floor", str(exc.exception))
+
+    def test_verify_local_reuse_rejects_nonzero_semantic_floor_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            expected_path = Path(temp_dir) / "expected.json"
+            self._write_report(expected_path, self._proof_payload(prove_unproved=1))
+            node = Node(
+                id="pr10_emitted_prove",
+                kind=NodeKind.GATE,
+                script=Path("/tmp/run_pr10_emitted_prove.py"),
+                report_path=expected_path,
+                determinism_class=DeterminismClass.CI_AUTHORITATIVE,
+            )
+            with mock.patch.object(run_gate_pipeline, "NODES", (node,)), mock.patch.object(
+                run_gate_pipeline,
+                "tracked_diff_snapshot",
+                side_effect=["", ""],
+            ):
+                with redirect_stdout(io.StringIO()):
+                    with self.assertRaises(RuntimeError) as exc:
+                        run_gate_pipeline.verify_pipeline(
+                            authority="local",
+                            python="python3",
+                            git="git",
+                            alr="alr",
+                            env={},
+                        )
+        self.assertIn("prove_unproved must be zero", str(exc.exception))
+
+    def test_verify_local_reuse_rejects_pr101_hash_mismatch_against_pipeline_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            report_paths = {
+                node_id: temp_root / f"{node_id}.json"
+                for node_id in (
+                    "pr08_frontend_baseline",
+                    "pr09_ada_emission_baseline",
+                    "pr10_emitted_baseline",
+                    "emitted_hardening_regressions",
+                    "pr101_comprehensive_audit",
+                )
+            }
+            self._write_report(report_paths["pr08_frontend_baseline"], self._report_payload("pr08"))
+            self._write_report(report_paths["pr09_ada_emission_baseline"], self._report_payload("pr09"))
+            self._write_report(report_paths["pr10_emitted_baseline"], self._report_payload("pr10"))
+            self._write_report(report_paths["emitted_hardening_regressions"], self._report_payload("hard"))
+            self._write_report(
+                report_paths["pr101_comprehensive_audit"],
+                self._pr101_payload(
+                    baseline_gate_hashes={
+                        "pr08_frontend_baseline": "1" * 64,
+                        "pr09_ada_emission_baseline": "1" * 64,
+                        "pr10_emitted_baseline": "f" * 64,
+                        "emitted_hardening_regressions": "1" * 64,
+                    }
+                ),
+            )
+
+            nodes = (
+                Node(
+                    id="pr08_frontend_baseline",
+                    kind=NodeKind.GATE,
+                    script=Path("/tmp/run_pr08_frontend_baseline.py"),
+                    report_path=report_paths["pr08_frontend_baseline"],
+                ),
+                Node(
+                    id="pr09_ada_emission_baseline",
+                    kind=NodeKind.GATE,
+                    script=Path("/tmp/run_pr09_ada_emission_baseline.py"),
+                    report_path=report_paths["pr09_ada_emission_baseline"],
+                ),
+                Node(
+                    id="pr10_emitted_baseline",
+                    kind=NodeKind.GATE,
+                    script=Path("/tmp/run_pr10_emitted_baseline.py"),
+                    report_path=report_paths["pr10_emitted_baseline"],
+                ),
+                Node(
+                    id="emitted_hardening_regressions",
+                    kind=NodeKind.GATE,
+                    script=Path("/tmp/run_emitted_hardening_regressions.py"),
+                    report_path=report_paths["emitted_hardening_regressions"],
+                ),
+                Node(
+                    id="pr101_comprehensive_audit",
+                    kind=NodeKind.GATE,
+                    script=Path("/tmp/run_pr101_comprehensive_audit.py"),
+                    report_path=report_paths["pr101_comprehensive_audit"],
+                    determinism_class=DeterminismClass.CI_AUTHORITATIVE,
+                ),
+            )
+
+            def fake_run_node(
+                node: Node,
+                *,
+                write_generated_root: Path | None,
+                **_kwargs: object,
+            ) -> tuple[dict[str, object], dict[str, object], Path]:
+                assert write_generated_root is not None
+                actual_path = write_generated_root / node.report_path.name
+                payload = json.loads(node.report_path.read_text(encoding="utf-8"))
+                self._write_report(actual_path, payload)
+                return (
+                    {
+                        "command": ["python3", str(node.script)],
+                        "cwd": "$REPO_ROOT",
+                        "returncode": 0,
+                        "stdout": "",
+                        "stderr": "",
+                    },
+                    payload,
+                    actual_path,
+                )
+
+            with mock.patch.object(run_gate_pipeline, "NODES", nodes), mock.patch.object(
+                run_gate_pipeline,
+                "tracked_diff_snapshot",
+                side_effect=["", ""],
+            ), mock.patch.object(run_gate_pipeline, "run_node", side_effect=fake_run_node):
+                with redirect_stdout(io.StringIO()):
+                    with self.assertRaises(RuntimeError) as exc:
+                        run_gate_pipeline.verify_pipeline(
+                            authority="local",
+                            python="python3",
+                            git="git",
+                            alr="alr",
+                            env={},
+                        )
+        self.assertIn("PR101 semantic_floor pr10_emitted_baseline hash mismatch", str(exc.exception))
 
     def test_ratchet_allows_unrelated_tracked_edits(self) -> None:
         with mock.patch.object(
