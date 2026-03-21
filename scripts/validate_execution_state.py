@@ -523,7 +523,19 @@ def policy_fields(*, sections: list[str]) -> dict[str, Any]:
     return policy_metadata(policy_sha256=EVIDENCE_POLICY_SHA256, sections=sections)
 
 
-def check_generated_output_cleanliness(*, env: dict[str, str]) -> None:
+def normalize_generated_output_snapshot(text: str) -> str:
+    lines = [line for line in text.splitlines() if line]
+    lines.sort()
+    if not lines:
+        return ""
+    return "\n".join(lines) + "\n"
+
+
+def check_generated_output_cleanliness(
+    *,
+    env: dict[str, str],
+    expected_snapshot: str = "",
+) -> None:
     git = find_command("git")
     reports_root = Path(GENERATED_OUTPUTS_POLICY["reports_root"])
     dashboard = Path(GENERATED_OUTPUTS_POLICY["dashboard"])
@@ -540,13 +552,54 @@ def check_generated_output_cleanliness(*, env: dict[str, str]) -> None:
         cwd=REPO_ROOT,
         env=env,
     )
-    lines = result["stdout"].splitlines()
-    lines.sort()
-    if lines:
+    actual_snapshot = normalize_generated_output_snapshot(result["stdout"])
+    expected_snapshot = normalize_generated_output_snapshot(expected_snapshot)
+    if actual_snapshot != expected_snapshot:
+        if expected_snapshot == "":
+            actual_lines = actual_snapshot.splitlines()
+            require(actual_lines, "expected dirty generated-output snapshot when preflight baseline is clean")
+            fail(
+                "ratchet-owned generated outputs must be clean before preflight:\n"
+                + "\n".join(actual_lines)
+                + "\nRecovery: accept ratchet artifact and commit the generated diffs, or restore "
+                "ratchet baseline before rerunning preflight."
+            )
         fail(
-            "ratchet-owned generated outputs must be clean before preflight:\n"
-            + "\n".join(lines)
+            "ratchet-owned generated outputs changed relative to the preflight baseline:\n"
+            f"expected:\n{expected_snapshot or '<clean>'}\n"
+            f"actual:\n{actual_snapshot or '<clean>'}"
         )
+
+
+def read_generated_output_baseline(*, path: Path | None) -> str:
+    if path is None:
+        return ""
+    return normalize_generated_output_snapshot(path.read_text(encoding="utf-8"))
+
+
+def run_preflight_phase(
+    *,
+    tracker: Dict[str, Any],
+    authority: str,
+    env: dict[str, str],
+    generated_output_baseline_file: Path | None = None,
+) -> dict[str, Any]:
+    expected_snapshot = read_generated_output_baseline(path=generated_output_baseline_file)
+    check_tracker_schema(tracker)
+    tasks = tracker["tasks"]
+    check_status_rules(tracker, tasks)
+    check_dependencies(tasks)
+    meta_sha = check_frozen_sha(tracker)
+    check_documented_sha(meta_sha)
+    check_test_distribution(tracker)
+    check_generated_output_cleanliness(env=env, expected_snapshot=expected_snapshot)
+    return {
+        "task": "execution-state",
+        "phase": "preflight",
+        "status": "ok",
+        "preconditions": check_environment_preconditions(authority=authority, env=env),
+        **policy_fields(sections=["environment"]),
+    }
 
 
 def require_sorted_strings(values: Sequence[str], *, label: str) -> None:
@@ -1916,24 +1969,6 @@ def check_policy_anchoring(*, generated_root: Path | None = None) -> list[str]:
     return violations
 
 
-def run_preflight_phase(*, tracker: Dict[str, Any], authority: str, env: dict[str, str]) -> dict[str, Any]:
-    check_tracker_schema(tracker)
-    tasks = tracker["tasks"]
-    check_status_rules(tracker, tasks)
-    check_dependencies(tasks)
-    meta_sha = check_frozen_sha(tracker)
-    check_documented_sha(meta_sha)
-    check_test_distribution(tracker)
-    check_generated_output_cleanliness(env=env)
-    return {
-        "task": "execution-state",
-        "phase": "preflight",
-        "status": "ok",
-        "preconditions": check_environment_preconditions(authority=authority, env=env),
-        **policy_fields(sections=["environment"]),
-    }
-
-
 def run_final_phase(
     *,
     tracker: Dict[str, Any],
@@ -1999,14 +2034,22 @@ def main() -> int:
     parser.add_argument("--tracker", type=Path, default=TRACKER_PATH)
     parser.add_argument("--phase", choices=("full", "preflight", "final"), default="full")
     parser.add_argument("--generated-root", type=Path)
+    parser.add_argument("--generated-output-baseline-file", type=Path)
     parser.add_argument("--report", type=Path, default=EXECUTION_STATE_REPORT_PATH)
     parser.add_argument("--authority", choices=("local", "ci"), default="local")
     args = parser.parse_args()
 
     env = ensure_deterministic_env(os.environ.copy(), required=ENVIRONMENT_POLICY["required_env"])
     tracker = load_tracker(args.tracker)
+    if args.phase == "final" and args.generated_output_baseline_file is not None:
+        parser.error("--generated-output-baseline-file is only valid for --phase preflight or --phase full")
     if args.phase == "preflight":
-        run_preflight_phase(tracker=tracker, authority=args.authority, env=env)
+        run_preflight_phase(
+            tracker=tracker,
+            authority=args.authority,
+            env=env,
+            generated_output_baseline_file=args.generated_output_baseline_file,
+        )
         print("execution state preflight: OK")
         return 0
 
@@ -2024,7 +2067,12 @@ def main() -> int:
         print(f"execution state final: OK ({display_path(args.report, repo_root=REPO_ROOT)})")
         return 0
 
-    run_preflight_phase(tracker=tracker, authority=args.authority, env=env)
+    run_preflight_phase(
+        tracker=tracker,
+        authority=args.authority,
+        env=env,
+        generated_output_baseline_file=args.generated_output_baseline_file,
+    )
     report = finalize_deterministic_report(
         lambda: run_final_phase(
             tracker=tracker,

@@ -15,7 +15,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import run_gate_pipeline
-from _lib.gate_manifest import DeterminismClass, Node, NodeKind
+from _lib.gate_manifest import BUILD_POST_REPRO, DeterminismClass, Node, NodeKind, VALIDATE_EXECUTION_STATE_FINAL
 
 
 class RunGatePipelineTests(unittest.TestCase):
@@ -350,6 +350,339 @@ class RunGatePipelineTests(unittest.TestCase):
             ],
         )
 
+    def test_run_node_passes_generated_output_baseline_file_to_preflight(self) -> None:
+        node = Node(
+            id="validate_execution_state_preflight",
+            kind=NodeKind.VALIDATION,
+            script=Path("/tmp/validate_execution_state.py"),
+            supports_authority=True,
+            argv=("--phase", "preflight"),
+        )
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.object(
+            run_gate_pipeline,
+            "run",
+            return_value={
+                "command": [],
+                "cwd": "$REPO_ROOT",
+                "returncode": 0,
+                "stdout": "",
+                "stderr": "",
+            },
+        ) as run_mock:
+            baseline_file = Path(temp_dir) / "generated-output-baseline.txt"
+            run_gate_pipeline.run_node(
+                node,
+                python="python3",
+                authority="local",
+                env={},
+                read_generated_root=None,
+                write_generated_root=Path(temp_dir),
+                pipeline_context={},
+                preflight_generated_output_baseline_file=baseline_file,
+            )
+        self.assertEqual(
+            run_mock.call_args.args[0],
+            [
+                "python3",
+                "/tmp/validate_execution_state.py",
+                "--phase",
+                "preflight",
+                "--authority",
+                "local",
+                "--generated-output-baseline-file",
+                str(baseline_file),
+            ],
+        )
+
+    def test_execute_pipeline_writes_checkpoints_for_non_build_nodes_only(self) -> None:
+        build_node = Node(id="build", kind=NodeKind.BUILD, repo_clean_profile="frontend_build")
+        gate_node = Node(
+            id="sample_gate",
+            kind=NodeKind.GATE,
+            script=Path("/tmp/run_sample_gate.py"),
+            report_path=Path("/tmp/sample_gate.json"),
+        )
+
+        def fake_run_node(
+            node: Node,
+            *,
+            write_generated_root: Path | None,
+            **_kwargs: object,
+        ) -> tuple[dict[str, object], dict[str, object], Path]:
+            assert node is gate_node
+            assert write_generated_root is not None
+            actual_path = write_generated_root / "sample_gate.json"
+            payload = self._report_payload("ok")
+            self._write_report(actual_path, payload)
+            return (
+                {
+                    "command": ["python3", str(node.script)],
+                    "cwd": "$REPO_ROOT",
+                    "returncode": 0,
+                    "stdout": "",
+                    "stderr": "",
+                },
+                payload,
+                actual_path,
+            )
+
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.object(
+            run_gate_pipeline,
+            "NODES",
+            (build_node, gate_node),
+        ), mock.patch.object(
+            run_gate_pipeline,
+            "run",
+            return_value={
+                "command": ["alr", "build"],
+                "cwd": "$REPO_ROOT",
+                "returncode": 0,
+                "stdout": "",
+                "stderr": "",
+            },
+        ), mock.patch.object(
+            run_gate_pipeline,
+            "tracked_diff_snapshot",
+            return_value="",
+        ), mock.patch.object(
+            run_gate_pipeline,
+            "clean_repo_profile",
+        ), mock.patch.object(
+            run_gate_pipeline,
+            "run_node",
+            side_effect=fake_run_node,
+        ):
+            root = Path(temp_dir)
+            checkpoint_root = root / "checkpoints"
+            with redirect_stdout(io.StringIO()):
+                run_gate_pipeline.execute_pipeline(
+                    authority="local",
+                    python="python3",
+                    env={},
+                    alr="alr",
+                    git="git",
+                    read_generated_root=None,
+                    write_generated_root=root,
+                    compare_root=None,
+                    compare_to_committed=False,
+                    initial_snapshot="",
+                    checkpoint_root=checkpoint_root,
+                )
+            self.assertFalse((checkpoint_root / "build.json").exists())
+            checkpoint = json.loads((checkpoint_root / "sample_gate.json").read_text(encoding="utf-8"))
+            self.assertEqual(checkpoint["node_id"], "sample_gate")
+            self.assertEqual(checkpoint["kind"], "gate")
+            self.assertEqual(checkpoint["authority"], "local")
+            self.assertEqual(checkpoint["status"], "ok")
+            self.assertEqual(checkpoint["report_sha256"], "1" * 64)
+            self.assertEqual(checkpoint["dependency_report_hashes"], {})
+            self.assertEqual(checkpoint["pipeline_context_entry"]["report"]["report_sha256"], "1" * 64)
+
+    def test_final_rerun_start_index_rewinds_pr0699_to_build_post_repro(self) -> None:
+        self.assertEqual(
+            run_gate_pipeline.final_rerun_start_index(
+                changed_nodes=["pr0699_build_reproducibility"],
+                dashboard_changed_flag=False,
+            ),
+            run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO],
+        )
+
+    def test_final_rerun_start_index_starts_at_pr0697_when_pr0697_changed(self) -> None:
+        self.assertEqual(
+            run_gate_pipeline.final_rerun_start_index(
+                changed_nodes=["pr0697_gate_quality"],
+                dashboard_changed_flag=False,
+            ),
+            run_gate_pipeline.NODE_INDEX_BY_ID["pr0697_gate_quality"],
+        )
+
+    def test_final_rerun_start_index_uses_final_validation_for_dashboard_only(self) -> None:
+        self.assertEqual(
+            run_gate_pipeline.final_rerun_start_index(
+                changed_nodes=[],
+                dashboard_changed_flag=True,
+            ),
+            run_gate_pipeline.NODE_INDEX_BY_ID[VALIDATE_EXECUTION_STATE_FINAL],
+        )
+
+    def test_changed_report_nodes_treats_missing_committed_report_as_changed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stage_root = root / "stage"
+            stage_root.mkdir()
+            committed_path = root / "missing-committed.json"
+            generated_path = stage_root / committed_path.name
+            self._write_report(generated_path, self._report_payload("generated"))
+            node = Node(id="sample_gate", kind=NodeKind.GATE, report_path=committed_path)
+            with mock.patch.object(run_gate_pipeline, "NODES", (node,)):
+                changed = run_gate_pipeline.changed_report_nodes(generated_root=stage_root)
+        self.assertEqual(changed, ["sample_gate"])
+
+    def test_changed_report_nodes_rejects_missing_generated_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stage_root = root / "stage"
+            stage_root.mkdir()
+            committed_path = root / "committed.json"
+            self._write_report(committed_path, self._report_payload("committed"))
+            node = Node(id="sample_gate", kind=NodeKind.GATE, report_path=committed_path)
+            with mock.patch.object(run_gate_pipeline, "NODES", (node,)):
+                with self.assertRaises(RuntimeError) as exc:
+                    run_gate_pipeline.changed_report_nodes(generated_root=stage_root)
+        self.assertIn("sample_gate: missing generated report", str(exc.exception))
+
+    def test_execution_indices_rerun_preflight_before_suffix(self) -> None:
+        indices = run_gate_pipeline.execution_indices(
+            start_index=run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO],
+            rerun_preflight=True,
+        )
+        self.assertEqual(indices[0], run_gate_pipeline.NODE_INDEX_BY_ID["validate_execution_state_preflight"])
+        self.assertEqual(indices[1], run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO])
+
+    def test_load_seed_pipeline_context_reads_non_build_prefix_checkpoints(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            checkpoint_root = Path(temp_dir)
+            nodes = (
+                Node(id="validate_execution_state_preflight", kind=NodeKind.VALIDATION),
+                Node(id="build", kind=NodeKind.BUILD),
+                Node(id="gate_a", kind=NodeKind.GATE),
+                Node(id="gate_b", kind=NodeKind.GATE),
+            )
+            for node_id in ("gate_a",):
+                checkpoint = {
+                    "node_id": node_id,
+                    "status": "ok",
+                    "pipeline_context_entry": {"result": {"returncode": 0}},
+                }
+                (checkpoint_root / f"{node_id}.json").write_text(
+                    json.dumps(checkpoint, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+            with mock.patch.object(run_gate_pipeline, "NODES", nodes):
+                seeded = run_gate_pipeline.load_seed_pipeline_context(
+                    checkpoint_root=checkpoint_root,
+                    start_index=3,
+                )
+        self.assertIn("gate_a", seeded)
+        self.assertNotIn("build", seeded)
+
+    def test_final_rerun_pipeline_passes_promoted_baseline_and_seeded_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            stage_root = root / "stage"
+            stage_verify_root = root / "verify"
+            final_verify_root = root / "final"
+            stage_root.mkdir()
+            stage_verify_root.mkdir()
+            final_verify_root.mkdir()
+            self._write_report(
+                stage_root / "execution" / "reports" / "pr0699-build-reproducibility-report.json",
+                self._report_payload("refreshed"),
+            )
+            with mock.patch.object(
+                run_gate_pipeline,
+                "changed_report_nodes",
+                return_value=["pr0699_build_reproducibility"],
+            ), mock.patch.object(
+                run_gate_pipeline,
+                "dashboard_changed",
+                return_value=False,
+            ), mock.patch.object(
+                run_gate_pipeline,
+                "promote_stage",
+            ), mock.patch.object(
+                run_gate_pipeline,
+                "tracked_diff_snapshot",
+                side_effect=[
+                    " M execution/reports/pr0699-build-reproducibility-report.json\n",
+                    " M execution/reports/pr0699-build-reproducibility-report.json\n",
+                ],
+            ), mock.patch.object(
+                run_gate_pipeline,
+                "load_seed_pipeline_context",
+                return_value={"pr0697_gate_quality": {"result": {"returncode": 0}}},
+            ) as load_seed_pipeline_context, mock.patch.object(
+                run_gate_pipeline,
+                "execute_pipeline",
+                return_value={},
+            ) as execute_pipeline:
+                with redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        run_gate_pipeline.final_rerun_pipeline(
+                            authority="local",
+                            python="python3",
+                            git="git",
+                            alr="alr",
+                            env={},
+                            stage_root=stage_root,
+                            stage_verify_root=stage_verify_root,
+                            final_verify_root=final_verify_root,
+                        ),
+                        0,
+                    )
+                load_seed_pipeline_context.assert_called_once_with(
+                    checkpoint_root=stage_verify_root / "checkpoints",
+                    start_index=run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO],
+                )
+                baseline_file = execute_pipeline.call_args.kwargs["preflight_generated_output_baseline_file"]
+                self.assertEqual(
+                    baseline_file.read_text(encoding="utf-8"),
+                    " M execution/reports/pr0699-build-reproducibility-report.json\n",
+                )
+                self.assertEqual(
+                    execute_pipeline.call_args.kwargs["start_index"],
+                    run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO],
+                )
+                self.assertEqual(
+                    execute_pipeline.call_args.kwargs["seed_pipeline_context"],
+                    {"pr0697_gate_quality": {"result": {"returncode": 0}}},
+                )
+
+    def test_promote_stage_rolls_back_reports_without_merging_partial_stage_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            repo_root = root / "repo"
+            stage_root = root / "stage"
+            committed_reports = repo_root / "execution" / "reports"
+            committed_dashboard = repo_root / "execution" / "dashboard.md"
+            stage_reports = stage_root / "execution" / "reports"
+            stage_dashboard = stage_root / "execution" / "dashboard.md"
+
+            committed_reports.mkdir(parents=True)
+            committed_dashboard.parent.mkdir(parents=True, exist_ok=True)
+            stage_reports.mkdir(parents=True)
+            stage_dashboard.parent.mkdir(parents=True, exist_ok=True)
+
+            (committed_reports / "kept.json").write_text("old report\n", encoding="utf-8")
+            committed_dashboard.write_text("old dashboard\n", encoding="utf-8")
+            (stage_reports / "new.json").write_text("new report\n", encoding="utf-8")
+            stage_dashboard.write_text("new dashboard\n", encoding="utf-8")
+
+            original_copytree = run_gate_pipeline.shutil.copytree
+
+            def flaky_copytree(src: str | Path, dst: str | Path, *args: object, **kwargs: object) -> str:
+                src_path = Path(src)
+                dst_path = Path(dst)
+                if src_path == stage_reports:
+                    dst_path.mkdir(parents=True, exist_ok=True)
+                    (dst_path / "partial.json").write_text("partial stage artifact\n", encoding="utf-8")
+                    raise RuntimeError("simulated copy failure")
+                return original_copytree(src_path, dst_path, *args, **kwargs)
+
+            with mock.patch.object(run_gate_pipeline, "REPO_ROOT", repo_root), mock.patch.object(
+                run_gate_pipeline.shutil,
+                "copytree",
+                side_effect=flaky_copytree,
+            ):
+                with self.assertRaises(RuntimeError) as exc:
+                    run_gate_pipeline.promote_stage(stage_root)
+
+            self.assertEqual(str(exc.exception), "simulated copy failure")
+            self.assertEqual((committed_reports / "kept.json").read_text(encoding="utf-8"), "old report\n")
+            self.assertFalse((committed_reports / "new.json").exists())
+            self.assertFalse((committed_reports / "partial.json").exists())
+            self.assertEqual(committed_dashboard.read_text(encoding="utf-8"), "old dashboard\n")
+
     def test_verify_local_reuse_rejects_ci_proof_report_missing_three_way_sections(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             expected_path = Path(temp_dir) / "expected.json"
@@ -533,11 +866,12 @@ class RunGatePipelineTests(unittest.TestCase):
         with mock.patch.object(
             run_gate_pipeline,
             "tracked_diff_snapshot",
-            side_effect=[" M docs/vision.md\n", "", ""],
+            side_effect=[" M docs/vision.md\n", ""],
         ), mock.patch.object(run_gate_pipeline, "execute_pipeline", return_value={}) as execute_pipeline, mock.patch.object(
             run_gate_pipeline,
-            "promote_stage",
-        ) as promote_stage, mock.patch.object(run_gate_pipeline, "verify_pipeline", return_value=0) as verify_pipeline:
+            "final_rerun_pipeline",
+            return_value=0,
+        ) as final_rerun_pipeline:
             with redirect_stdout(io.StringIO()):
                 self.assertEqual(
                     run_gate_pipeline.ratchet_pipeline(
@@ -550,12 +884,29 @@ class RunGatePipelineTests(unittest.TestCase):
                     0,
                 )
         self.assertEqual(execute_pipeline.call_count, 2)
-        promote_stage.assert_called_once()
-        verify_pipeline.assert_called_once()
-        self.assertEqual(
-            verify_pipeline.call_args.kwargs["initial_snapshot"],
-            "",
-        )
+        final_rerun_pipeline.assert_called_once()
+
+    def test_ratchet_requires_clean_generated_output_baseline(self) -> None:
+        with mock.patch.object(
+            run_gate_pipeline,
+            "tracked_diff_snapshot",
+            side_effect=["", " M execution/reports/example.json\n"],
+        ), mock.patch.object(
+            run_gate_pipeline,
+            "execute_pipeline",
+            side_effect=AssertionError("should not run"),
+        ):
+            with self.assertRaises(RuntimeError) as exc:
+                run_gate_pipeline.ratchet_pipeline(
+                    authority="local",
+                    python="python3",
+                    git="git",
+                    alr="alr",
+                    env={},
+                )
+        self.assertIn("ratchet requires a clean generated-output working tree", str(exc.exception))
+        self.assertIn("accept ratchet artifact", str(exc.exception))
+        self.assertIn("restore ratchet baseline", str(exc.exception))
 
     def test_ratchet_aborts_before_promotion_when_stage_verify_fails(self) -> None:
         with mock.patch.object(
@@ -568,8 +919,8 @@ class RunGatePipelineTests(unittest.TestCase):
             side_effect=[{}, RuntimeError("stage verify failed")],
         ) as execute_pipeline, mock.patch.object(
             run_gate_pipeline,
-            "promote_stage",
-        ) as promote_stage, mock.patch.object(run_gate_pipeline, "verify_pipeline") as verify_pipeline:
+            "final_rerun_pipeline",
+        ) as final_rerun_pipeline:
             with redirect_stdout(io.StringIO()):
                 with self.assertRaises(RuntimeError) as exc:
                     run_gate_pipeline.ratchet_pipeline(
@@ -581,8 +932,7 @@ class RunGatePipelineTests(unittest.TestCase):
                     )
         self.assertEqual(str(exc.exception), "stage verify failed")
         self.assertEqual(execute_pipeline.call_count, 2)
-        promote_stage.assert_not_called()
-        verify_pipeline.assert_not_called()
+        final_rerun_pipeline.assert_not_called()
 
     def test_verify_uses_explicit_initial_snapshot(self) -> None:
         with mock.patch.object(run_gate_pipeline, "NODES", ()), mock.patch.object(

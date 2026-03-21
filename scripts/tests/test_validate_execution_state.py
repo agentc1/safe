@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import hashlib
 import json
 import sys
@@ -13,6 +14,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
+import validate_execution_state
 from validate_execution_state import (
     EVIDENCE_POLICY_SHA256,
     GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS,
@@ -1360,6 +1362,105 @@ class ValidateExecutionStateTests(unittest.TestCase):
         self.assertIn("ratchet-owned generated outputs must be clean before preflight", str(exc.exception))
         self.assertIn(" M execution/dashboard.md", str(exc.exception))
         self.assertIn(" M execution/reports/pr10-emitted-baseline-report.json", str(exc.exception))
+        self.assertIn("accept ratchet artifact", str(exc.exception))
+        self.assertIn("restore ratchet baseline", str(exc.exception))
+
+    def test_run_preflight_phase_accepts_matching_generated_output_baseline(self) -> None:
+        tracker = {"tasks": []}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline_file = Path(temp_dir) / "generated-output-baseline.txt"
+            baseline_file.write_text(
+                " M execution/dashboard.md\n M execution/reports/pr0699-build-reproducibility-report.json\n",
+                encoding="utf-8",
+            )
+            with mock.patch("validate_execution_state.check_tracker_schema"), mock.patch(
+                "validate_execution_state.check_status_rules"
+            ), mock.patch("validate_execution_state.check_dependencies"), mock.patch(
+                "validate_execution_state.check_frozen_sha",
+                return_value="a" * 40,
+            ), mock.patch("validate_execution_state.check_documented_sha"), mock.patch(
+                "validate_execution_state.check_test_distribution"
+            ), mock.patch(
+                "validate_execution_state.check_environment_preconditions",
+                return_value={"authority": "local"},
+            ), mock.patch(
+                "validate_execution_state.run",
+                return_value={
+                    "command": ["git", "status"],
+                    "cwd": "$REPO_ROOT",
+                    "returncode": 0,
+                    "stdout": " M execution/reports/pr0699-build-reproducibility-report.json\n M execution/dashboard.md\n",
+                    "stderr": "",
+                },
+            ):
+                report = run_preflight_phase(
+                    tracker=tracker,
+                    authority="local",
+                    env={},
+                    generated_output_baseline_file=baseline_file,
+                )
+        self.assertEqual(report["phase"], "preflight")
+        self.assertEqual(report["preconditions"]["authority"], "local")
+
+    def test_run_preflight_phase_rejects_mismatched_generated_output_baseline(self) -> None:
+        tracker = {"tasks": []}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline_file = Path(temp_dir) / "generated-output-baseline.txt"
+            baseline_file.write_text(
+                " M execution/reports/pr0699-build-reproducibility-report.json\n",
+                encoding="utf-8",
+            )
+            with mock.patch("validate_execution_state.check_tracker_schema"), mock.patch(
+                "validate_execution_state.check_status_rules"
+            ), mock.patch("validate_execution_state.check_dependencies"), mock.patch(
+                "validate_execution_state.check_frozen_sha",
+                return_value="a" * 40,
+            ), mock.patch("validate_execution_state.check_documented_sha"), mock.patch(
+                "validate_execution_state.check_test_distribution"
+            ), mock.patch(
+                "validate_execution_state.run",
+                return_value={
+                    "command": ["git", "status"],
+                    "cwd": "$REPO_ROOT",
+                    "returncode": 0,
+                    "stdout": " M execution/reports/pr0699-build-reproducibility-report.json\n M execution/dashboard.md\n",
+                    "stderr": "",
+                },
+            ):
+                with self.assertRaises(ValueError) as exc:
+                    run_preflight_phase(
+                        tracker=tracker,
+                        authority="local",
+                        env={},
+                        generated_output_baseline_file=baseline_file,
+                    )
+        self.assertIn("ratchet-owned generated outputs changed relative to the preflight baseline", str(exc.exception))
+        self.assertIn(" M execution/dashboard.md", str(exc.exception))
+
+    def test_main_rejects_generated_output_baseline_file_for_final_phase(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.object(
+            sys,
+            "argv",
+            [
+                "validate_execution_state.py",
+                "--phase",
+                "final",
+                "--generated-output-baseline-file",
+                str(Path(temp_dir) / "generated-output-baseline.txt"),
+            ],
+        ), mock.patch(
+            "validate_execution_state.ensure_deterministic_env",
+            return_value={},
+        ), mock.patch(
+            "validate_execution_state.load_tracker",
+            return_value={"tasks": []},
+        ), mock.patch(
+            "sys.stderr",
+            new_callable=io.StringIO,
+        ):
+            with self.assertRaises(SystemExit) as exc:
+                validate_execution_state.main()
+        self.assertEqual(exc.exception.code, 2)
 
     def test_resolve_tool_command_prefers_pinned_alire_toolchain_binary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

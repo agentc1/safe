@@ -17,6 +17,8 @@ from _lib.gate_manifest import (
     BUILD_POST_REPRO,
     BUILD_STATEFUL,
     NODES,
+    VALIDATE_EXECUTION_STATE_FINAL,
+    VALIDATE_EXECUTION_STATE_PREFLIGHT,
     DeterminismClass,
     Node,
     NodeKind,
@@ -69,6 +71,8 @@ PR101_CHILD_NODE_IDS = frozenset(
         "pr101b_template_proof_verification",
     }
 )
+NODES_BY_ID = {node.id: node for node in NODES}
+NODE_INDEX_BY_ID = {node.id: index for index, node in enumerate(NODES)}
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,10 +82,16 @@ def parse_args() -> argparse.Namespace:
     plan = subparsers.add_parser("plan")
     plan.add_argument("--branch", help="branch name to resolve; defaults to current branch")
 
-    verify = subparsers.add_parser("verify")
+    verify = subparsers.add_parser(
+        "verify",
+        help="verify committed evidence against the canonical gate pipeline",
+    )
     verify.add_argument("--authority", choices=("local", "ci"), default="local")
 
-    ratchet = subparsers.add_parser("ratchet")
+    ratchet = subparsers.add_parser(
+        "ratchet",
+        help="advance ratchet-owned generated outputs from a clean generated-output baseline",
+    )
     ratchet.add_argument("--authority", choices=("local", "ci"), default="local")
 
     return parser.parse_args()
@@ -170,6 +180,137 @@ def ratchet_owned_paths() -> tuple[Path, ...]:
         REPORTS_ROOT_REL,
         DASHBOARD_REL,
     )
+
+
+def checkpoint_path(checkpoint_root: Path, *, node_id: str) -> Path:
+    return checkpoint_root / f"{node_id}.json"
+
+
+def dependency_report_hashes(*, node: Node, pipeline_context: dict[str, Any]) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    for dependency in node.depends_on:
+        entry = pipeline_context.get(dependency)
+        if not isinstance(entry, dict):
+            continue
+        report = entry.get("report")
+        if not isinstance(report, dict):
+            continue
+        report_sha256 = report.get("report_sha256")
+        if isinstance(report_sha256, str):
+            hashes[dependency] = report_sha256
+    return hashes
+
+
+def make_pipeline_context_entry(
+    *,
+    node: Node,
+    result: dict[str, Any],
+    payload: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if node.report_path is None:
+        return {"result": result}
+    require(payload is not None, f"{node.id}: missing report payload for pipeline context")
+    return {
+        "script": display_path(node.script, repo_root=REPO_ROOT),
+        "result": result,
+        "report": {
+            "deterministic": payload["deterministic"],
+            "report_sha256": payload["report_sha256"],
+            "repeat_sha256": payload["repeat_sha256"],
+        },
+    }
+
+
+def write_checkpoint(
+    checkpoint_root: Path,
+    *,
+    node: Node,
+    node_index: int,
+    authority: str,
+    pipeline_context_entry: dict[str, Any],
+    dependency_hashes: dict[str, str],
+) -> None:
+    checkpoint_root.mkdir(parents=True, exist_ok=True)
+    report = pipeline_context_entry.get("report")
+    report_sha256 = report.get("report_sha256") if isinstance(report, dict) else None
+    payload = {
+        "node_id": node.id,
+        "node_index": node_index,
+        "kind": node.kind.value,
+        "authority": authority,
+        "repo_clean_profile": node.repo_clean_profile,
+        "scratch_profile": node.scratch_profile,
+        "depends_on": list(node.depends_on),
+        "status": "ok",
+        "report_sha256": report_sha256,
+        "dependency_report_hashes": dependency_hashes,
+        "pipeline_context_entry": pipeline_context_entry,
+    }
+    checkpoint_path(checkpoint_root, node_id=node.id).write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def load_seed_pipeline_context(*, checkpoint_root: Path, start_index: int) -> dict[str, Any]:
+    if start_index <= 1:
+        return {}
+    seeded: dict[str, Any] = {}
+    for node in NODES[1:start_index]:
+        if node.kind is NodeKind.BUILD:
+            continue
+        path = checkpoint_path(checkpoint_root, node_id=node.id)
+        require(path.exists(), f"{node.id}: missing checkpoint {display_path(path, repo_root=REPO_ROOT)}")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        require(payload.get("status") == "ok", f"{node.id}: invalid checkpoint status")
+        require(payload.get("node_id") == node.id, f"{node.id}: checkpoint node id mismatch")
+        entry = payload.get("pipeline_context_entry")
+        require(isinstance(entry, dict), f"{node.id}: checkpoint missing pipeline_context_entry")
+        seeded[node.id] = entry
+    return seeded
+
+
+def changed_report_nodes(*, generated_root: Path) -> list[str]:
+    changed: list[str] = []
+    for node in NODES:
+        if node.report_path is None:
+            continue
+        generated_path = generated_report_output_path(generated_root, node.report_path)
+        require(generated_path.exists(), f"{node.id}: missing generated report {generated_path}")
+        expected_path = node.report_path
+        if not expected_path.exists():
+            changed.append(node.id)
+            continue
+        if generated_path.read_text(encoding="utf-8") != expected_path.read_text(encoding="utf-8"):
+            changed.append(node.id)
+    return changed
+
+
+def dashboard_changed(*, generated_root: Path) -> bool:
+    staged_dashboard = generated_output_path(generated_root, DASHBOARD_REL)
+    committed_dashboard = REPO_ROOT / DASHBOARD_REL
+    require(staged_dashboard.exists(), f"missing staged dashboard {staged_dashboard}")
+    require(committed_dashboard.exists(), f"missing committed dashboard {committed_dashboard}")
+    return staged_dashboard.read_text(encoding="utf-8") != committed_dashboard.read_text(encoding="utf-8")
+
+
+def final_rerun_start_index(*, changed_nodes: list[str], dashboard_changed_flag: bool) -> int:
+    if not changed_nodes:
+        if dashboard_changed_flag:
+            return NODE_INDEX_BY_ID[VALIDATE_EXECUTION_STATE_FINAL]
+        return NODE_INDEX_BY_ID[VALIDATE_EXECUTION_STATE_FINAL]
+    frontier_node = NODES_BY_ID[changed_nodes[0]]
+    for dependency in frontier_node.depends_on:
+        dependency_node = NODES_BY_ID[dependency]
+        if dependency_node.kind is NodeKind.BUILD:
+            return NODE_INDEX_BY_ID[dependency]
+    return NODE_INDEX_BY_ID[frontier_node.id]
+
+
+def execution_indices(*, start_index: int, rerun_preflight: bool) -> list[int]:
+    if rerun_preflight and start_index > 0:
+        return [NODE_INDEX_BY_ID[VALIDATE_EXECUTION_STATE_PREFLIGHT], *range(start_index, len(NODES))]
+    return list(range(start_index, len(NODES)))
 
 
 def prepare_generated_root(root: Path) -> None:
@@ -317,12 +458,24 @@ def run_node(
     read_generated_root: Path | None,
     write_generated_root: Path | None,
     pipeline_context: dict[str, Any],
+    preflight_generated_output_baseline_file: Path | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any] | None, Path | None]:
     argv = [python, str(node.script), *node.argv]
     temp_root = write_generated_root
 
     if node.supports_authority:
         argv.extend(["--authority", authority])
+
+    if (
+        node.id == VALIDATE_EXECUTION_STATE_PREFLIGHT
+        and preflight_generated_output_baseline_file is not None
+    ):
+        argv.extend(
+            [
+                "--generated-output-baseline-file",
+                str(preflight_generated_output_baseline_file),
+            ]
+        )
 
     if node.supports_pipeline_input:
         require(write_generated_root is not None, f"{node.id}: write root required for pipeline input")
@@ -370,12 +523,20 @@ def execute_pipeline(
     compare_root: Path | None,
     compare_to_committed: bool,
     initial_snapshot: str,
+    start_index: int = 0,
+    seed_pipeline_context: dict[str, Any] | None = None,
+    checkpoint_root: Path | None = None,
+    preflight_generated_output_baseline_file: Path | None = None,
 ) -> dict[str, Any]:
-    pipeline_context: dict[str, Any] = {}
+    pipeline_context: dict[str, Any] = dict(seed_pipeline_context or {})
     if write_generated_root is not None:
         prepare_generated_root(write_generated_root)
 
-    for node in NODES:
+    for node_index in execution_indices(
+        start_index=start_index,
+        rerun_preflight=preflight_generated_output_baseline_file is not None,
+    ):
+        node = NODES[node_index]
         print(f"[gate-pipeline] running: {node.id}")
         if node.kind is NodeKind.BUILD:
             clean_repo_profile(node.repo_clean_profile)
@@ -406,6 +567,7 @@ def execute_pipeline(
                 read_generated_root=read_generated_root,
                 write_generated_root=write_generated_root,
                 pipeline_context=pipeline_context,
+                preflight_generated_output_baseline_file=preflight_generated_output_baseline_file,
             )
         if node.report_path is not None:
             require(payload is not None and generated_report_path is not None, f"{node.id}: missing report payload")
@@ -425,17 +587,17 @@ def execute_pipeline(
                     f"{node.id}: generated report drifted from {display_path(expected_path, repo_root=REPO_ROOT)}\n"
                     f"{diff_context(expected=expected_text, actual=actual_text, label=node.id)}",
                 )
-            pipeline_context[node.id] = {
-                "script": display_path(node.script, repo_root=REPO_ROOT),
-                "result": result,
-                "report": {
-                    "deterministic": payload["deterministic"],
-                    "report_sha256": payload["report_sha256"],
-                    "repeat_sha256": payload["repeat_sha256"],
-                },
-            }
-        else:
-            pipeline_context[node.id] = {"result": result}
+        pipeline_context_entry = make_pipeline_context_entry(node=node, result=result, payload=payload)
+        pipeline_context[node.id] = pipeline_context_entry
+        if checkpoint_root is not None:
+            write_checkpoint(
+                checkpoint_root,
+                node=node,
+                node_index=node_index,
+                authority=authority,
+                pipeline_context_entry=pipeline_context_entry,
+                dependency_hashes=dependency_report_hashes(node=node, pipeline_context=pipeline_context),
+            )
 
     final_snapshot = tracked_diff_snapshot(git=git, env=env)
     require(final_snapshot == initial_snapshot, "gate pipeline changed tracked files during execution")
@@ -496,7 +658,7 @@ def promote_stage(stage_root: Path) -> None:
     except Exception:
         shutil.rmtree(reports_path, ignore_errors=True)
         if (backup_root / REPORTS_ROOT_REL).exists():
-            shutil.copytree(backup_root / REPORTS_ROOT_REL, reports_path, dirs_exist_ok=True)
+            shutil.copytree(backup_root / REPORTS_ROOT_REL, reports_path)
         if (backup_root / DASHBOARD_REL).exists():
             dashboard_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(backup_root / DASHBOARD_REL, dashboard_path)
@@ -505,29 +667,89 @@ def promote_stage(stage_root: Path) -> None:
         shutil.rmtree(backup_root, ignore_errors=True)
 
 
+def write_generated_output_baseline_file(path: Path, *, snapshot: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(snapshot, encoding="utf-8")
+
+
+def final_rerun_pipeline(
+    *,
+    authority: str,
+    python: str,
+    git: str,
+    alr: str,
+    env: dict[str, str],
+    stage_root: Path,
+    stage_verify_root: Path,
+    final_verify_root: Path,
+) -> int:
+    changed_nodes = changed_report_nodes(generated_root=stage_root)
+    promoted_dashboard_changed = dashboard_changed(generated_root=stage_root)
+
+    promote_stage(stage_root)
+
+    promoted_snapshot = tracked_diff_snapshot(git=git, env=env)
+    promoted_generated_snapshot = tracked_diff_snapshot(git=git, env=env, paths=ratchet_owned_paths())
+    baseline_path = final_verify_root / "generated-output-baseline.txt"
+    write_generated_output_baseline_file(baseline_path, snapshot=promoted_generated_snapshot)
+
+    start_index = final_rerun_start_index(
+        changed_nodes=changed_nodes,
+        dashboard_changed_flag=promoted_dashboard_changed,
+    )
+    seed_pipeline_context = load_seed_pipeline_context(
+        checkpoint_root=stage_verify_root / "checkpoints",
+        start_index=start_index,
+    )
+    execute_pipeline(
+        authority=authority,
+        python=python,
+        env=env,
+        alr=alr,
+        git=git,
+        read_generated_root=None,
+        write_generated_root=final_verify_root,
+        compare_root=None,
+        compare_to_committed=True,
+        initial_snapshot=promoted_snapshot,
+        start_index=start_index,
+        seed_pipeline_context=seed_pipeline_context,
+        checkpoint_root=final_verify_root / "checkpoints",
+        preflight_generated_output_baseline_file=baseline_path,
+    )
+    print(f"[gate-pipeline] verified ({authority})")
+    return 0
+
+
 def ratchet_pipeline(*, authority: str, python: str, git: str, alr: str, env: dict[str, str]) -> int:
     initial_snapshot = tracked_diff_snapshot(git=git, env=env)
     generated_snapshot = tracked_diff_snapshot(git=git, env=env, paths=ratchet_owned_paths())
-    require(generated_snapshot == "", "ratchet requires a clean generated-output working tree")
+    require(
+        generated_snapshot == "",
+        "ratchet requires a clean generated-output working tree; either accept ratchet artifact "
+        "and commit the current ratchet-owned diffs, or restore ratchet baseline before retrying",
+    )
 
     with tempfile.TemporaryDirectory(prefix="gate-pipeline-stage-") as stage_root_str:
         stage_root = Path(stage_root_str)
-        prepare_generated_root(stage_root)
-        execute_pipeline(
-            authority=authority,
-            python=python,
-            env=env,
-            alr=alr,
-            git=git,
-            read_generated_root=stage_root,
-            write_generated_root=stage_root,
-            compare_root=None,
-            compare_to_committed=False,
-            initial_snapshot=initial_snapshot,
-        )
-
-        with tempfile.TemporaryDirectory(prefix="gate-pipeline-stage-verify-") as verify_root_str:
+        with tempfile.TemporaryDirectory(prefix="gate-pipeline-stage-verify-") as verify_root_str, tempfile.TemporaryDirectory(
+            prefix="gate-pipeline-final-verify-"
+        ) as final_verify_root_str:
             verify_root = Path(verify_root_str)
+            final_verify_root = Path(final_verify_root_str)
+            execute_pipeline(
+                authority=authority,
+                python=python,
+                env=env,
+                alr=alr,
+                git=git,
+                read_generated_root=stage_root,
+                write_generated_root=stage_root,
+                compare_root=None,
+                compare_to_committed=False,
+                initial_snapshot=initial_snapshot,
+                checkpoint_root=stage_root / "checkpoints",
+            )
             execute_pipeline(
                 authority=authority,
                 python=python,
@@ -539,18 +761,18 @@ def ratchet_pipeline(*, authority: str, python: str, git: str, alr: str, env: di
                 compare_root=stage_root,
                 compare_to_committed=False,
                 initial_snapshot=initial_snapshot,
+                checkpoint_root=verify_root / "checkpoints",
             )
-
-        promote_stage(stage_root)
-
-    return verify_pipeline(
-        authority=authority,
-        python=python,
-        git=git,
-        alr=alr,
-        env=env,
-        initial_snapshot=tracked_diff_snapshot(git=git, env=env),
-    )
+            return final_rerun_pipeline(
+                authority=authority,
+                python=python,
+                git=git,
+                alr=alr,
+                env=env,
+                stage_root=stage_root,
+                stage_verify_root=verify_root,
+                final_verify_root=final_verify_root,
+            )
 
 
 def main() -> int:
