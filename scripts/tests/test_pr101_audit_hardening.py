@@ -412,7 +412,7 @@ class Pr101AuditHardeningTests(unittest.TestCase):
         self.assertEqual(canonical["verification_reports"][0]["report_sha256"], "2" * 64)
         self.assertNotIn("verification_reports", machine)
 
-    def test_pr101_canonicalize_baseline_gate_result_strips_authority_and_generated_root(self) -> None:
+    def test_pr101_canonicalize_baseline_gate_result_strips_transport_flags(self) -> None:
         canonical = run_pr101_comprehensive_audit.canonicalize_baseline_gate_result(
             script=Path("scripts/run_pr10_emitted_baseline.py"),
             result={
@@ -423,6 +423,8 @@ class Pr101AuditHardeningTests(unittest.TestCase):
                     "local",
                     "--generated-root",
                     "/tmp/stage",
+                    "--scratch-root",
+                    "/tmp/scratch/node",
                     "--pipeline-input",
                     "/tmp/pipeline.json",
                     "--report",

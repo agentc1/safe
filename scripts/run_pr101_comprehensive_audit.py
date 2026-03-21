@@ -438,7 +438,7 @@ def parse_summary_counts(text: str) -> dict[str, int]:
 def canonicalize_baseline_gate_result(*, script: Path, result: dict[str, Any]) -> dict[str, Any]:
     canonical = dict(result)
     command = list(canonical["command"])
-    for flag in ("--pipeline-input", "--generated-root", "--authority"):
+    for flag in ("--pipeline-input", "--generated-root", "--scratch-root", "--authority"):
         if flag in command:
             index = command.index(flag)
             del command[index:index + 2]
