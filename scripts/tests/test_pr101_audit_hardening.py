@@ -178,10 +178,6 @@ class Pr101AuditHardeningTests(unittest.TestCase):
             results["run_pr081_local_concurrency_frontend.py"]["command"],
             ["python3", "scripts/run_pr081_local_concurrency_frontend.py"],
         )
-        self.assertEqual(
-            results["run_pr081_local_concurrency_frontend.py"]["stdout"],
-            "pr08.1 local concurrency frontend: OK (execution/reports/pr081-local-concurrency-frontend-report.json)\n",
-        )
 
     def test_pr09_pipeline_slice_reports_reuse_cached_stdout_and_hash(self) -> None:
         results = run_pr09_ada_emission_baseline.build_slice_reports_from_pipeline(
@@ -439,8 +435,6 @@ class Pr101AuditHardeningTests(unittest.TestCase):
             [
                 "python3",
                 "scripts/run_pr10_emitted_baseline.py",
-                "--report",
-                "$TMPDIR/run_pr10_emitted_baseline.json",
             ],
         )
 
@@ -473,8 +467,6 @@ class Pr101AuditHardeningTests(unittest.TestCase):
             [
                 "python3",
                 "scripts/run_pr0693_runtime_boundary.py",
-                "--report",
-                "$TMPDIR/pr0693-runtime-boundary-report.json",
             ],
         )
 
@@ -597,10 +589,6 @@ class Pr101AuditHardeningTests(unittest.TestCase):
         ), mock.patch.object(
             run_pr06911_glue_script_safety,
             "require_repo_command",
-        ), mock.patch.object(
-            run_pr06911_glue_script_safety,
-            "reference_committed_report",
-            side_effect=AssertionError("pipeline input path should be used"),
         ):
             report = run_pr06911_glue_script_safety.generate_report(
                 python="python3",
@@ -613,8 +601,6 @@ class Pr101AuditHardeningTests(unittest.TestCase):
             [
                 "python3",
                 "scripts/run_pr0693_runtime_boundary.py",
-                "--report",
-                "$TMPDIR/pr0693-runtime-boundary-report.json",
             ],
         )
         self.assertEqual(
@@ -622,8 +608,6 @@ class Pr101AuditHardeningTests(unittest.TestCase):
             [
                 "python3",
                 "scripts/run_pr0699_build_reproducibility.py",
-                "--report",
-                "$TMPDIR/pr0699-build-reproducibility-report.json",
             ],
         )
 
@@ -735,12 +719,9 @@ class Pr101AuditHardeningTests(unittest.TestCase):
         ), mock.patch.object(
             run_pr06913_documentation_architecture_clarity,
             "check_documentation_architecture_clarity",
-        ), mock.patch.object(
-            run_pr06913_documentation_architecture_clarity,
-            "reference_committed_report",
-            side_effect=AssertionError("pipeline input path should be used"),
         ):
             report = run_pr06913_documentation_architecture_clarity.generate_report(
+                python="python3",
                 pipeline_input=pipeline_input,
                 generated_root=None,
             )
@@ -749,8 +730,6 @@ class Pr101AuditHardeningTests(unittest.TestCase):
             [
                 "python3",
                 "scripts/run_pr0693_runtime_boundary.py",
-                "--report",
-                "$TMPDIR/pr0693-runtime-boundary-report.json",
             ],
         )
         self.assertEqual(
@@ -758,8 +737,6 @@ class Pr101AuditHardeningTests(unittest.TestCase):
             [
                 "python3",
                 "scripts/run_pr06911_glue_script_safety.py",
-                "--report",
-                "$TMPDIR/pr06911-glue-script-safety-report.json",
             ],
         )
 
@@ -844,8 +821,6 @@ class Pr101AuditHardeningTests(unittest.TestCase):
             [
                 "python3",
                 "scripts/run_pr08_frontend_baseline.py",
-                "--report",
-                "$TMPDIR/run_pr08_frontend_baseline.json",
             ],
         )
 
@@ -884,7 +859,7 @@ class Pr101AuditHardeningTests(unittest.TestCase):
                 return {
                     "script": f"scripts/{script.name}",
                     "result": {
-                        "command": ["python3", f"scripts/{script.name}", "--report", f"$TMPDIR/{script.stem}.json"],
+                        "command": ["python3", f"scripts/{script.name}"],
                         "cwd": "$REPO_ROOT",
                         "returncode": 0,
                     },
@@ -940,8 +915,6 @@ class Pr101AuditHardeningTests(unittest.TestCase):
                     "command": [
                         "python3",
                         "scripts/run_emitted_hardening_regressions.py",
-                        "--report",
-                        "$TMPDIR/run_emitted_hardening_regressions.json",
                     ],
                     "cwd": "$REPO_ROOT",
                     "returncode": 0,

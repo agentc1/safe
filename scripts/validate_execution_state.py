@@ -574,6 +574,11 @@ def check_generated_output_cleanliness(
 def read_generated_output_baseline(*, path: Path | None) -> str:
     if path is None:
         return ""
+    if not path.exists():
+        fail(
+            "--generated-output-baseline-file does not exist: "
+            f"{display_path(path, repo_root=REPO_ROOT)}"
+        )
     return normalize_generated_output_snapshot(path.read_text(encoding="utf-8"))
 
 

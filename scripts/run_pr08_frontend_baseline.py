@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from _lib.harness_common import (
+    canonicalize_serialized_child_result,
     display_path,
     finalize_deterministic_report,
     find_command,
@@ -54,28 +55,13 @@ SUBGATE_REPORTS = {
 EVIDENCE_POLICY = load_evidence_policy()
 
 
-def compact_result(result: dict[str, Any]) -> dict[str, Any]:
+def compact_subgate_result(result: dict[str, Any]) -> dict[str, Any]:
     compact = dict(result)
     for key in ("stdout", "stderr"):
         text = compact.get(key, "")
         if isinstance(text, str) and len(text) > 400:
             compact[key] = f"<{len(text)} chars>"
     return compact
-
-
-def canonicalize_pipeline_subgate_result(*, script_name: str, result: dict[str, Any]) -> dict[str, Any]:
-    canonical = dict(result)
-    command = list(canonical.get("command", []))
-    if "--report" in command:
-        index = command.index("--report")
-        del command[index:index + 2]
-    canonical["command"] = command
-    report_display = display_path(SUBGATE_REPORTS[script_name], repo_root=REPO_ROOT)
-    for key in ("stdout", "stderr"):
-        text = canonical.get(key, "")
-        if isinstance(text, str):
-            canonical[key] = re.sub(r"\$TMPDIR/[^\s)]+", report_display, text)
-    return canonical
 
 
 def load_tracker() -> dict[str, Any]:
@@ -112,17 +98,17 @@ def run_subgates(*, python: str) -> dict[str, Any]:
     results: dict[str, Any] = {}
     for script in SUBGATE_SCRIPTS:
         result = run([python, script], cwd=REPO_ROOT)
-        results[Path(script).name] = compact_result(result)
+        results[Path(script).name] = compact_subgate_result(canonicalize_serialized_child_result(result))
     return results
 
 
 def pipeline_subgates(*, pipeline_input: dict[str, Any]) -> dict[str, Any]:
     results: dict[str, Any] = {}
     for script_name, node_id in SUBGATE_PIPELINE_IDS.items():
-        results[script_name] = compact_result(
-            canonicalize_pipeline_subgate_result(
-                script_name=script_name,
-                result=require_pipeline_result(pipeline_input, node_id=node_id),
+        results[script_name] = compact_subgate_result(
+            canonicalize_serialized_child_result(
+                require_pipeline_result(pipeline_input, node_id=node_id),
+                committed_report_path=SUBGATE_REPORTS[script_name],
             )
         )
     return results

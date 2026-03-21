@@ -163,6 +163,34 @@ class ProofReportHelperTests(unittest.TestCase):
         self.assertTrue(profile["explicit_gnatec"])
         self.assertEqual(profile["extra_args"], ["safe_sample.adb"])
 
+    def test_command_profile_accepts_equals_project_syntax(self) -> None:
+        profile = command_profile(
+            [
+                "alr",
+                "exec",
+                "--",
+                "gnatprove",
+                "-P=/tmp/work/companion.gpr",
+                "--mode=prove",
+                "--level=2",
+            ]
+        )
+        self.assertEqual(profile["project"], "companion.gpr")
+
+    def test_command_profile_accepts_long_project_syntax(self) -> None:
+        profile = command_profile(
+            [
+                "alr",
+                "exec",
+                "--",
+                "gnatprove",
+                "--project=/tmp/work/companion.gpr",
+                "--mode=prove",
+                "--level=2",
+            ]
+        )
+        self.assertEqual(profile["project"], "companion.gpr")
+
     def test_split_proof_fixtures_builds_semantic_floor_and_machine_sensitive(self) -> None:
         semantic_floor, canonical, machine = split_proof_fixtures(
             [
@@ -237,6 +265,10 @@ class ProofReportHelperTests(unittest.TestCase):
             "pr101b_template_proof_verification": {"report": {"report_sha256": "6" * 64}},
         }
         validate_pr101_semantic_floor(payload, pipeline_context=pipeline_context)
+        payload["semantic_floor"]["child_report_hashes"]["pr101b_template_proof_verification"] = "0" * 64
+        with self.assertRaises(RuntimeError) as exc:
+            validate_pr101_semantic_floor(payload, pipeline_context=pipeline_context)
+        self.assertIn("pr101b_template_proof_verification hash mismatch", str(exc.exception))
 
     def test_validate_pr101_child_semantic_floor_checks_anchor_hashes(self) -> None:
         payload = {
@@ -254,6 +286,10 @@ class ProofReportHelperTests(unittest.TestCase):
             "machine_sensitive": {},
         }
         validate_pr101_child_semantic_floor(payload)
+        payload["semantic_floor"]["gnatprove_summary_sha256"] = "not-a-sha"
+        with self.assertRaises(RuntimeError) as exc:
+            validate_pr101_child_semantic_floor(payload)
+        self.assertIn("gnatprove_summary_sha256 must be a sha256", str(exc.exception))
 
 
 class ProofReportGateShapeTests(unittest.TestCase):

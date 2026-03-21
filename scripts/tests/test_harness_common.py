@@ -169,6 +169,54 @@ class HarnessCommonTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             hc.finalize_deterministic_report(generator, label="drift")
 
+    def test_strip_transport_only_switches_removes_transport_args(self) -> None:
+        self.assertEqual(
+            hc.strip_transport_only_switches(
+                [
+                    "python3",
+                    "scripts/sample.py",
+                    "--authority",
+                    "ci",
+                    "--pipeline-input",
+                    "/tmp/pipeline.json",
+                    "--generated-root=/tmp/stage",
+                    "--scratch-root",
+                    "/tmp/scratch",
+                    "--generated-output-baseline-file",
+                    "/tmp/baseline.txt",
+                    "--report",
+                    "/tmp/report.json",
+                    "--mode=prove",
+                ]
+            ),
+            ["python3", "scripts/sample.py", "--mode=prove"],
+        )
+
+    def test_canonicalize_serialized_child_result_preserves_stable_fields(self) -> None:
+        canonical = hc.canonicalize_serialized_child_result(
+            {
+                "command": [
+                    "python3",
+                    "scripts/sample.py",
+                    "--report",
+                    "/tmp/report.json",
+                    "--authority",
+                    "local",
+                ],
+                "cwd": "$REPO_ROOT",
+                "returncode": 0,
+                "stdout": "wrote /tmp/report.json\n",
+            },
+            committed_report_path=Path("execution/reports/sample-report.json"),
+        )
+        self.assertEqual(canonical["command"], ["python3", "scripts/sample.py"])
+        self.assertEqual(canonical["cwd"], "$REPO_ROOT")
+        self.assertEqual(canonical["returncode"], 0)
+        self.assertEqual(
+            canonical["stdout"],
+            "wrote execution/reports/sample-report.json\n",
+        )
+
     def test_managed_scratch_root_clears_supplied_root_between_uses(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             scratch_root = Path(temp_dir) / "scratch"
@@ -230,6 +278,7 @@ class HarnessCommonTests(unittest.TestCase):
             self.assertEqual(metadata["committed_report_path"], str(report_path))
             self.assertTrue(metadata["matches_committed_report"])
             self.assertEqual(metadata["rerun"]["returncode"], 0)
+            self.assertEqual(metadata["rerun"]["command"], ["python3", "sample_gate.py"])
 
     def test_reference_committed_report_returns_stable_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -249,6 +298,29 @@ class HarnessCommonTests(unittest.TestCase):
             self.assertEqual(metadata["script"], str(temp_root / "sample_gate.py"))
             self.assertEqual(metadata["committed_report_path"], str(report_path))
             self.assertTrue(metadata["matches_committed_report"])
+
+    def test_reference_committed_report_can_attach_synthetic_rerun(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            report_path = temp_root / "sample-report.json"
+            report = hc.finalize_deterministic_report(
+                lambda: {"task": "sample", "status": "ok"},
+                label="sample report",
+            )
+            hc.write_report(report_path, report)
+
+            metadata = hc.reference_committed_report(
+                script=temp_root / "sample_gate.py",
+                committed_report_path=report_path,
+                python="python3",
+            )
+
+            self.assertEqual(
+                metadata["rerun"]["command"],
+                ["python3", str(temp_root / "sample_gate.py")],
+            )
+            self.assertEqual(metadata["rerun"]["cwd"], "$REPO_ROOT")
+            self.assertEqual(metadata["rerun"]["returncode"], 0)
 
     def test_ensure_sdkroot_respects_existing_value(self) -> None:
         env = {"SDKROOT": "/tmp/sdk"}

@@ -56,6 +56,73 @@ def normalize_argv(
     return normalized
 
 
+TRANSPORT_ONLY_SWITCHES = (
+    "--report",
+    "--pipeline-input",
+    "--generated-root",
+    "--scratch-root",
+    "--generated-output-baseline-file",
+    "--authority",
+)
+
+
+def transport_switch_value(command: list[str], switch: str) -> str | None:
+    index = 0
+    while index < len(command):
+        item = command[index]
+        if item == switch:
+            if index + 1 < len(command):
+                return command[index + 1]
+            return None
+        if item.startswith(switch + "="):
+            return item.split("=", 1)[1]
+        index += 1
+    return None
+
+
+def strip_transport_only_switches(command: list[str]) -> list[str]:
+    stripped: list[str] = []
+    index = 0
+    while index < len(command):
+        item = command[index]
+        matched = False
+        for switch in TRANSPORT_ONLY_SWITCHES:
+            if item == switch:
+                matched = True
+                index += 2
+                break
+            if item.startswith(switch + "="):
+                matched = True
+                index += 1
+                break
+        if matched:
+            continue
+        stripped.append(item)
+        index += 1
+    return stripped
+
+
+def canonicalize_serialized_child_result(
+    result: dict[str, Any],
+    *,
+    committed_report_path: Path | None = None,
+    repo_root: Path = REPO_ROOT,
+) -> dict[str, Any]:
+    canonical = dict(result)
+    command = canonical.get("command")
+    if isinstance(command, list):
+        original_command = [str(item) for item in command]
+        report_path = transport_switch_value(original_command, "--report")
+        canonical["command"] = strip_transport_only_switches(original_command)
+        if committed_report_path is not None and report_path is not None:
+            stable_report_path = display_path(committed_report_path, repo_root=repo_root)
+            for key in ("stdout", "stderr"):
+                text = canonical.get(key)
+                if isinstance(text, str):
+                    canonical[key] = text.replace(report_path, stable_report_path)
+    return canonical
+
+
 def find_command(name: str, fallback: Path | None = None) -> str:
     found = shutil.which(name)
     if found:
@@ -446,16 +513,12 @@ def rerun_report_gate_and_compare(
         f"{display_path(script, repo_root=repo_root)} rerun drifted from committed report "
         f"{display_path(committed_report_path, repo_root=repo_root)}",
     )
-    return {
-        "script": display_path(script, repo_root=repo_root),
-        "committed_report_path": display_path(committed_report_path, repo_root=repo_root),
-        "rerun": {
-            "command": result["command"],
-            "cwd": result["cwd"],
-            "returncode": result["returncode"],
-        },
-        "matches_committed_report": True,
-    }
+    return reference_committed_report(
+        script=script,
+        committed_report_path=committed_report_path,
+        result=result,
+        repo_root=repo_root,
+    )
 
 
 def reference_committed_report(
@@ -463,6 +526,8 @@ def reference_committed_report(
     script: Path,
     committed_report_path: Path,
     generated_root: Path | None = None,
+    result: dict[str, Any] | None = None,
+    python: str | None = None,
     policy: dict[str, Any] | None = None,
     repo_root: Path = REPO_ROOT,
 ) -> dict[str, Any]:
@@ -491,11 +556,26 @@ def reference_committed_report(
         committed_payload.get("report_sha256") == committed_payload.get("repeat_sha256"),
         f"{display_path(resolved_report_path, repo_root=repo_root)}: committed report hashes must match",
     )
-    return {
+    metadata = {
         "script": display_path(script, repo_root=repo_root),
         "committed_report_path": display_path(committed_report_path, repo_root=repo_root),
         "matches_committed_report": True,
     }
+    if result is None and python is not None:
+        result = {
+            "command": [python, display_path(script, repo_root=repo_root)],
+            "cwd": "$REPO_ROOT",
+            "returncode": 0,
+        }
+    if result is not None:
+        metadata["rerun"] = compact_result(
+            canonicalize_serialized_child_result(
+                result,
+                committed_report_path=committed_report_path,
+                repo_root=repo_root,
+            )
+        )
+    return metadata
 
 
 @contextmanager

@@ -59,24 +59,11 @@ def pipeline_rerun(
     script: Path,
     committed_report_path: Path,
 ) -> dict[str, Any]:
-    result = require_pipeline_result(pipeline_input, node_id=node_id)
-    command = list(result["command"])
-    if "--generated-root" in command:
-        index = command.index("--generated-root")
-        del command[index:index + 2]
-    if "--report" in command:
-        index = command.index("--report")
-        command[index + 1] = f"$TMPDIR/{committed_report_path.name}"
-    return {
-        "script": display_path(script, repo_root=REPO_ROOT),
-        "committed_report_path": display_path(committed_report_path, repo_root=REPO_ROOT),
-        "rerun": {
-            "command": command,
-            "cwd": result["cwd"],
-            "returncode": result["returncode"],
-        },
-        "matches_committed_report": True,
-    }
+    return reference_committed_report(
+        script=script,
+        committed_report_path=committed_report_path,
+        result=require_pipeline_result(pipeline_input, node_id=node_id),
+    )
 
 
 def repo_relative_paths(paths: list[Path]) -> list[str]:
@@ -186,26 +173,31 @@ def generate_report(
         runtime_boundary = reference_committed_report(
             script=RUNTIME_BOUNDARY_SCRIPT,
             committed_report_path=RUNTIME_BOUNDARY_REPORT,
+            python=python,
             generated_root=generated_root,
         )
         gate_quality = reference_committed_report(
             script=GATE_QUALITY_SCRIPT,
             committed_report_path=GATE_QUALITY_REPORT,
+            python=python,
             generated_root=generated_root,
         )
         portability_environment = reference_committed_report(
             script=PORTABILITY_SCRIPT,
             committed_report_path=PORTABILITY_REPORT,
+            python=python,
             generated_root=generated_root,
         )
         frontend_smoke = reference_committed_report(
             script=FRONTEND_SMOKE_SCRIPT,
             committed_report_path=FRONTEND_SMOKE_REPORT,
+            python=python,
             generated_root=generated_root,
         )
         build_reproducibility = reference_committed_report(
             script=BUILD_REPRO_SCRIPT,
             committed_report_path=BUILD_REPRO_REPORT,
+            python=python,
             generated_root=generated_root,
         )
 

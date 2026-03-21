@@ -261,7 +261,12 @@ def load_seed_pipeline_context(*, checkpoint_root: Path, start_index: int) -> di
             continue
         path = checkpoint_path(checkpoint_root, node_id=node.id)
         require(path.exists(), f"{node.id}: missing checkpoint {display_path(path, repo_root=REPO_ROOT)}")
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"{node.id}: corrupt checkpoint {display_path(path, repo_root=REPO_ROOT)}: {exc.msg}"
+            ) from exc
         require(payload.get("status") == "ok", f"{node.id}: invalid checkpoint status")
         require(payload.get("node_id") == node.id, f"{node.id}: checkpoint node id mismatch")
         entry = payload.get("pipeline_context_entry")
@@ -295,9 +300,8 @@ def dashboard_changed(*, generated_root: Path) -> bool:
 
 
 def final_rerun_start_index(*, changed_nodes: list[str], dashboard_changed_flag: bool) -> int:
+    del dashboard_changed_flag
     if not changed_nodes:
-        if dashboard_changed_flag:
-            return NODE_INDEX_BY_ID[VALIDATE_EXECUTION_STATE_FINAL]
         return NODE_INDEX_BY_ID[VALIDATE_EXECUTION_STATE_FINAL]
     frontier_node = NODES_BY_ID[changed_nodes[0]]
     for dependency in frontier_node.depends_on:
@@ -432,6 +436,8 @@ def validate_local_reused_authoritative_report(
         return
     if node.id == "pr101_comprehensive_audit":
         validate_pr101_semantic_floor(payload, pipeline_context=pipeline_context)
+        return
+    raise RuntimeError(f"{node.id}: unhandled local CI-authoritative validation")
 
 
 def node_scratch_root(*, node: Node, write_generated_root: Path | None) -> Path | None:
@@ -441,6 +447,7 @@ def node_scratch_root(*, node: Node, write_generated_root: Path | None) -> Path 
     scratch_root = write_generated_root / "scratch" / node.id
     shutil.rmtree(scratch_root, ignore_errors=True)
     scratch_root.parent.mkdir(parents=True, exist_ok=True)
+    scratch_root.mkdir(parents=True, exist_ok=True)
     return scratch_root
 
 

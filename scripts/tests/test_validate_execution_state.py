@@ -1402,6 +1402,32 @@ class ValidateExecutionStateTests(unittest.TestCase):
         self.assertEqual(report["phase"], "preflight")
         self.assertEqual(report["preconditions"]["authority"], "local")
 
+    def test_run_preflight_phase_rejects_missing_generated_output_baseline_file(self) -> None:
+        tracker = {"tasks": []}
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch(
+            "validate_execution_state.check_tracker_schema"
+        ), mock.patch(
+            "validate_execution_state.check_status_rules"
+        ), mock.patch(
+            "validate_execution_state.check_dependencies"
+        ), mock.patch(
+            "validate_execution_state.check_frozen_sha",
+            return_value="a" * 40,
+        ), mock.patch(
+            "validate_execution_state.check_documented_sha"
+        ), mock.patch(
+            "validate_execution_state.check_test_distribution"
+        ):
+            baseline_file = Path(temp_dir) / "missing-generated-output-baseline.txt"
+            with self.assertRaises(ValueError) as exc:
+                run_preflight_phase(
+                    tracker=tracker,
+                    authority="local",
+                    env={},
+                    generated_output_baseline_file=baseline_file,
+                )
+        self.assertIn("--generated-output-baseline-file does not exist", str(exc.exception))
+
     def test_run_preflight_phase_rejects_mismatched_generated_output_baseline(self) -> None:
         tracker = {"tasks": []}
         with tempfile.TemporaryDirectory() as temp_dir:

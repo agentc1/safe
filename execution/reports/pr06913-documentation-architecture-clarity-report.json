@@ -32,8 +32,8 @@
     "documentation_architecture"
   ],
   "policy_sha256": "36af5e4d43ed1c55cf583918ed7b30695c9f24fa3c788bff822ff3c5e7f118ee",
-  "repeat_sha256": "e1ad60a8aadf8551f4bd7d886c00a83fb54e37f1e6d665932ca15f592e50f94c",
-  "report_sha256": "e1ad60a8aadf8551f4bd7d886c00a83fb54e37f1e6d665932ca15f592e50f94c",
+  "repeat_sha256": "c46c83e45ccee409f7467183d076e62b58f0963ad5cc9e4af697b5963f774cc0",
+  "report_sha256": "c46c83e45ccee409f7467183d076e62b58f0963ad5cc9e4af697b5963f774cc0",
   "reruns": {
     "gate_quality": {
       "committed_report_path": "execution/reports/pr0697-gate-quality-report.json",
@@ -41,9 +41,7 @@
       "rerun": {
         "command": [
           "python3",
-          "scripts/run_pr0697_gate_quality.py",
-          "--report",
-          "$TMPDIR/pr0697-gate-quality-report.json"
+          "scripts/run_pr0697_gate_quality.py"
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 0
@@ -56,11 +54,7 @@
       "rerun": {
         "command": [
           "python3",
-          "scripts/run_pr06911_glue_script_safety.py",
-          "--pipeline-input",
-          "$TMPDIR/pipeline-input.json",
-          "--report",
-          "$TMPDIR/pr06911-glue-script-safety-report.json"
+          "scripts/run_pr06911_glue_script_safety.py"
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 0
@@ -73,9 +67,7 @@
       "rerun": {
         "command": [
           "python3",
-          "scripts/run_pr0698_legacy_package_cleanup.py",
-          "--report",
-          "$TMPDIR/pr0698-legacy-package-cleanup-report.json"
+          "scripts/run_pr0698_legacy_package_cleanup.py"
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 0
@@ -88,9 +80,7 @@
       "rerun": {
         "command": [
           "python3",
-          "scripts/run_pr06912_performance_scale_sanity.py",
-          "--report",
-          "$TMPDIR/pr06912-performance-scale-sanity-report.json"
+          "scripts/run_pr06912_performance_scale_sanity.py"
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 0
@@ -103,11 +93,7 @@
       "rerun": {
         "command": [
           "python3",
-          "scripts/run_pr06910_portability_environment.py",
-          "--pipeline-input",
-          "$TMPDIR/pipeline-input.json",
-          "--report",
-          "$TMPDIR/pr06910-portability-environment-report.json"
+          "scripts/run_pr06910_portability_environment.py"
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 0
@@ -120,9 +106,7 @@
       "rerun": {
         "command": [
           "python3",
-          "scripts/run_pr0693_runtime_boundary.py",
-          "--report",
-          "$TMPDIR/pr0693-runtime-boundary-report.json"
+          "scripts/run_pr0693_runtime_boundary.py"
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 0

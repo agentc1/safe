@@ -203,12 +203,12 @@ class RunGatePipelineTests(unittest.TestCase):
     def test_verify_local_reuses_ci_authoritative_report_without_running_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             expected_path = Path(temp_dir) / "expected.json"
-            payload = self._report_payload("authoritative")
+            payload = self._proof_payload()
             self._write_report(expected_path, payload)
             node = Node(
-                id="sample_gate",
+                id="pr10_emitted_flow",
                 kind=NodeKind.GATE,
-                script=Path("/tmp/run_sample_gate.py"),
+                script=Path("/tmp/run_pr10_emitted_flow.py"),
                 report_path=expected_path,
                 determinism_class=DeterminismClass.CI_AUTHORITATIVE,
             )
@@ -228,6 +228,33 @@ class RunGatePipelineTests(unittest.TestCase):
                         ),
                         0,
                     )
+
+    def test_verify_local_reuse_rejects_unhandled_ci_authoritative_node(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            expected_path = Path(temp_dir) / "expected.json"
+            self._write_report(expected_path, self._report_payload("authoritative"))
+            node = Node(
+                id="sample_gate",
+                kind=NodeKind.GATE,
+                script=Path("/tmp/run_sample_gate.py"),
+                report_path=expected_path,
+                determinism_class=DeterminismClass.CI_AUTHORITATIVE,
+            )
+            with mock.patch.object(run_gate_pipeline, "NODES", (node,)), mock.patch.object(
+                run_gate_pipeline,
+                "tracked_diff_snapshot",
+                side_effect=["", ""],
+            ), mock.patch.object(run_gate_pipeline, "run_node", side_effect=AssertionError("should not run")):
+                with redirect_stdout(io.StringIO()):
+                    with self.assertRaises(RuntimeError) as exc:
+                        run_gate_pipeline.verify_pipeline(
+                            authority="local",
+                            python="python3",
+                            git="git",
+                            alr="alr",
+                            env={},
+                        )
+        self.assertIn("unhandled local CI-authoritative validation", str(exc.exception))
 
     def test_verify_ci_runs_ci_authoritative_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -566,6 +593,39 @@ class RunGatePipelineTests(unittest.TestCase):
         self.assertIn("gate_a", seeded)
         self.assertNotIn("build", seeded)
 
+    def test_load_seed_pipeline_context_rejects_corrupt_checkpoint_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            checkpoint_root = Path(temp_dir)
+            nodes = (
+                Node(id="validate_execution_state_preflight", kind=NodeKind.VALIDATION),
+                Node(id="gate_a", kind=NodeKind.GATE),
+            )
+            (checkpoint_root / "gate_a.json").write_text("{not json\n", encoding="utf-8")
+            with mock.patch.object(run_gate_pipeline, "NODES", nodes):
+                with self.assertRaises(RuntimeError) as exc:
+                    run_gate_pipeline.load_seed_pipeline_context(
+                        checkpoint_root=checkpoint_root,
+                        start_index=2,
+                    )
+        self.assertIn("gate_a: corrupt checkpoint", str(exc.exception))
+
+    def test_node_scratch_root_creates_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_generated_root = Path(temp_dir)
+            node = Node(
+                id="scratch_gate",
+                kind=NodeKind.GATE,
+                supports_scratch_root=True,
+            )
+            scratch_root = run_gate_pipeline.node_scratch_root(
+                node=node,
+                write_generated_root=write_generated_root,
+            )
+            self.assertIsNotNone(scratch_root)
+            assert scratch_root is not None
+            self.assertTrue(scratch_root.exists())
+            self.assertTrue(scratch_root.is_dir())
+
     def test_final_rerun_pipeline_passes_promoted_baseline_and_seeded_context(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -637,6 +697,9 @@ class RunGatePipelineTests(unittest.TestCase):
                     execute_pipeline.call_args.kwargs["seed_pipeline_context"],
                     {"pr0697_gate_quality": {"result": {"returncode": 0}}},
                 )
+                self.assertIsNone(execute_pipeline.call_args.kwargs["read_generated_root"])
+                self.assertIsNone(execute_pipeline.call_args.kwargs["compare_root"])
+                self.assertTrue(execute_pipeline.call_args.kwargs["compare_to_committed"])
 
     def test_promote_stage_rolls_back_reports_without_merging_partial_stage_files(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

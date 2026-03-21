@@ -115,8 +115,8 @@
     "portability"
   ],
   "policy_sha256": "36af5e4d43ed1c55cf583918ed7b30695c9f24fa3c788bff822ff3c5e7f118ee",
-  "repeat_sha256": "8968ccf0fcef407dfd908dcf26ce02f4b5b04dce0af22db46f5142d89ce906d1",
-  "report_sha256": "8968ccf0fcef407dfd908dcf26ce02f4b5b04dce0af22db46f5142d89ce906d1",
+  "repeat_sha256": "350efc5a242d9ec513c9c2b88fed92040ff5e4d6e36b6b3682fcf7252a6e0fd0",
+  "report_sha256": "350efc5a242d9ec513c9c2b88fed92040ff5e4d6e36b6b3682fcf7252a6e0fd0",
   "reruns": {
     "ast_emit_no_python": {
       "committed_report_path": "execution/reports/pr068-ada-ast-emit-no-python-report.json",
@@ -124,9 +124,7 @@
       "rerun": {
         "command": [
           "python3",
-          "scripts/run_pr068_ada_ast_emit_no_python.py",
-          "--report",
-          "$TMPDIR/pr068-ada-ast-emit-no-python-report.json"
+          "scripts/run_pr068_ada_ast_emit_no_python.py"
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 0
@@ -139,9 +137,7 @@
       "rerun": {
         "command": [
           "python3",
-          "scripts/run_pr0693_runtime_boundary.py",
-          "--report",
-          "$TMPDIR/pr0693-runtime-boundary-report.json"
+          "scripts/run_pr0693_runtime_boundary.py"
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 0

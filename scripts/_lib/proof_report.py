@@ -10,6 +10,18 @@ from .harness_common import require
 
 
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+GNATPROVE_VALUE_SWITCHES = (
+    "-P",
+    "--project",
+    "--mode",
+    "--level",
+    "--prover",
+    "--steps",
+    "--timeout",
+    "--report",
+    "--warnings",
+    "--checks-as-errors",
+)
 PR101_BASELINE_GATE_IDS = (
     "pr08_frontend_baseline",
     "pr09_ada_emission_baseline",
@@ -65,7 +77,7 @@ def command_profile(command: list[str]) -> dict[str, Any]:
             "tool": tool,
         }
         if tool == "gnatprove":
-            profile["project"] = _value_after(tool_args, "-P")
+            profile["project"] = _value_after(tool_args, "-P", "--project")
             profile["mode"] = _switch_value(tool_args, "--mode")
             profile["level"] = _switch_value(tool_args, "--level")
             profile["provers"] = _csv_switch(tool_args, "--prover")
@@ -80,7 +92,7 @@ def command_profile(command: list[str]) -> dict[str, Any]:
                 profile["extra_args"] = extras
             return profile
         if tool == "gprbuild":
-            profile["project"] = _value_after(tool_args, "-P")
+            profile["project"] = _value_after(tool_args, "-P", "--project")
             profile["compile_only"] = "-c" in tool_args
             profile["explicit_gnatec"] = any(arg.startswith("-gnatec=") for arg in tool_args)
             normalized = [_normalize_profile_arg(arg) for arg in tool_args]
@@ -95,18 +107,18 @@ def command_profile(command: list[str]) -> dict[str, Any]:
     }
 
 
-def _value_after(argv: list[str], switch: str) -> str | None:
+def _value_after(argv: list[str], *switches: str) -> str | None:
     for index, arg in enumerate(argv):
-        if arg == switch and index + 1 < len(argv):
-            return _normalize_profile_arg(argv[index + 1])
+        for switch in switches:
+            if arg == switch and index + 1 < len(argv):
+                return _normalize_profile_arg(argv[index + 1])
+            if arg.startswith(switch + "="):
+                return _normalize_profile_arg(arg.split("=", 1)[1])
     return None
 
 
 def _switch_value(argv: list[str], prefix: str) -> str | None:
-    for arg in argv:
-        if arg.startswith(prefix + "="):
-            return arg.split("=", 1)[1]
-    return None
+    return _value_after(argv, prefix)
 
 
 def _csv_switch(argv: list[str], prefix: str) -> list[str]:
@@ -118,15 +130,8 @@ def _csv_switch(argv: list[str], prefix: str) -> list[str]:
 
 def _known_gnatprove_arg(arg: str) -> bool:
     return (
-        arg in {"-P", "-cargs"}
-        or arg.startswith("--mode=")
-        or arg.startswith("--level=")
-        or arg.startswith("--prover=")
-        or arg.startswith("--steps=")
-        or arg.startswith("--timeout=")
-        or arg.startswith("--report=")
-        or arg.startswith("--warnings=")
-        or arg.startswith("--checks-as-errors=")
+        arg in {*GNATPROVE_VALUE_SWITCHES, "-cargs"}
+        or any(arg.startswith(switch + "=") for switch in GNATPROVE_VALUE_SWITCHES)
         or arg.startswith("-gnatec=")
     )
 
@@ -138,7 +143,7 @@ def _gnatprove_extra_args(argv: list[str]) -> list[str]:
         if skip_next:
             skip_next = False
             continue
-        if arg == "-P":
+        if arg in GNATPROVE_VALUE_SWITCHES:
             skip_next = True
             continue
         if _known_gnatprove_arg(arg):

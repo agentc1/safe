@@ -15,6 +15,7 @@ from typing import Any
 
 from _lib.gate_manifest import DeterminismClass, NODES
 from _lib.harness_common import (
+    canonicalize_serialized_child_result,
     compact_result,
     display_path,
     ensure_sdkroot,
@@ -436,22 +437,13 @@ def parse_summary_counts(text: str) -> dict[str, int]:
 
 
 def canonicalize_baseline_gate_result(*, script: Path, result: dict[str, Any]) -> dict[str, Any]:
-    canonical = dict(result)
-    command = list(canonical["command"])
-    for flag in ("--pipeline-input", "--generated-root", "--scratch-root", "--authority"):
-        if flag in command:
-            index = command.index(flag)
-            del command[index:index + 2]
-    if "--report" in command:
-        index = command.index("--report")
-        command[index + 1] = f"$TMPDIR/{script.stem}.json"
-    canonical["command"] = command
-    return canonical
+    del script
+    return canonicalize_serialized_child_result(result)
 
 
 def local_reused_gate_result(*, python: str, script: Path) -> dict[str, Any]:
     return {
-        "command": [python, display_path(script, repo_root=REPO_ROOT), "--report", f"$TMPDIR/{script.stem}.json"],
+        "command": [python, display_path(script, repo_root=REPO_ROOT)],
         "cwd": "$REPO_ROOT",
         "returncode": 0,
     }
