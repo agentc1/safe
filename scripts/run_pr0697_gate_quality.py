@@ -22,6 +22,30 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_REPORT = REPO_ROOT / "execution" / "reports" / "pr0697-gate-quality-report.json"
 OUTPUT_CONTRACT_FIXTURES = REPO_ROOT / "scripts" / "tests" / "fixtures" / "output_contracts"
 OUTPUT_VALIDATOR = REPO_ROOT / "scripts" / "validate_output_contracts.py"
+EXPECTED_TEST_MODULES = (
+    "scripts.tests.test_dual_mode_canonicalization",
+    "scripts.tests.test_gate_manifest",
+    "scripts.tests.test_harness_common",
+    "scripts.tests.test_migrate_pr114_syntax",
+    "scripts.tests.test_pr06912_performance_scale_sanity",
+    "scripts.tests.test_pr0694_output_contract_stability",
+    "scripts.tests.test_pr0697_gate_quality",
+    "scripts.tests.test_pr0699_build_reproducibility",
+    "scripts.tests.test_pr09_emit",
+    "scripts.tests.test_pr101_audit_hardening",
+    "scripts.tests.test_pr10_emit",
+    "scripts.tests.test_pr111_language_eval",
+    "scripts.tests.test_pr112_parser_completeness_phase1",
+    "scripts.tests.test_pr113_discriminated_types_tuples_structured_returns",
+    "scripts.tests.test_pr113a_proof_checkpoint1",
+    "scripts.tests.test_pr114_signature_control_flow_syntax",
+    "scripts.tests.test_proof_report",
+    "scripts.tests.test_render_execution_status",
+    "scripts.tests.test_run_gate_pipeline",
+    "scripts.tests.test_run_local_pre_push",
+    "scripts.tests.test_validate_execution_state",
+    "scripts.tests.test_validate_output_contracts",
+)
 
 INVALID_CONTRACT_CASES = [
     {
@@ -91,6 +115,7 @@ VALID_CONTRACT_CASES = [
 UNITTEST_SUCCESS_RE = re.compile(
     r"^(?P<dots>\.+)\n-+\nRan (?P<count>\d+) tests in <elapsed>\n\nOK\n$"
 )
+UNITTEST_COUNT_RE = re.compile(r"Ran (?P<count>\d+) tests in <elapsed>")
 
 
 def canonical_unittest_success_output(*, count: int) -> str:
@@ -109,15 +134,30 @@ def normalize_unittest_output(text: str) -> str:
     return normalized
 
 
+def extract_observed_test_count(*, stdout: str, stderr: str) -> int:
+    for text in (stderr, stdout):
+        match = UNITTEST_COUNT_RE.search(text)
+        if match is not None:
+            return int(match.group("count"))
+    raise RuntimeError("unable to determine observed unittest count from PR06.9.7 output")
+
+
 def run_unittest_suite(python: str) -> dict[str, Any]:
     result = run(
-        [python, "-m", "unittest", "discover", "-s", "scripts/tests", "-p", "test_*.py"],
+        [python, "-m", "unittest", *EXPECTED_TEST_MODULES],
         cwd=REPO_ROOT,
     )
+    normalized_stdout = normalize_unittest_output(result["stdout"])
+    normalized_stderr = normalize_unittest_output(result["stderr"])
     return {
         **result,
-        "stdout": normalize_unittest_output(result["stdout"]),
-        "stderr": normalize_unittest_output(result["stderr"]),
+        "stdout": normalized_stdout,
+        "stderr": normalized_stderr,
+        "modules": list(EXPECTED_TEST_MODULES),
+        "observed_count": extract_observed_test_count(
+            stdout=normalized_stdout,
+            stderr=normalized_stderr,
+        ),
     }
 
 

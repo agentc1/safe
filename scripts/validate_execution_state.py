@@ -2006,7 +2006,8 @@ def run_final_phase(
         "task": "execution-state",
         "phase": "final",
         "status": "ok",
-        "authority": authority,
+        # Authority selects which environment policy to validate during the
+        # current run, but it is not committed evidence for the final report.
         # The generated root is transport state for staged verification. The
         # committed report records logical evidence locations only.
         "generated_root": None,

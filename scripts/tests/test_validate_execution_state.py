@@ -1546,7 +1546,7 @@ class ValidateExecutionStateTests(unittest.TestCase):
         check_report_sync.assert_called_once_with(generated_root=generated_root)
         check_pr101_report_sync.assert_called_once_with(generated_root=generated_root)
         self.assertEqual(report["phase"], "final")
-        self.assertEqual(report["authority"], "ci")
+        self.assertNotIn("authority", report)
         self.assertIsNone(report["generated_root"])
         self.assertEqual(report["dashboard_path"], "execution/dashboard.md")
         self.assertEqual(report["policy_sha256"], EVIDENCE_POLICY_SHA256)

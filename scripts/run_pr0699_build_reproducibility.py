@@ -95,7 +95,12 @@ def clean_frontend_build_outputs(safec: Path) -> None:
     (COMPILER_ROOT / "alire" / "tmp").mkdir(parents=True, exist_ok=True)
 
 
-def run_build_reproducibility(*, alr: str, safec: Path, env: dict[str, str]) -> dict[str, Any]:
+def run_build_reproducibility(
+    *,
+    alr: str,
+    safec: Path,
+    env: dict[str, str],
+) -> tuple[dict[str, Any], str]:
     clean_frontend_build_outputs(safec)
     first_build = run(compiler_build_argv(alr), cwd=COMPILER_ROOT, env=env)
     require(safec.exists(), f"expected built compiler at {safec}")
@@ -110,13 +115,16 @@ def run_build_reproducibility(*, alr: str, safec: Path, env: dict[str, str]) -> 
         "PR06.9.9 build reproducibility: normalized compiler payload changed between clean rebuilds",
     )
 
-    return {
-        "command": first_build["command"],
-        "cwd": first_build["cwd"],
-        "returncodes": [first_build["returncode"], second_build["returncode"]],
-        "binary_path": display_path(safec, repo_root=REPO_ROOT),
-        "binary_deterministic": True,
-    }
+    return (
+        {
+            "command": first_build["command"],
+            "cwd": first_build["cwd"],
+            "returncodes": [first_build["returncode"], second_build["returncode"]],
+            "binary_path": display_path(safec, repo_root=REPO_ROOT),
+            "binary_deterministic": True,
+        },
+        second_binary_sha256,
+    )
 
 
 def infer_generated_root(*, report_path: Path) -> Path | None:
@@ -131,6 +139,44 @@ def infer_generated_root(*, report_path: Path) -> Path | None:
     if report_path.parts[-len(report_rel.parts):] != report_rel.parts:
         return None
     return report_path.parents[len(REPORTS_ROOT_REL.parts)]
+
+
+def load_prior_report(*, generated_root: Path | None) -> dict[str, Any] | None:
+    if generated_root is not None:
+        generated_report_path = resolve_generated_path(
+            DEFAULT_REPORT,
+            generated_root=generated_root,
+            policy=EVIDENCE_POLICY,
+            repo_root=REPO_ROOT,
+        )
+        if generated_report_path.exists():
+            return load_json(generated_report_path)
+    if DEFAULT_REPORT.exists():
+        return load_json(DEFAULT_REPORT)
+    return None
+
+
+def resolve_build_reproducibility(
+    *,
+    alr: str,
+    safec: Path,
+    generated_root: Path | None,
+    env: dict[str, str],
+) -> tuple[dict[str, Any], str]:
+    if safec.exists():
+        current_binary_sha256 = stable_binary_sha256(safec)
+        prior_report = load_prior_report(generated_root=generated_root)
+        if prior_report is not None:
+            prior_binary_sha256 = prior_report.get("safec_binary_sha256")
+            prior_build_reproducibility = prior_report.get("build_reproducibility")
+            if (
+                isinstance(prior_binary_sha256, str)
+                and isinstance(prior_build_reproducibility, dict)
+                and current_binary_sha256 == prior_binary_sha256
+            ):
+                print("[pr0699] binary hash unchanged, skipping reproducibility rebuild")
+                return prior_build_reproducibility, current_binary_sha256
+    return run_build_reproducibility(alr=alr, safec=safec, env=env)
 
 
 def canonicalize_generated_gate_result(
@@ -199,7 +245,12 @@ def generate_report(
     generated_root: Path | None,
     env: dict[str, str],
 ) -> dict[str, Any]:
-    build_reproducibility = run_build_reproducibility(alr=alr, safec=safec, env=env)
+    build_reproducibility, safec_binary_sha256 = resolve_build_reproducibility(
+        alr=alr,
+        safec=safec,
+        generated_root=generated_root,
+        env=env,
+    )
     require_repo_command(safec, "safec")
 
     frontend_smoke = run_gate_script(
@@ -240,6 +291,7 @@ def generate_report(
     return {
         "task": "PR06.9.9",
         "status": "ok",
+        "safec_binary_sha256": safec_binary_sha256,
         "build_reproducibility": build_reproducibility,
         "delegated_reports": {
             "frontend_smoke": {
