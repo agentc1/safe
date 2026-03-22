@@ -23,6 +23,7 @@ from _lib.harness_common import (
     ensure_sdkroot,
     finalize_deterministic_report,
     find_command,
+    normalize_text,
     require,
     require_repo_command,
     run,
@@ -162,7 +163,7 @@ def stable_mir_text(text: str) -> str:
 
 
 def stable_emitted_artifact_size(path: Path) -> int:
-    text = path.read_text(encoding="utf-8")
+    text = normalize_text(path.read_text(encoding="utf-8"), repo_root=REPO_ROOT)
     if path.name.endswith(".typed.json") or path.name.endswith(".safei.json"):
         return len(stable_typed_or_safei_text(text).encode("utf-8"))
     if path.name.endswith(".mir.json"):

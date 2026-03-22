@@ -299,6 +299,23 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def stable_emitted_artifact_sha256(
+    path: Path,
+    *,
+    temp_root: Path | None = None,
+    repo_root: Path = REPO_ROOT,
+) -> str:
+    if path.suffix == ".json":
+        return sha256_text(
+            normalize_text(
+                path.read_text(encoding="utf-8"),
+                temp_root=temp_root,
+                repo_root=repo_root,
+            )
+        )
+    return sha256_file(path)
+
+
 def stable_binary_sha256(path: Path) -> str:
     with tempfile.TemporaryDirectory(prefix="safec-binary-hash-") as temp_root_str:
         projected = Path(temp_root_str) / path.name

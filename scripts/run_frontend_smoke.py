@@ -23,7 +23,7 @@ from _lib.harness_common import (
     require,
     require_repo_command,
     run,
-    sha256_file,
+    stable_emitted_artifact_sha256,
     stable_binary_sha256,
     write_report,
 )
@@ -242,7 +242,7 @@ def generate_report(*, alr: str, python: str, safec: Path, env: dict[str, str]) 
                 right_bytes = right.read_bytes()
                 if left_bytes != right_bytes:
                     raise RuntimeError(f"non-deterministic output for {sample.name}::{relative}")
-                file_hashes[relative] = sha256_file(left)
+                file_hashes[relative] = stable_emitted_artifact_sha256(left, temp_root=temp_root)
             deterministic_outputs[str(sample.relative_to(REPO_ROOT))] = file_hashes
 
         return {

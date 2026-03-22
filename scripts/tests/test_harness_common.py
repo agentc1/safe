@@ -217,6 +217,23 @@ class HarnessCommonTests(unittest.TestCase):
             "wrote execution/reports/sample-report.json\n",
         )
 
+    def test_stable_emitted_artifact_sha256_normalizes_repo_paths_in_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            artifact = temp_root / "sample.mir.json"
+            artifact.write_text(
+                (
+                    "{"
+                    f"\"source_path\":\"{hc.REPO_ROOT / 'tests/positive/rule4_conditional.safe'}\""
+                    "}"
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                hc.stable_emitted_artifact_sha256(artifact, temp_root=temp_root),
+                hc.sha256_text('{"source_path":"$REPO_ROOT/tests/positive/rule4_conditional.safe"}'),
+            )
+
     def test_managed_scratch_root_clears_supplied_root_between_uses(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             scratch_root = Path(temp_dir) / "scratch"
