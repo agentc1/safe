@@ -15,6 +15,9 @@
       0
     ]
   },
+  "child_gate_input_hashes": {
+    "gate_quality": "c08e8ff3f2d585efe74ec346eaa61c10b63a6b27a341c55273ec122619aa5a4d"
+  },
   "delegated_reports": {
     "frontend_smoke": {
       "binary_deterministic": true,
@@ -33,9 +36,9 @@
       }
     },
     "gate_quality": {
-      "repeat_sha256": "b2cd026e1aed2b76e11de30f5ea56b4c0addc3017b0d2b87f974aab6296ae02f",
+      "repeat_sha256": "18216db11c5f5f0052b5114fb53bed015d0eb4b8080f5348428b69f7336223e0",
       "report_path": "execution/reports/pr0697-gate-quality-report.json",
-      "report_sha256": "b2cd026e1aed2b76e11de30f5ea56b4c0addc3017b0d2b87f974aab6296ae02f",
+      "report_sha256": "18216db11c5f5f0052b5114fb53bed015d0eb4b8080f5348428b69f7336223e0",
       "run": {
         "command": [
           "python3",
@@ -64,8 +67,8 @@
     }
   },
   "deterministic": true,
-  "repeat_sha256": "175b805ef2a03011ceb0f04bbc0c4236a4272521dd855bca809899e374947227",
-  "report_sha256": "175b805ef2a03011ceb0f04bbc0c4236a4272521dd855bca809899e374947227",
+  "repeat_sha256": "ac5fc8577e4600c09d40f93dfdef057dd9933992502b4044df567de52d3a937c",
+  "report_sha256": "ac5fc8577e4600c09d40f93dfdef057dd9933992502b4044df567de52d3a937c",
   "safec_binary_sha256": "155a0b6d6a0faba7c329859142c1acd39dcf68ea065c72182645561bdd13316a",
   "status": "ok",
   "task": "PR06.9.9"

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -22,6 +23,7 @@ from _lib.harness_common import (
     require_repo_command,
     resolve_generated_path,
     run,
+    sha256_file,
     stable_binary_sha256,
     write_report,
 )
@@ -40,6 +42,7 @@ GATE_QUALITY_REPORT = REPO_ROOT / "execution" / "reports" / "pr0697-gate-quality
 LEGACY_CLEANUP_SCRIPT = REPO_ROOT / "scripts" / "run_pr0698_legacy_package_cleanup.py"
 LEGACY_CLEANUP_REPORT = REPO_ROOT / "execution" / "reports" / "pr0698-legacy-package-cleanup-report.json"
 VALIDATE_EXECUTION_STATE = REPO_ROOT / "scripts" / "validate_execution_state.py"
+GATE_QUALITY_CHILD_NAME = "gate_quality"
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -160,12 +163,11 @@ def resolve_build_reproducibility(
     *,
     alr: str,
     safec: Path,
-    generated_root: Path | None,
+    prior_report: dict[str, Any] | None,
     env: dict[str, str],
 ) -> tuple[dict[str, Any], str]:
     if safec.exists():
         current_binary_sha256 = stable_binary_sha256(safec)
-        prior_report = load_prior_report(generated_root=generated_root)
         if prior_report is not None:
             prior_binary_sha256 = prior_report.get("safec_binary_sha256")
             prior_build_reproducibility = prior_report.get("build_reproducibility")
@@ -177,6 +179,69 @@ def resolve_build_reproducibility(
                 print("[pr0699] binary hash unchanged, skipping reproducibility rebuild")
                 return prior_build_reproducibility, current_binary_sha256
     return run_build_reproducibility(alr=alr, safec=safec, env=env)
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def module_file_path(module_name: str) -> Path:
+    return REPO_ROOT / Path(*module_name.split(".")).with_suffix(".py")
+
+
+def gate_quality_fixture_files(fixtures_root: Path) -> list[Path]:
+    return sorted(
+        [path for path in fixtures_root.rglob("*") if path.is_file()],
+        key=lambda path: str(path.relative_to(REPO_ROOT)),
+    )
+
+
+def compute_gate_quality_input_hash(*, safec_binary_sha256: str) -> str | None:
+    try:
+        from run_pr0697_gate_quality import EXPECTED_TEST_MODULES, OUTPUT_CONTRACT_FIXTURES, OUTPUT_VALIDATOR
+    except ImportError:
+        return None
+
+    try:
+        digests = [
+            safec_binary_sha256,
+            sha256_file(GATE_QUALITY_SCRIPT),
+            sha256_text("\n".join(EXPECTED_TEST_MODULES)),
+        ]
+        for module_name in EXPECTED_TEST_MODULES:
+            digests.append(sha256_file(module_file_path(module_name)))
+        digests.append(sha256_file(OUTPUT_VALIDATOR))
+        for fixture_path in gate_quality_fixture_files(OUTPUT_CONTRACT_FIXTURES):
+            digests.append(sha256_file(fixture_path))
+    except FileNotFoundError:
+        return None
+    return sha256_text("".join(digests))
+
+
+def resolve_gate_quality_result(
+    *,
+    python: str,
+    generated_root: Path | None,
+    env: dict[str, str],
+    prior_report: dict[str, Any] | None,
+    gate_quality_input_hash: str | None,
+) -> dict[str, Any]:
+    if prior_report is not None and gate_quality_input_hash is not None:
+        prior_hashes = prior_report.get("child_gate_input_hashes")
+        prior_delegated_reports = prior_report.get("delegated_reports")
+        if isinstance(prior_hashes, dict) and isinstance(prior_delegated_reports, dict):
+            prior_hash = prior_hashes.get(GATE_QUALITY_CHILD_NAME)
+            prior_gate_quality = prior_delegated_reports.get(GATE_QUALITY_CHILD_NAME)
+            if prior_hash == gate_quality_input_hash and isinstance(prior_gate_quality, dict):
+                print("[pr0699] gate_quality inputs unchanged, reusing cached result")
+                return prior_gate_quality
+    return run_gate_script(
+        python=python,
+        script=GATE_QUALITY_SCRIPT,
+        report_path=GATE_QUALITY_REPORT,
+        generated_root=generated_root,
+        env=env,
+    )
 
 
 def canonicalize_generated_gate_result(
@@ -245,13 +310,17 @@ def generate_report(
     generated_root: Path | None,
     env: dict[str, str],
 ) -> dict[str, Any]:
+    prior_report = load_prior_report(generated_root=generated_root)
     build_reproducibility, safec_binary_sha256 = resolve_build_reproducibility(
         alr=alr,
         safec=safec,
-        generated_root=generated_root,
+        prior_report=prior_report,
         env=env,
     )
     require_repo_command(safec, "safec")
+    gate_quality_input_hash = compute_gate_quality_input_hash(
+        safec_binary_sha256=safec_binary_sha256
+    )
 
     frontend_smoke = run_gate_script(
         python=python,
@@ -273,12 +342,12 @@ def generate_report(
         "frontend smoke report must record a deterministic binary",
     )
 
-    gate_quality = run_gate_script(
+    gate_quality = resolve_gate_quality_result(
         python=python,
-        script=GATE_QUALITY_SCRIPT,
-        report_path=GATE_QUALITY_REPORT,
         generated_root=generated_root,
         env=env,
+        prior_report=prior_report,
+        gate_quality_input_hash=gate_quality_input_hash,
     )
     legacy_cleanup = run_gate_script(
         python=python,
@@ -292,6 +361,9 @@ def generate_report(
         "task": "PR06.9.9",
         "status": "ok",
         "safec_binary_sha256": safec_binary_sha256,
+        "child_gate_input_hashes": {
+            GATE_QUALITY_CHILD_NAME: gate_quality_input_hash,
+        },
         "build_reproducibility": build_reproducibility,
         "delegated_reports": {
             "frontend_smoke": {

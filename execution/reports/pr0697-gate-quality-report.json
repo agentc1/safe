@@ -266,8 +266,8 @@
       }
     }
   ],
-  "repeat_sha256": "b2cd026e1aed2b76e11de30f5ea56b4c0addc3017b0d2b87f974aab6296ae02f",
-  "report_sha256": "b2cd026e1aed2b76e11de30f5ea56b4c0addc3017b0d2b87f974aab6296ae02f",
+  "repeat_sha256": "18216db11c5f5f0052b5114fb53bed015d0eb4b8080f5348428b69f7336223e0",
+  "report_sha256": "18216db11c5f5f0052b5114fb53bed015d0eb4b8080f5348428b69f7336223e0",
   "status": "ok",
   "task": "PR06.9.7",
   "unit_tests": {
@@ -323,10 +323,10 @@
       "scripts.tests.test_validate_execution_state",
       "scripts.tests.test_validate_output_contracts"
     ],
-    "observed_count": 252,
+    "observed_count": 260,
     "returncode": 0,
-    "stderr": "............................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 252 tests in <elapsed>\n\nOK\n",
-    "stdout": ""
+    "stderr": "....................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 260 tests in <elapsed>\n\nOK\n",
+    "stdout": "[pr0699] gate_quality inputs unchanged, reusing cached result\n[pr0699] gate_quality inputs unchanged, reusing cached result\n"
   },
   "valid_output_contracts": [
     {
