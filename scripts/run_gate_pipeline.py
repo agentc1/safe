@@ -146,6 +146,13 @@ def diff_context(*, expected: str, actual: str, label: str) -> str:
     return "\n".join(diff[:60])
 
 
+def print_phase(phase: str, *, detail: str | None = None) -> None:
+    message = f"[gate-pipeline] phase: {phase}"
+    if detail:
+        message += f" ({detail})"
+    print(message, flush=True)
+
+
 def print_plan(branch: str) -> int:
     nodes = resolve_branch(branch)
     print(f"[gate-pipeline] branch: {branch}")
@@ -693,6 +700,19 @@ def final_rerun_pipeline(
     changed_nodes = changed_report_nodes(generated_root=stage_root)
     promoted_dashboard_changed = dashboard_changed(generated_root=stage_root)
 
+    print_phase(
+        "promote staged outputs",
+        detail=(
+            "changed reports: "
+            + ", ".join(changed_nodes)
+            if changed_nodes
+            else (
+                "dashboard only"
+                if promoted_dashboard_changed
+                else "no staged output changes"
+            )
+        ),
+    )
     promote_stage(stage_root)
 
     promoted_snapshot = tracked_diff_snapshot(git=git, env=env)
@@ -707,6 +727,10 @@ def final_rerun_pipeline(
     seed_pipeline_context = load_seed_pipeline_context(
         checkpoint_root=stage_verify_root / "checkpoints",
         start_index=start_index,
+    )
+    print_phase(
+        "final rerun",
+        detail=f"start node: {NODES[start_index].id}",
     )
     execute_pipeline(
         authority=authority,
@@ -744,6 +768,7 @@ def ratchet_pipeline(*, authority: str, python: str, git: str, alr: str, env: di
         ) as final_verify_root_str:
             verify_root = Path(verify_root_str)
             final_verify_root = Path(final_verify_root_str)
+            print_phase("stage generation")
             execute_pipeline(
                 authority=authority,
                 python=python,
@@ -757,6 +782,7 @@ def ratchet_pipeline(*, authority: str, python: str, git: str, alr: str, env: di
                 initial_snapshot=initial_snapshot,
                 checkpoint_root=stage_root / "checkpoints",
             )
+            print_phase("stage verify")
             execute_pipeline(
                 authority=authority,
                 python=python,

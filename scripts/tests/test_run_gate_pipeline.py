@@ -666,7 +666,8 @@ class RunGatePipelineTests(unittest.TestCase):
                 "execute_pipeline",
                 return_value={},
             ) as execute_pipeline:
-                with redirect_stdout(io.StringIO()):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
                     self.assertEqual(
                         run_gate_pipeline.final_rerun_pipeline(
                             authority="local",
@@ -680,6 +681,15 @@ class RunGatePipelineTests(unittest.TestCase):
                         ),
                         0,
                     )
+                text = stdout.getvalue()
+                self.assertIn(
+                    "[gate-pipeline] phase: promote staged outputs (changed reports: pr0699_build_reproducibility)",
+                    text,
+                )
+                self.assertIn(
+                    f"[gate-pipeline] phase: final rerun (start node: {BUILD_POST_REPRO})",
+                    text,
+                )
                 load_seed_pipeline_context.assert_called_once_with(
                     checkpoint_root=stage_verify_root / "checkpoints",
                     start_index=run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO],
@@ -935,7 +945,8 @@ class RunGatePipelineTests(unittest.TestCase):
             "final_rerun_pipeline",
             return_value=0,
         ) as final_rerun_pipeline:
-            with redirect_stdout(io.StringIO()):
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
                 self.assertEqual(
                     run_gate_pipeline.ratchet_pipeline(
                         authority="local",
@@ -946,6 +957,9 @@ class RunGatePipelineTests(unittest.TestCase):
                     ),
                     0,
                 )
+        text = stdout.getvalue()
+        self.assertIn("[gate-pipeline] phase: stage generation", text)
+        self.assertIn("[gate-pipeline] phase: stage verify", text)
         self.assertEqual(execute_pipeline.call_count, 2)
         final_rerun_pipeline.assert_called_once()
 
