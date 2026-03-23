@@ -20,6 +20,7 @@ from _lib.harness_common import (
     ensure_sdkroot,
     finalize_deterministic_report,
     find_command,
+    frontend_build_input_hash,
     normalize_text,
     require,
     require_repo_command,
@@ -41,8 +42,6 @@ EMIT_SAMPLES = [REPO_ROOT / path for path in REPRESENTATIVE_EMIT_SAMPLES]
 EQUALITY_CHECK = REPO_ROOT / "tests" / "positive" / "result_equality_check.safe"
 LEGACY_TOKEN_FIXTURE = REPO_ROOT / "compiler_impl" / "tests" / "legacy_two_char_tokens.safe"
 DIAGNOSTICS_EXIT = 1
-BUILD_INPUT_SUFFIXES = {".adb", ".ads", ".gpr", ".adc"}
-BUILD_INPUT_FILENAMES = {"alire.toml", "alire.lock"}
 
 
 def format_elapsed(seconds: float) -> str:
@@ -167,26 +166,8 @@ def emitted_paths(root: Path, sample: Path) -> dict[str, Path]:
     }
 
 
-def build_input_files() -> list[Path]:
-    files: list[Path] = []
-    for path in COMPILER_ROOT.rglob("*"):
-        if not path.is_file():
-            continue
-        relative = path.relative_to(COMPILER_ROOT)
-        if relative.parts[0] in {"bin", "obj"}:
-            continue
-        if path.suffix in BUILD_INPUT_SUFFIXES or path.name in BUILD_INPUT_FILENAMES:
-            files.append(path)
-    return sorted(files, key=lambda path: str(path.relative_to(REPO_ROOT)))
-
-
 def compute_build_input_hash(*, alr: str) -> str:
-    normalized_command = [Path(alr).name, *compiler_build_argv(alr)[1:]]
-    digests = [sha256_text(json.dumps(normalized_command))]
-    for path in build_input_files():
-        relative = str(path.relative_to(REPO_ROOT))
-        digests.append(sha256_text(f"{relative}:{sha256_file(path)}"))
-    return sha256_text("".join(digests))
+    return frontend_build_input_hash(alr=alr)
 
 
 def resolve_build(

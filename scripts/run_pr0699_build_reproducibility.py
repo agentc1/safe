@@ -19,6 +19,7 @@ from _lib.harness_common import (
     ensure_sdkroot,
     finalize_deterministic_report,
     find_command,
+    frontend_build_input_hash,
     generated_output_paths,
     load_pipeline_input,
     load_evidence_policy,
@@ -116,6 +117,7 @@ def run_build_reproducibility(
     *,
     alr: str,
     safec: Path,
+    build_input_hash: str,
     env: dict[str, str],
 ) -> tuple[dict[str, Any], str]:
     clean_frontend_build_outputs(safec)
@@ -139,6 +141,7 @@ def run_build_reproducibility(
             "returncodes": [first_build["returncode"], second_build["returncode"]],
             "binary_path": display_path(safec, repo_root=REPO_ROOT),
             "binary_deterministic": True,
+            "build_input_hash": build_input_hash,
         },
         second_binary_sha256,
     )
@@ -206,30 +209,58 @@ def resolve_build_reproducibility(
     alr: str,
     safec: Path,
     prior_report: dict[str, Any] | None,
+    build_cache: dict[str, Any] | None,
     env: dict[str, str],
     verbose: bool = False,
 ) -> tuple[dict[str, Any], str]:
     hash_check_started = time.monotonic()
-    if safec.exists():
-        current_binary_sha256 = stable_binary_sha256(safec)
-        if prior_report is not None:
-            prior_binary_sha256 = prior_report.get("safec_binary_sha256")
-            prior_build_reproducibility = prior_report.get("build_reproducibility")
-            if (
-                isinstance(prior_binary_sha256, str)
-                and isinstance(prior_build_reproducibility, dict)
-                and current_binary_sha256 == prior_binary_sha256
-            ):
-                log_progress(
-                    verbose=verbose,
-                    message=(
-                        "[pr0699] binary hash unchanged, skipping reproducibility rebuild "
-                        f"({format_elapsed(time.monotonic() - hash_check_started)} hash check)"
-                    ),
-                )
-                return prior_build_reproducibility, current_binary_sha256
+    current_build_input_hash = compute_build_input_hash(alr=alr)
+    if safec.exists() and build_cache is not None:
+        cached_build_reproducibility = build_cache.get("build_reproducibility")
+        cached_binary_sha256 = build_cache.get("observed_binary_sha256")
+        if (
+            isinstance(cached_build_reproducibility, dict)
+            and cached_build_reproducibility.get("build_input_hash") == current_build_input_hash
+            and isinstance(cached_binary_sha256, str)
+        ):
+            log_progress(
+                verbose=verbose,
+                message=(
+                    "[pr0699] build inputs unchanged, skipping reproducibility rebuild "
+                    f"({format_elapsed(time.monotonic() - hash_check_started)} hash check)"
+                ),
+            )
+            return cached_build_reproducibility, cached_binary_sha256
+
+    if safec.exists() and prior_report is not None:
+        prior_build_reproducibility = prior_report.get("build_reproducibility")
+        if (
+            isinstance(prior_build_reproducibility, dict)
+            and prior_build_reproducibility.get("build_input_hash") == current_build_input_hash
+            and prior_build_reproducibility.get("binary_deterministic") is True
+        ):
+            current_binary_sha256 = stable_binary_sha256(safec)
+            if build_cache is not None:
+                build_cache["build_reproducibility"] = prior_build_reproducibility
+                build_cache["observed_binary_sha256"] = current_binary_sha256
+            log_progress(
+                verbose=verbose,
+                message=(
+                    "[pr0699] build inputs unchanged, skipping reproducibility rebuild "
+                    f"({format_elapsed(time.monotonic() - hash_check_started)} hash check)"
+                ),
+            )
+            return prior_build_reproducibility, current_binary_sha256
     rebuild_started = time.monotonic()
-    rebuild_result = run_build_reproducibility(alr=alr, safec=safec, env=env)
+    rebuild_result = run_build_reproducibility(
+        alr=alr,
+        safec=safec,
+        build_input_hash=current_build_input_hash,
+        env=env,
+    )
+    if build_cache is not None:
+        build_cache["build_reproducibility"] = rebuild_result[0]
+        build_cache["observed_binary_sha256"] = rebuild_result[1]
     log_progress(
         verbose=verbose,
         message=f"[pr0699] full reproducibility rebuild ({format_elapsed(time.monotonic() - rebuild_started)})",
@@ -239,6 +270,10 @@ def resolve_build_reproducibility(
 
 def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def compute_build_input_hash(*, alr: str) -> str:
+    return frontend_build_input_hash(alr=alr)
 
 
 def module_file_path(module_name: str) -> Path:
@@ -433,6 +468,7 @@ def generate_report(
     authority: str = "ci",
     env: dict[str, str],
     pipeline_input: dict[str, Any] | None = None,
+    build_cache: dict[str, Any] | None = None,
     verbose: bool = False,
 ) -> dict[str, Any]:
     pipeline_input = pipeline_input or {}
@@ -441,6 +477,7 @@ def generate_report(
         alr=alr,
         safec=safec,
         prior_report=prior_report,
+        build_cache=build_cache,
         env=env,
         verbose=verbose,
     )
@@ -527,6 +564,7 @@ def main() -> int:
         compare_paths = []
         initial_diff = ""
 
+    build_cache: dict[str, Any] = {}
     report = finalize_deterministic_report(
         lambda: generate_report(
             python=python,
@@ -536,6 +574,7 @@ def main() -> int:
             authority=args.authority,
             env=env,
             pipeline_input=pipeline_input,
+            build_cache=build_cache,
             verbose=args.verbose,
         ),
         label="PR06.9.9 build reproducibility",

@@ -94,16 +94,24 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
             "frontend smoke: OK (execution/reports/pr00-pr04-frontend-smoke.json)\n",
         )
 
-    def test_resolve_build_reproducibility_skips_rebuild_when_binary_hash_matches(self) -> None:
+    def test_resolve_build_reproducibility_skips_rebuild_when_build_input_hash_matches(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             safec = Path(temp_dir) / "safec"
             safec.write_bytes(b"binary")
-            build_reproducibility = {"binary_deterministic": True}
+            build_reproducibility = {
+                "binary_deterministic": True,
+                "build_input_hash": "same-hash",
+            }
+            build_cache: dict[str, object] = {}
 
             with mock.patch.object(
                 run_pr0699_build_reproducibility,
-                "stable_binary_sha256",
+                "compute_build_input_hash",
                 return_value="same-hash",
+            ), mock.patch.object(
+                run_pr0699_build_reproducibility,
+                "stable_binary_sha256",
+                return_value="observed-hash",
             ), mock.patch.object(
                 run_pr0699_build_reproducibility,
                 "run_build_reproducibility",
@@ -116,27 +124,36 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
                     alr="alr",
                     safec=safec,
                     prior_report={
-                        "safec_binary_sha256": "same-hash",
                         "build_reproducibility": build_reproducibility,
                     },
+                    build_cache=build_cache,
                     env={},
                 )
 
         rebuild_mock.assert_not_called()
         self.assertEqual(reused, build_reproducibility)
-        self.assertEqual(binary_hash, "same-hash")
+        self.assertEqual(binary_hash, "observed-hash")
+        self.assertEqual(build_cache["build_reproducibility"], build_reproducibility)
+        self.assertEqual(build_cache["observed_binary_sha256"], "observed-hash")
 
     def test_resolve_build_reproducibility_emits_skip_log_in_verbose_mode(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             safec = Path(temp_dir) / "safec"
             safec.write_bytes(b"binary")
-            build_reproducibility = {"binary_deterministic": True}
+            build_reproducibility = {
+                "binary_deterministic": True,
+                "build_input_hash": "same-hash",
+            }
             stdout = io.StringIO()
 
             with mock.patch.object(
                 run_pr0699_build_reproducibility,
-                "stable_binary_sha256",
+                "compute_build_input_hash",
                 return_value="same-hash",
+            ), mock.patch.object(
+                run_pr0699_build_reproducibility,
+                "stable_binary_sha256",
+                return_value="observed-hash",
             ), mock.patch.object(
                 run_pr0699_build_reproducibility,
                 "run_build_reproducibility",
@@ -149,30 +166,107 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
                     alr="alr",
                     safec=safec,
                     prior_report={
-                        "safec_binary_sha256": "same-hash",
                         "build_reproducibility": build_reproducibility,
                     },
+                    build_cache={},
                     env={},
                     verbose=True,
                 )
 
         rebuild_mock.assert_not_called()
         self.assertEqual(reused, build_reproducibility)
-        self.assertEqual(binary_hash, "same-hash")
+        self.assertEqual(binary_hash, "observed-hash")
         self.assertEqual(
             stdout.getvalue(),
-            "[pr0699] binary hash unchanged, skipping reproducibility rebuild (0.2s hash check)\n",
+            "[pr0699] build inputs unchanged, skipping reproducibility rebuild (0.2s hash check)\n",
         )
 
-    def test_resolve_build_reproducibility_falls_back_when_hash_mismatches(self) -> None:
+    def test_resolve_build_reproducibility_reuses_in_process_cache_when_hash_matches(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             safec = Path(temp_dir) / "safec"
             safec.write_bytes(b"binary")
-            rebuilt = ({"binary_deterministic": True}, "new-hash")
+            cached_build = {
+                "binary_deterministic": True,
+                "build_input_hash": "same-hash",
+            }
 
             with mock.patch.object(
                 run_pr0699_build_reproducibility,
-                "stable_binary_sha256",
+                "compute_build_input_hash",
+                return_value="same-hash",
+            ), mock.patch.object(
+                run_pr0699_build_reproducibility,
+                "run_build_reproducibility",
+            ) as rebuild_mock:
+                resolved = run_pr0699_build_reproducibility.resolve_build_reproducibility(
+                    alr="alr",
+                    safec=safec,
+                    prior_report=None,
+                    build_cache={
+                        "build_reproducibility": cached_build,
+                        "observed_binary_sha256": "cached-hash",
+                    },
+                    env={},
+                )
+
+        rebuild_mock.assert_not_called()
+        self.assertEqual(resolved, (cached_build, "cached-hash"))
+
+    def test_resolve_build_reproducibility_caches_proven_build_for_second_call(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            safec = Path(temp_dir) / "safec"
+            build_cache: dict[str, object] = {}
+            rebuilt = (
+                {
+                    "binary_deterministic": True,
+                    "build_input_hash": "build-input-hash",
+                },
+                "rebuilt-hash",
+            )
+            with mock.patch.object(
+                run_pr0699_build_reproducibility,
+                "compute_build_input_hash",
+                return_value="build-input-hash",
+            ), mock.patch.object(
+                run_pr0699_build_reproducibility,
+                "run_build_reproducibility",
+                return_value=rebuilt,
+            ) as rebuild_mock:
+                first = run_pr0699_build_reproducibility.resolve_build_reproducibility(
+                    alr="alr",
+                    safec=Path("/missing/safec"),
+                    prior_report=None,
+                    build_cache=build_cache,
+                    env={},
+                )
+                safec.write_bytes(b"binary")
+                second = run_pr0699_build_reproducibility.resolve_build_reproducibility(
+                    alr="alr",
+                    safec=safec,
+                    prior_report=None,
+                    build_cache=build_cache,
+                    env={},
+                )
+
+        self.assertEqual(rebuild_mock.call_count, 1)
+        self.assertEqual(first, rebuilt)
+        self.assertEqual(second, rebuilt)
+
+    def test_resolve_build_reproducibility_falls_back_when_build_input_hash_mismatches(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            safec = Path(temp_dir) / "safec"
+            safec.write_bytes(b"binary")
+            rebuilt = (
+                {
+                    "binary_deterministic": True,
+                    "build_input_hash": "new-hash",
+                },
+                "rebuilt-binary-hash",
+            )
+
+            with mock.patch.object(
+                run_pr0699_build_reproducibility,
+                "compute_build_input_hash",
                 return_value="new-hash",
             ), mock.patch.object(
                 run_pr0699_build_reproducibility,
@@ -183,18 +277,36 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
                     alr="alr",
                     safec=safec,
                     prior_report={
-                        "safec_binary_sha256": "old-hash",
-                        "build_reproducibility": {"binary_deterministic": True},
+                        "build_reproducibility": {
+                            "binary_deterministic": True,
+                            "build_input_hash": "old-hash",
+                        },
                     },
+                    build_cache={},
                     env={},
                 )
 
-        rebuild_mock.assert_called_once_with(alr="alr", safec=safec, env={})
+        rebuild_mock.assert_called_once_with(
+            alr="alr",
+            safec=safec,
+            build_input_hash="new-hash",
+            env={},
+        )
         self.assertEqual(resolved, rebuilt)
 
-    def test_resolve_build_reproducibility_falls_back_without_prior_hash(self) -> None:
-        rebuilt = ({"binary_deterministic": True}, "rebuilt-hash")
+    def test_resolve_build_reproducibility_falls_back_without_prior_build_input_hash(self) -> None:
+        rebuilt = (
+            {
+                "binary_deterministic": True,
+                "build_input_hash": "rebuilt-hash",
+            },
+            "rebuilt-binary-hash",
+        )
         with mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "compute_build_input_hash",
+            return_value="rebuilt-hash",
+        ), mock.patch.object(
             run_pr0699_build_reproducibility,
             "run_build_reproducibility",
             return_value=rebuilt,
@@ -203,15 +315,31 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
                 alr="alr",
                 safec=Path("/missing/safec"),
                 prior_report={"build_reproducibility": {"binary_deterministic": True}},
+                build_cache={},
                 env={},
             )
 
-        rebuild_mock.assert_called_once_with(alr="alr", safec=Path("/missing/safec"), env={})
+        rebuild_mock.assert_called_once_with(
+            alr="alr",
+            safec=Path("/missing/safec"),
+            build_input_hash="rebuilt-hash",
+            env={},
+        )
         self.assertEqual(resolved, rebuilt)
 
     def test_resolve_build_reproducibility_falls_back_when_prior_report_missing(self) -> None:
-        rebuilt = ({"binary_deterministic": True}, "rebuilt-hash")
+        rebuilt = (
+            {
+                "binary_deterministic": True,
+                "build_input_hash": "rebuilt-hash",
+            },
+            "rebuilt-binary-hash",
+        )
         with mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "compute_build_input_hash",
+            return_value="rebuilt-hash",
+        ), mock.patch.object(
             run_pr0699_build_reproducibility,
             "run_build_reproducibility",
             return_value=rebuilt,
@@ -220,15 +348,31 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
                 alr="alr",
                 safec=Path("/missing/safec"),
                 prior_report=None,
+                build_cache={},
                 env={},
             )
 
-        rebuild_mock.assert_called_once_with(alr="alr", safec=Path("/missing/safec"), env={})
+        rebuild_mock.assert_called_once_with(
+            alr="alr",
+            safec=Path("/missing/safec"),
+            build_input_hash="rebuilt-hash",
+            env={},
+        )
         self.assertEqual(resolved, rebuilt)
 
     def test_resolve_build_reproducibility_falls_back_when_binary_missing(self) -> None:
-        rebuilt = ({"binary_deterministic": True}, "rebuilt-hash")
+        rebuilt = (
+            {
+                "binary_deterministic": True,
+                "build_input_hash": "rebuilt-hash",
+            },
+            "rebuilt-binary-hash",
+        )
         with mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "compute_build_input_hash",
+            return_value="rebuilt-hash",
+        ), mock.patch.object(
             run_pr0699_build_reproducibility,
             "run_build_reproducibility",
             return_value=rebuilt,
@@ -240,14 +384,22 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
                 alr="alr",
                 safec=Path("/missing/safec"),
                 prior_report={
-                    "safec_binary_sha256": "same-hash",
-                    "build_reproducibility": {"binary_deterministic": True},
+                    "build_reproducibility": {
+                        "binary_deterministic": True,
+                        "build_input_hash": "rebuilt-hash",
+                    },
                 },
+                build_cache={},
                 env={},
             )
 
         hash_mock.assert_not_called()
-        rebuild_mock.assert_called_once_with(alr="alr", safec=Path("/missing/safec"), env={})
+        rebuild_mock.assert_called_once_with(
+            alr="alr",
+            safec=Path("/missing/safec"),
+            build_input_hash="rebuilt-hash",
+            env={},
+        )
         self.assertEqual(resolved, rebuilt)
 
     def test_resolve_gate_quality_result_skips_when_input_hash_matches(self) -> None:

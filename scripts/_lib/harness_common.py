@@ -17,6 +17,8 @@ from typing import Any, Callable
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPILER_ROOT = REPO_ROOT / "compiler_impl"
 EVIDENCE_POLICY_PATH = REPO_ROOT / "execution" / "evidence_policy.json"
+FRONTEND_BUILD_INPUT_SUFFIXES = {".adb", ".ads", ".gpr", ".adc"}
+FRONTEND_BUILD_INPUT_FILENAMES = {"alire.toml", "alire.lock"}
 
 
 def normalize_text(text: str, *, temp_root: Path | None = None, repo_root: Path = REPO_ROOT) -> str:
@@ -145,6 +147,39 @@ def compiler_build_argv(alr: str) -> list[str]:
     # Keep Alire's workspace/config generation while deferring actual job-count
     # selection to gprbuild's default parallelism.
     return [alr, "build", "--", "-j0", "-p"]
+
+
+def frontend_build_input_files(
+    *,
+    compiler_root: Path = COMPILER_ROOT,
+    repo_root: Path = REPO_ROOT,
+) -> list[Path]:
+    files: list[Path] = []
+    for path in compiler_root.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(compiler_root)
+        if relative.parts[0] in {"bin", "obj"}:
+            continue
+        if path.suffix in FRONTEND_BUILD_INPUT_SUFFIXES or path.name in FRONTEND_BUILD_INPUT_FILENAMES:
+            files.append(path)
+    return sorted(files, key=lambda path: str(path.relative_to(repo_root)))
+
+
+def frontend_build_input_hash(
+    *,
+    alr: str,
+    compiler_root: Path = COMPILER_ROOT,
+    repo_root: Path = REPO_ROOT,
+) -> str:
+    # Key build-proof reuse on source/config inputs and the normalized build
+    # command, not on host-sensitive emitted binary bytes.
+    normalized_command = [Path(alr).name, *compiler_build_argv(alr)[1:]]
+    digests = [sha256_text(json.dumps(normalized_command))]
+    for path in frontend_build_input_files(compiler_root=compiler_root, repo_root=repo_root):
+        relative = str(path.relative_to(repo_root))
+        digests.append(sha256_text(f"{relative}:{sha256_file(path)}"))
+    return sha256_text("".join(digests))
 
 
 def ensure_deterministic_env(
