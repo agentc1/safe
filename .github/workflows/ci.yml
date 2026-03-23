@@ -41,17 +41,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Alire
-        uses: alire-project/setup-alire@b607671067a8ca5d7b7f4a12dadb4dc009cd2cc7 # v3
-        with:
-          version: 2.1.0
-          toolchain: gnat_native=15.1.2 gprbuild=25.0.1
-
-      - name: Install GNATprove
-        working-directory: .
-        run: |
-          alr install gnatprove=15.1.0
-          echo "${HOME}/.alire/bin" >> "$GITHUB_PATH"
+      - name: Install Alire toolchain
+        uses: ./.github/actions/setup-alire
 
       - name: Validate execution tracker and repo facts
         working-directory: .
@@ -87,25 +78,17 @@ jobs:
       # ------------------------------------------------------------------
       # Install GNAT and GNATprove via Alire
       # ------------------------------------------------------------------
-      - name: Install Alire
-        uses: alire-project/setup-alire@b607671067a8ca5d7b7f4a12dadb4dc009cd2cc7 # v3
-        with:
-          version: 2.1.0
-          toolchain: gnat_native=15.1.2 gprbuild=25.0.1
-
-      - name: Initialize Alire workspace and install GNATprove
-        run: |
-          alr install gnatprove=15.1.0
-          echo "${HOME}/.alire/bin" >> "$GITHUB_PATH"
+      - name: Install Alire toolchain
+        uses: ./.github/actions/setup-alire
 
       - name: Verify tools
         run: |
           alr exec -- gprbuild --version | head -1
-          gnatprove --version | head -1
+          alr exec -- gnatprove --version | head -1
 
       - name: Record toolchain version for cache key
         id: toolchain-version
-        run: echo "gnatprove=$(gnatprove --version 2>&1 | head -1 || echo unknown)" >> "$GITHUB_OUTPUT"
+        run: echo "gnatprove=$(alr exec -- gnatprove --version 2>&1 | head -1 || echo unknown)" >> "$GITHUB_OUTPUT"
 
       # ------------------------------------------------------------------
       # Verify frozen commit SHA
@@ -129,9 +112,9 @@ jobs:
         with:
           path: |
             companion/gen/obj/gnatprove
-          key: gnatprove-${{ runner.os }}-${{ steps.toolchain-version.outputs.gnatprove }}-${{ hashFiles('companion/spark/*.ads', 'companion/spark/*.adb', 'companion/gen/companion.gpr') }}
+          key: gnatprove-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain-version.outputs.gnatprove }}-${{ hashFiles('companion/spark/*.ads', 'companion/spark/*.adb', 'companion/gen/companion.gpr') }}
           restore-keys: |
-            gnatprove-${{ runner.os }}-
+            gnatprove-${{ runner.os }}-${{ runner.arch }}-
 
       # ------------------------------------------------------------------
       # Ensure build directory exists
@@ -222,29 +205,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Install Alire
-        uses: alire-project/setup-alire@b607671067a8ca5d7b7f4a12dadb4dc009cd2cc7 # v3
-        with:
-          version: 2.1.0
-          toolchain: gnat_native=15.1.2 gprbuild=25.0.1
-
-      - name: Initialize Alire workspace and install GNATprove
-        run: |
-          alr install gnatprove=15.1.0
-          echo "${HOME}/.alire/bin" >> "$GITHUB_PATH"
+      - name: Install Alire toolchain
+        uses: ./.github/actions/setup-alire
 
       - name: Record toolchain version for cache key
         id: toolchain-version
-        run: echo "gnatprove=$(gnatprove --version 2>&1 | head -1 || echo unknown)" >> "$GITHUB_OUTPUT"
+        run: echo "gnatprove=$(alr exec -- gnatprove --version 2>&1 | head -1 || echo unknown)" >> "$GITHUB_OUTPUT"
 
       - name: Cache GNATprove results
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             companion/templates/obj/gnatprove
-          key: gnatprove-templates-${{ runner.os }}-${{ steps.toolchain-version.outputs.gnatprove }}-${{ hashFiles('companion/spark/*.ads', 'companion/spark/*.adb', 'companion/templates/*.ads', 'companion/templates/*.adb', 'companion/templates/templates.gpr') }}
+          key: gnatprove-templates-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain-version.outputs.gnatprove }}-${{ hashFiles('companion/spark/*.ads', 'companion/spark/*.adb', 'companion/templates/*.ads', 'companion/templates/*.adb', 'companion/templates/templates.gpr') }}
           restore-keys: |
-            gnatprove-templates-${{ runner.os }}-
+            gnatprove-templates-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Prepare build directory
         run: mkdir -p obj
