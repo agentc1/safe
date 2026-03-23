@@ -4,7 +4,7 @@
       "audit_doc": "fc4edf3f450f82ed744cb28283cfbce58f07320be1ca48fba90889c343d75832",
       "ci_workflow": "c6e73eb06095763835c758156654e4e9758841852591ee620a9fb072fbd3d775",
       "compiler_readme": "2dee3082c1f789efe0f9c251e57ba9419baa21782f7192e0bf48ace846bd9bf0",
-      "dashboard": "098bc02d79ef71a927bf09f09f5b6fad6e401535cdc8b92756e29d853e751494",
+      "dashboard": "daac0aaaa4203b98273d670932c51cf7fe4f06511923f7b953884f368da8064c",
       "matrix": "9553b32825b2b3d25f153e781708987722e30f9d1edc2ae3e396aec24c4916a1",
       "pipeline_verify_workflow": "7f74e42cdaa3ebdbe7be613f0fe2b722e5205977da6cdcd89cefd1db0d52891f",
       "post_pr10_scope": "52d74391fcb697b6cc620bbeb8ed8aaff90f6d5689f99c9f093da972d9f55237",
@@ -444,8 +444,8 @@
       ]
     }
   },
-  "repeat_sha256": "7852eae9159ccdc3fcee991e473634b73344e59ba8a3e4690055db868c8d3927",
-  "report_sha256": "7852eae9159ccdc3fcee991e473634b73344e59ba8a3e4690055db868c8d3927",
+  "repeat_sha256": "74ea91ca3f36c5fdea3e47e5f2ed207063755464ab9b47100375ebb63f2ad558",
+  "report_sha256": "74ea91ca3f36c5fdea3e47e5f2ed207063755464ab9b47100375ebb63f2ad558",
   "semantic_floor": {
     "baseline_gate_hashes": {
       "emitted_hardening_regressions": "3f84ff42577ca0a50269aa187e2549f33bf901bdc1d25e9554a4e1c64e666657",
