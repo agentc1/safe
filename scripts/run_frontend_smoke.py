@@ -9,6 +9,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,8 @@ from _lib.harness_common import (
     require,
     require_repo_command,
     run,
+    sha256_file,
+    sha256_text,
     stable_emitted_artifact_sha256,
     stable_binary_sha256,
     write_report,
@@ -38,6 +41,27 @@ EMIT_SAMPLES = [REPO_ROOT / path for path in REPRESENTATIVE_EMIT_SAMPLES]
 EQUALITY_CHECK = REPO_ROOT / "tests" / "positive" / "result_equality_check.safe"
 LEGACY_TOKEN_FIXTURE = REPO_ROOT / "compiler_impl" / "tests" / "legacy_two_char_tokens.safe"
 DIAGNOSTICS_EXIT = 1
+BUILD_INPUT_SUFFIXES = {".adb", ".ads", ".gpr", ".adc"}
+BUILD_INPUT_FILENAMES = {"alire.toml", "alire.lock"}
+
+
+def format_elapsed(seconds: float) -> str:
+    return f"{seconds:.1f}s"
+
+
+def log_progress(*, verbose: bool, message: str) -> None:
+    if verbose:
+        print(message)
+
+
+def load_prior_report(*, report_path: Path) -> dict[str, Any] | None:
+    candidate_paths: list[Path] = [report_path]
+    if report_path != DEFAULT_REPORT:
+        candidate_paths.append(DEFAULT_REPORT)
+    for candidate in candidate_paths:
+        if candidate.exists():
+            return json.loads(candidate.read_text(encoding="utf-8"))
+    return None
 
 
 def repo_arg(path: Path) -> str:
@@ -143,7 +167,73 @@ def emitted_paths(root: Path, sample: Path) -> dict[str, Path]:
     }
 
 
-def generate_report(*, alr: str, python: str, safec: Path, env: dict[str, str]) -> dict[str, Any]:
+def build_input_files() -> list[Path]:
+    files: list[Path] = []
+    for path in COMPILER_ROOT.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(COMPILER_ROOT)
+        if relative.parts[0] in {"bin", "obj"}:
+            continue
+        if path.suffix in BUILD_INPUT_SUFFIXES or path.name in BUILD_INPUT_FILENAMES:
+            files.append(path)
+    return sorted(files, key=lambda path: str(path.relative_to(REPO_ROOT)))
+
+
+def compute_build_input_hash(*, alr: str) -> str:
+    normalized_command = [Path(alr).name, *compiler_build_argv(alr)[1:]]
+    digests = [sha256_text(json.dumps(normalized_command))]
+    for path in build_input_files():
+        relative = str(path.relative_to(REPO_ROOT))
+        digests.append(sha256_text(f"{relative}:{sha256_file(path)}"))
+    return sha256_text("".join(digests))
+
+
+def resolve_build(
+    *,
+    alr: str,
+    safec: Path,
+    prior_report: dict[str, Any] | None,
+    build_cache: dict[str, dict[str, Any]] | None,
+    env: dict[str, str],
+    verbose: bool = False,
+) -> dict[str, Any]:
+    hash_check_started = time.monotonic()
+    current_build_input_hash = compute_build_input_hash(alr=alr)
+    if safec.exists() and build_cache is not None:
+        cached_build = build_cache.get("build")
+        if (
+            isinstance(cached_build, dict)
+            and cached_build.get("build_input_hash") == current_build_input_hash
+        ):
+            log_progress(
+                verbose=verbose,
+                message=(
+                    "[frontend_smoke] build inputs unchanged, skipping clean rebuild "
+                    f"({format_elapsed(time.monotonic() - hash_check_started)} hash check)"
+                ),
+            )
+            return cached_build
+
+    if safec.exists() and prior_report is not None:
+        prior_build = prior_report.get("build")
+        if (
+            isinstance(prior_build, dict)
+            and prior_build.get("build_input_hash") == current_build_input_hash
+            and prior_build.get("binary_deterministic") is True
+        ):
+            if build_cache is not None:
+                build_cache["build"] = prior_build
+            log_progress(
+                verbose=verbose,
+                message=(
+                    "[frontend_smoke] build inputs unchanged, skipping clean rebuild "
+                    f"({format_elapsed(time.monotonic() - hash_check_started)} hash check)"
+                ),
+            )
+            return prior_build
+
+    rebuild_started = time.monotonic()
     clean_frontend_build_outputs(safec)
     first_build = build_frontend(alr, env)
     require_repo_command(safec, "safec")
@@ -156,6 +246,42 @@ def generate_report(*, alr: str, python: str, safec: Path, env: dict[str, str]) 
         first_binary_sha256 == second_binary_sha256,
         "frontend build is non-deterministic: normalized compiler payload drifted across clean rebuilds",
     )
+    build = {
+        "command": first_build["command"],
+        "cwd": first_build["cwd"],
+        "returncodes": [first_build["returncode"], second_build["returncode"]],
+        "binary_path": display_path(safec, repo_root=REPO_ROOT),
+        "binary_deterministic": True,
+        "build_input_hash": current_build_input_hash,
+    }
+    if build_cache is not None:
+        build_cache["build"] = build
+    log_progress(
+        verbose=verbose,
+        message=f"[frontend_smoke] full clean rebuild proof ({format_elapsed(time.monotonic() - rebuild_started)})",
+    )
+    return build
+
+
+def generate_report(
+    *,
+    alr: str,
+    python: str,
+    safec: Path,
+    env: dict[str, str],
+    prior_report: dict[str, Any] | None = None,
+    build_cache: dict[str, dict[str, Any]] | None = None,
+    verbose: bool = False,
+) -> dict[str, Any]:
+    build = resolve_build(
+        alr=alr,
+        safec=safec,
+        prior_report=prior_report,
+        build_cache=build_cache,
+        env=env,
+        verbose=verbose,
+    )
+    require_repo_command(safec, "safec")
 
     with tempfile.TemporaryDirectory(prefix="safec-smoke-") as temp_root_str:
         temp_root = Path(temp_root_str)
@@ -246,13 +372,7 @@ def generate_report(*, alr: str, python: str, safec: Path, env: dict[str, str]) 
             deterministic_outputs[str(sample.relative_to(REPO_ROOT))] = file_hashes
 
         return {
-            "build": {
-                "command": first_build["command"],
-                "cwd": first_build["cwd"],
-                "returncodes": [first_build["returncode"], second_build["returncode"]],
-                "binary_path": display_path(safec, repo_root=REPO_ROOT),
-                "binary_deterministic": True,
-            },
+            "build": build,
             "lex_equality": {
                 **equality_lex_run,
                 "assertions": equality_assertions,
@@ -278,6 +398,7 @@ def generate_report(*, alr: str, python: str, safec: Path, env: dict[str, str]) 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--verbose", action="store_true", help="emit cache/rebuild timing logs")
     args = parser.parse_args()
 
     alr = find_command("alr", Path.home() / "bin" / "alr")
@@ -286,8 +407,18 @@ def main() -> int:
     env = ensure_sdkroot(os.environ.copy())
 
     safec = COMPILER_ROOT / "bin" / "safec"
+    prior_report = load_prior_report(report_path=args.report)
+    build_cache: dict[str, dict[str, Any]] = {}
     report = finalize_deterministic_report(
-        lambda: generate_report(alr=alr, python=python, safec=safec, env=env),
+        lambda: generate_report(
+            alr=alr,
+            python=python,
+            safec=safec,
+            env=env,
+            prior_report=prior_report,
+            build_cache=build_cache,
+            verbose=args.verbose,
+        ),
         label="PR00-PR04 frontend smoke",
     )
 

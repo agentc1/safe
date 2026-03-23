@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 from .harness_common import (
-    DEFAULT_MACOS_SDKROOT,
     REPO_ROOT,
     display_path,
     find_command,
@@ -152,33 +151,18 @@ def emitted_ada_project_text(
     has_gnat_adc: bool,
     platform_name: str = sys.platform,
 ) -> str:
+    del platform_name
     lines = [
         "project Build is",
+        '   for Source_Dirs use (".");',
+        '   for Object_Dir use "obj";',
     ]
-    if platform_name == "darwin":
-        lines.append(
-            f'   Sdk_Root := External ("SDKROOT", "{DEFAULT_MACOS_SDKROOT}");'
-        )
-    lines.extend(
-        [
-            '   for Source_Dirs use (".");',
-            '   for Object_Dir use "obj";',
-        ]
-    )
     if has_gnat_adc:
         lines.extend(
             [
                 "   package Compiler is",
                 '      for Default_Switches ("Ada") use ("-gnatec=gnat.adc");',
                 "   end Compiler;",
-            ]
-        )
-    if platform_name == "darwin":
-        lines.extend(
-            [
-                "   package Linker is",
-                '      for Default_Switches ("Ada") use ("-Wl,-syslibroot," & Sdk_Root);',
-                "   end Linker;",
             ]
         )
     lines.append("end Build;")

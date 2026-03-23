@@ -268,7 +268,7 @@ def run_emit_case(
 def generate_report(*, safec: Path, python: str, env: dict[str, str]) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="pr0694-contracts-") as temp_root_str:
         temp_root = Path(temp_root_str)
-        inline_root = COMPILER_ROOT / "obj" / "pr0694-output-contract-stability"
+        inline_root = temp_root / "inline-sources"
         inline_root.mkdir(parents=True, exist_ok=True)
         corpus_results: dict[str, Any] = {}
         for sample in CORPUS_SAMPLES:

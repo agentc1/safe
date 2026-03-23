@@ -61,10 +61,10 @@ class HarnessCommonTests(unittest.TestCase):
     def test_find_command_returns_name_for_path_discovered_tool(self) -> None:
         self.assertEqual(hc.find_command("sh"), "sh")
 
-    def test_compiler_build_argv_uses_serial_gprbuild(self) -> None:
+    def test_compiler_build_argv_uses_default_parallel_gprbuild(self) -> None:
         self.assertEqual(
             hc.compiler_build_argv("alr"),
-            ["alr", "build", "--", "-j1", "-p"],
+            ["alr", "build", "--", "-j0", "-p"],
         )
 
     def test_ensure_deterministic_env_overrides_conflicting_values(self) -> None:
@@ -246,6 +246,16 @@ class HarnessCommonTests(unittest.TestCase):
             with hc.managed_scratch_root(scratch_root=scratch_root, prefix="unused-") as managed:
                 self.assertFalse((managed / "fresh.txt").exists())
 
+    def test_managed_scratch_root_rejects_repository_root(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "scratch root must not be the repository root"):
+            with hc.managed_scratch_root(scratch_root=hc.REPO_ROOT, prefix="unused-"):
+                self.fail("managed_scratch_root unexpectedly yielded the repository root")
+
+    def test_managed_scratch_root_rejects_non_temp_root(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "scratch root must live under"):
+            with hc.managed_scratch_root(scratch_root=Path("/home/non-temp-scratch"), prefix="unused-"):
+                self.fail("managed_scratch_root unexpectedly yielded a non-temp scratch root")
+
     def test_rerun_report_gate_and_compare_returns_stable_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_root = Path(temp_dir)
@@ -339,47 +349,13 @@ class HarnessCommonTests(unittest.TestCase):
             self.assertEqual(metadata["rerun"]["cwd"], "$REPO_ROOT")
             self.assertEqual(metadata["rerun"]["returncode"], 0)
 
-    def test_ensure_sdkroot_respects_existing_value(self) -> None:
+    def test_ensure_sdkroot_is_a_noop_for_existing_value(self) -> None:
         env = {"SDKROOT": "/tmp/sdk"}
         self.assertEqual(hc.ensure_sdkroot(env, platform_name="darwin"), env)
 
-    def test_ensure_sdkroot_prefers_xcrun(self) -> None:
-        def fake_xcrun(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-            return subprocess.CompletedProcess(
-                args=["xcrun", "--show-sdk-path"],
-                returncode=0,
-                stdout="/tmp/detected-sdk\n",
-                stderr="",
-            )
-
-        env = hc.ensure_sdkroot(
-            {},
-            platform_name="darwin",
-            xcrun_runner=fake_xcrun,
-            fallback_sdkroot=Path("/does/not/exist"),
-        )
-        self.assertEqual(env["SDKROOT"], "/tmp/detected-sdk")
-
-    def test_ensure_sdkroot_falls_back_to_generic_sdk(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            fallback_sdkroot = Path(temp_dir) / "MacOSX.sdk"
-            fallback_sdkroot.mkdir()
-
-            def fake_xcrun(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-                return subprocess.CompletedProcess(
-                    args=["xcrun", "--show-sdk-path"],
-                    returncode=1,
-                    stdout="",
-                    stderr="missing",
-                )
-
-            env = hc.ensure_sdkroot(
-                {},
-                platform_name="darwin",
-                xcrun_runner=fake_xcrun,
-                fallback_sdkroot=fallback_sdkroot,
-            )
-            self.assertEqual(env["SDKROOT"], str(fallback_sdkroot))
+    def test_ensure_sdkroot_is_a_noop_without_sdkroot(self) -> None:
+        env = {"PATH": "/usr/bin"}
+        self.assertEqual(hc.ensure_sdkroot(env, platform_name="darwin"), env)
 
 
 if __name__ == "__main__":

@@ -13,14 +13,18 @@ from pathlib import Path
 from typing import Any
 
 from _lib.harness_common import (
+    canonicalize_serialized_child_result,
     compiler_build_argv,
     display_path,
     ensure_sdkroot,
     finalize_deterministic_report,
     find_command,
     generated_output_paths,
+    load_pipeline_input,
     load_evidence_policy,
     require,
+    require_pipeline_report,
+    require_pipeline_result,
     require_repo_command,
     resolve_generated_path,
     run,
@@ -48,6 +52,11 @@ GATE_QUALITY_CHILD_NAME = "gate_quality"
 
 def format_elapsed(seconds: float) -> str:
     return f"{seconds:.1f}s"
+
+
+def log_progress(*, verbose: bool, message: str) -> None:
+    if verbose:
+        print(message)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -198,6 +207,7 @@ def resolve_build_reproducibility(
     safec: Path,
     prior_report: dict[str, Any] | None,
     env: dict[str, str],
+    verbose: bool = False,
 ) -> tuple[dict[str, Any], str]:
     hash_check_started = time.monotonic()
     if safec.exists():
@@ -210,14 +220,20 @@ def resolve_build_reproducibility(
                 and isinstance(prior_build_reproducibility, dict)
                 and current_binary_sha256 == prior_binary_sha256
             ):
-                print(
-                    "[pr0699] binary hash unchanged, skipping reproducibility rebuild "
-                    f"({format_elapsed(time.monotonic() - hash_check_started)} hash check)"
+                log_progress(
+                    verbose=verbose,
+                    message=(
+                        "[pr0699] binary hash unchanged, skipping reproducibility rebuild "
+                        f"({format_elapsed(time.monotonic() - hash_check_started)} hash check)"
+                    ),
                 )
                 return prior_build_reproducibility, current_binary_sha256
     rebuild_started = time.monotonic()
     rebuild_result = run_build_reproducibility(alr=alr, safec=safec, env=env)
-    print(f"[pr0699] full reproducibility rebuild ({format_elapsed(time.monotonic() - rebuild_started)})")
+    log_progress(
+        verbose=verbose,
+        message=f"[pr0699] full reproducibility rebuild ({format_elapsed(time.monotonic() - rebuild_started)})",
+    )
     return rebuild_result
 
 
@@ -265,6 +281,7 @@ def resolve_gate_quality_result(
     env: dict[str, str],
     prior_report: dict[str, Any] | None,
     gate_quality_input_hash: str | None,
+    verbose: bool = False,
 ) -> dict[str, Any]:
     hash_check_started = time.monotonic()
     if prior_report is not None and gate_quality_input_hash is not None:
@@ -274,9 +291,12 @@ def resolve_gate_quality_result(
             prior_hash = prior_hashes.get(GATE_QUALITY_CHILD_NAME)
             prior_gate_quality = prior_delegated_reports.get(GATE_QUALITY_CHILD_NAME)
             if prior_hash == gate_quality_input_hash and isinstance(prior_gate_quality, dict):
-                print(
-                    "[pr0699] gate_quality inputs unchanged, reusing cached result "
-                    f"({format_elapsed(time.monotonic() - hash_check_started)} hash check)"
+                log_progress(
+                    verbose=verbose,
+                    message=(
+                        "[pr0699] gate_quality inputs unchanged, reusing cached result "
+                        f"({format_elapsed(time.monotonic() - hash_check_started)} hash check)"
+                    ),
                 )
                 return prior_gate_quality
     return run_gate_script(
@@ -346,36 +366,38 @@ def run_gate_script(
     }
 
 
-def generate_report(
+def pipeline_frontend_smoke(*, pipeline_input: dict[str, Any]) -> dict[str, Any]:
+    result = canonicalize_serialized_child_result(
+        require_pipeline_result(pipeline_input, node_id="frontend_smoke"),
+        committed_report_path=FRONTEND_SMOKE_REPORT,
+        repo_root=REPO_ROOT,
+    )
+    report = require_pipeline_report(pipeline_input, node_id="frontend_smoke")
+    require(report.get("deterministic") is True, "frontend smoke pipeline report must be deterministic")
+    require(
+        report.get("report_sha256") == report.get("repeat_sha256"),
+        "frontend smoke pipeline report hashes must match",
+    )
+    return {
+        "run": result,
+        "report_path": display_path(FRONTEND_SMOKE_REPORT, repo_root=REPO_ROOT),
+        "report_sha256": report["report_sha256"],
+        "repeat_sha256": report["repeat_sha256"],
+        "binary_deterministic": True,
+    }
+
+
+def resolve_frontend_smoke_result(
     *,
     python: str,
-    alr: str,
-    safec: Path,
     generated_root: Path | None,
-    authority: str = "ci",
     env: dict[str, str],
+    pipeline_input: dict[str, Any],
+    verbose: bool = False,
 ) -> dict[str, Any]:
-    prior_report = load_prior_report(generated_root=generated_root)
-    build_reproducibility, safec_binary_sha256 = resolve_build_reproducibility(
-        alr=alr,
-        safec=safec,
-        prior_report=prior_report,
-        env=env,
-    )
-    require_repo_command(safec, "safec")
-    gate_quality_input_hash = compute_gate_quality_input_hash(
-        safec_binary_sha256=safec_binary_sha256
-    )
-    report_safec_binary_sha256 = canonical_safec_binary_sha256(
-        authority=authority,
-        prior_report=prior_report,
-        observed_binary_sha256=safec_binary_sha256,
-    )
-    report_child_gate_input_hashes = canonical_child_gate_input_hashes(
-        authority=authority,
-        prior_report=prior_report,
-        gate_quality_input_hash=gate_quality_input_hash,
-    )
+    if pipeline_input:
+        log_progress(verbose=verbose, message="[pr0699] reusing pipeline frontend_smoke result")
+        return pipeline_frontend_smoke(pipeline_input=pipeline_input)
 
     frontend_smoke = run_gate_script(
         python=python,
@@ -396,6 +418,54 @@ def generate_report(
         frontend_smoke_report["build"]["binary_deterministic"] is True,
         "frontend smoke report must record a deterministic binary",
     )
+    return {
+        **frontend_smoke,
+        "binary_deterministic": frontend_smoke_report["build"]["binary_deterministic"],
+    }
+
+
+def generate_report(
+    *,
+    python: str,
+    alr: str,
+    safec: Path,
+    generated_root: Path | None,
+    authority: str = "ci",
+    env: dict[str, str],
+    pipeline_input: dict[str, Any] | None = None,
+    verbose: bool = False,
+) -> dict[str, Any]:
+    pipeline_input = pipeline_input or {}
+    prior_report = load_prior_report(generated_root=generated_root)
+    build_reproducibility, safec_binary_sha256 = resolve_build_reproducibility(
+        alr=alr,
+        safec=safec,
+        prior_report=prior_report,
+        env=env,
+        verbose=verbose,
+    )
+    require_repo_command(safec, "safec")
+    gate_quality_input_hash = compute_gate_quality_input_hash(
+        safec_binary_sha256=safec_binary_sha256
+    )
+    report_safec_binary_sha256 = canonical_safec_binary_sha256(
+        authority=authority,
+        prior_report=prior_report,
+        observed_binary_sha256=safec_binary_sha256,
+    )
+    report_child_gate_input_hashes = canonical_child_gate_input_hashes(
+        authority=authority,
+        prior_report=prior_report,
+        gate_quality_input_hash=gate_quality_input_hash,
+    )
+
+    frontend_smoke = resolve_frontend_smoke_result(
+        python=python,
+        generated_root=generated_root,
+        env=env,
+        pipeline_input=pipeline_input,
+        verbose=verbose,
+    )
 
     gate_quality = resolve_gate_quality_result(
         python=python,
@@ -403,6 +473,7 @@ def generate_report(
         env=env,
         prior_report=prior_report,
         gate_quality_input_hash=gate_quality_input_hash,
+        verbose=verbose,
     )
     legacy_cleanup = run_gate_script(
         python=python,
@@ -419,10 +490,7 @@ def generate_report(
         "child_gate_input_hashes": report_child_gate_input_hashes,
         "build_reproducibility": build_reproducibility,
         "delegated_reports": {
-            "frontend_smoke": {
-                **frontend_smoke,
-                "binary_deterministic": frontend_smoke_report["build"]["binary_deterministic"],
-            },
+            "frontend_smoke": frontend_smoke,
             "gate_quality": gate_quality,
             "legacy_package_cleanup": legacy_cleanup,
         },
@@ -432,8 +500,10 @@ def generate_report(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--pipeline-input", type=Path)
     parser.add_argument("--generated-root", type=Path)
     parser.add_argument("--authority", choices=("local", "ci"), default="local")
+    parser.add_argument("--verbose", action="store_true", help="emit cache/reuse progress logs")
     args = parser.parse_args()
 
     python = find_command("python3")
@@ -441,6 +511,7 @@ def main() -> int:
     env = ensure_sdkroot(os.environ.copy())
     safec = COMPILER_ROOT / "bin" / "safec"
     generated_root = args.generated_root or infer_generated_root(report_path=args.report)
+    pipeline_input = load_pipeline_input(args.pipeline_input)
     report_paths = [
         FRONTEND_SMOKE_REPORT,
         GATE_QUALITY_REPORT,
@@ -464,6 +535,8 @@ def main() -> int:
             generated_root=generated_root,
             authority=args.authority,
             env=env,
+            pipeline_input=pipeline_input,
+            verbose=args.verbose,
         ),
         label="PR06.9.9 build reproducibility",
     )

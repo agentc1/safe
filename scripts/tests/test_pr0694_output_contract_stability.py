@@ -1,63 +1,68 @@
 from __future__ import annotations
 
-import hashlib
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from _lib import harness_common as hc
+import run_pr0694_output_contract_stability
 
 
 class Pr0694OutputContractStabilityTests(unittest.TestCase):
-    def test_stable_emitted_artifact_sha256_normalizes_repo_paths_in_mir(self) -> None:
-        remote_root = Path("/home/runner/work/safe/safe")
-        local_text = (
-            "{"
-            f"\"path\":\"{hc.REPO_ROOT / 'tests/positive/rule4_conditional.safe'}\","
-            f"\"source_path\":\"{hc.REPO_ROOT / 'tests/positive/rule4_conditional.safe'}\""
-            "}"
-        )
-        remote_text = (
-            "{"
-            f"\"path\":\"{remote_root / 'tests/positive/rule4_conditional.safe'}\","
-            f"\"source_path\":\"{remote_root / 'tests/positive/rule4_conditional.safe'}\""
-            "}"
-        )
+    def test_generate_report_keeps_inline_fixture_out_of_compiler_obj(self) -> None:
+        captured_inline_source: Path | None = None
+        real_temporary_directory = tempfile.TemporaryDirectory
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_root = Path(temp_dir)
-            mir_path = temp_root / "rule4_conditional.mir.json"
-            mir_path.write_text(local_text, encoding="utf-8")
+        @contextmanager
+        def fixed_temp_root(*args: object, **kwargs: object):
+            del args, kwargs
+            with real_temporary_directory() as temp_dir:
+                yield temp_dir
 
-            local_hash = hc.stable_emitted_artifact_sha256(
-                mir_path,
-                temp_root=temp_root,
+        def fake_run_emit_case(
+            *,
+            name: str,
+            source: Path,
+            **_kwargs: object,
+        ) -> dict[str, object]:
+            nonlocal captured_inline_source
+            if name == "public_interface":
+                captured_inline_source = source
+                self.assertEqual(
+                    source.read_text(encoding="utf-8"),
+                    run_pr0694_output_contract_stability.PUBLIC_INTERFACE_SOURCE,
+                )
+            return {"source": str(source)}
+
+        with mock.patch.object(
+            run_pr0694_output_contract_stability.tempfile,
+            "TemporaryDirectory",
+            side_effect=fixed_temp_root,
+        ), mock.patch.object(
+            run_pr0694_output_contract_stability,
+            "run_emit_case",
+            side_effect=fake_run_emit_case,
+        ):
+            run_pr0694_output_contract_stability.generate_report(
+                safec=Path("/tmp/safec"),
+                python="python3",
+                env={},
             )
-            remote_hash = hashlib.sha256(
-                hc.normalize_text(remote_text, repo_root=remote_root).encode("utf-8")
-            ).hexdigest()
 
-        self.assertEqual(local_hash, remote_hash)
-
-    def test_stable_emitted_artifact_sha256_keeps_non_mir_hashes_raw(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_root = Path(temp_dir)
-            typed_path = temp_root / "rule4_conditional.typed.json"
-            typed_path.write_text('{"path":"unchanged"}', encoding="utf-8")
-
-            self.assertEqual(
-                hc.stable_emitted_artifact_sha256(
-                    typed_path,
-                    temp_root=temp_root,
-                ),
-                hc.sha256_text('{"path":"unchanged"}'),
-            )
+        self.assertIsNotNone(captured_inline_source)
+        assert captured_inline_source is not None
+        self.assertIn("inline-sources", captured_inline_source.parts)
+        self.assertNotIn("obj", captured_inline_source.parts)
+        self.assertFalse(
+            run_pr0694_output_contract_stability.COMPILER_ROOT / "obj" in captured_inline_source.parents
+        )
 
 
 if __name__ == "__main__":

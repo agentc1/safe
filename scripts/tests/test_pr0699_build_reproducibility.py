@@ -112,17 +112,49 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
                 "monotonic",
                 side_effect=[10.0, 10.2],
             ):
-                stdout = io.StringIO()
-                with redirect_stdout(stdout):
-                    reused, binary_hash = run_pr0699_build_reproducibility.resolve_build_reproducibility(
-                        alr="alr",
-                        safec=safec,
-                        prior_report={
-                            "safec_binary_sha256": "same-hash",
-                            "build_reproducibility": build_reproducibility,
-                        },
-                        env={},
-                    )
+                reused, binary_hash = run_pr0699_build_reproducibility.resolve_build_reproducibility(
+                    alr="alr",
+                    safec=safec,
+                    prior_report={
+                        "safec_binary_sha256": "same-hash",
+                        "build_reproducibility": build_reproducibility,
+                    },
+                    env={},
+                )
+
+        rebuild_mock.assert_not_called()
+        self.assertEqual(reused, build_reproducibility)
+        self.assertEqual(binary_hash, "same-hash")
+
+    def test_resolve_build_reproducibility_emits_skip_log_in_verbose_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            safec = Path(temp_dir) / "safec"
+            safec.write_bytes(b"binary")
+            build_reproducibility = {"binary_deterministic": True}
+            stdout = io.StringIO()
+
+            with mock.patch.object(
+                run_pr0699_build_reproducibility,
+                "stable_binary_sha256",
+                return_value="same-hash",
+            ), mock.patch.object(
+                run_pr0699_build_reproducibility,
+                "run_build_reproducibility",
+            ) as rebuild_mock, mock.patch.object(
+                run_pr0699_build_reproducibility.time,
+                "monotonic",
+                side_effect=[10.0, 10.2],
+            ), redirect_stdout(stdout):
+                reused, binary_hash = run_pr0699_build_reproducibility.resolve_build_reproducibility(
+                    alr="alr",
+                    safec=safec,
+                    prior_report={
+                        "safec_binary_sha256": "same-hash",
+                        "build_reproducibility": build_reproducibility,
+                    },
+                    env={},
+                    verbose=True,
+                )
 
         rebuild_mock.assert_not_called()
         self.assertEqual(reused, build_reproducibility)
@@ -225,6 +257,39 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
             "report_sha256": "gate",
             "repeat_sha256": "gate",
         }
+        with mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "run_gate_script",
+        ) as gate_mock, mock.patch.object(
+            run_pr0699_build_reproducibility.time,
+            "monotonic",
+            side_effect=[20.0, 20.1],
+        ):
+            result = run_pr0699_build_reproducibility.resolve_gate_quality_result(
+                python="python3",
+                generated_root=None,
+                env={},
+                prior_report={
+                    "child_gate_input_hashes": {
+                        run_pr0699_build_reproducibility.GATE_QUALITY_CHILD_NAME: "same-hash"
+                    },
+                    "delegated_reports": {
+                        run_pr0699_build_reproducibility.GATE_QUALITY_CHILD_NAME: prior_gate_quality
+                    },
+                },
+                gate_quality_input_hash="same-hash",
+            )
+
+        gate_mock.assert_not_called()
+        self.assertEqual(result, prior_gate_quality)
+
+    def test_resolve_gate_quality_result_emits_skip_log_in_verbose_mode(self) -> None:
+        prior_gate_quality = {
+            "run": {"returncode": 0},
+            "report_path": "execution/reports/pr0697-gate-quality-report.json",
+            "report_sha256": "gate",
+            "repeat_sha256": "gate",
+        }
         stdout = io.StringIO()
         with mock.patch.object(
             run_pr0699_build_reproducibility,
@@ -247,6 +312,7 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
                     },
                 },
                 gate_quality_input_hash="same-hash",
+                verbose=True,
             )
 
         gate_mock.assert_not_called()
@@ -408,6 +474,97 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
         self.assertEqual(
             report["child_gate_input_hashes"],
             {run_pr0699_build_reproducibility.GATE_QUALITY_CHILD_NAME: "prior-gate-hash"},
+        )
+
+    def test_generate_report_reuses_pipeline_frontend_smoke_result(self) -> None:
+        gate_quality = {
+            "run": {"returncode": 0},
+            "report_path": "execution/reports/pr0697-gate-quality-report.json",
+            "report_sha256": "gate",
+            "repeat_sha256": "gate",
+        }
+        legacy_cleanup = {
+            "run": {"returncode": 0},
+            "report_path": "execution/reports/pr0698-legacy-package-cleanup-report.json",
+            "report_sha256": "legacy",
+            "repeat_sha256": "legacy",
+        }
+        pipeline_input = {
+            "frontend_smoke": {
+                "result": {
+                    "command": [
+                        "python3",
+                        "scripts/run_frontend_smoke.py",
+                        "--report",
+                        "$TMPDIR/execution/reports/pr00-pr04-frontend-smoke.json",
+                    ],
+                    "cwd": "$REPO_ROOT",
+                    "returncode": 0,
+                    "stdout": "frontend smoke: OK ($TMPDIR/execution/reports/pr00-pr04-frontend-smoke.json)\n",
+                    "stderr": "",
+                },
+                "report": {
+                    "deterministic": True,
+                    "report_sha256": "frontend",
+                    "repeat_sha256": "frontend",
+                },
+            }
+        }
+        with mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "load_prior_report",
+            return_value=None,
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "resolve_build_reproducibility",
+            return_value=({"binary_deterministic": True}, "same-hash"),
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "compute_gate_quality_input_hash",
+            return_value="gate-input-hash",
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "require_repo_command",
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "resolve_gate_quality_result",
+            return_value=gate_quality,
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "run_gate_script",
+            return_value=legacy_cleanup,
+        ) as gate_mock:
+            report = run_pr0699_build_reproducibility.generate_report(
+                python="python3",
+                alr="alr",
+                safec=Path("/tmp/safec"),
+                generated_root=None,
+                env={},
+                pipeline_input=pipeline_input,
+            )
+
+        gate_mock.assert_called_once_with(
+            python="python3",
+            script=run_pr0699_build_reproducibility.LEGACY_CLEANUP_SCRIPT,
+            report_path=run_pr0699_build_reproducibility.LEGACY_CLEANUP_REPORT,
+            generated_root=None,
+            env={},
+        )
+        self.assertEqual(
+            report["delegated_reports"]["frontend_smoke"],
+            {
+                "run": {
+                    "command": ["python3", "scripts/run_frontend_smoke.py"],
+                    "cwd": "$REPO_ROOT",
+                    "returncode": 0,
+                    "stdout": "frontend smoke: OK (execution/reports/pr00-pr04-frontend-smoke.json)\n",
+                    "stderr": "",
+                },
+                "report_path": "execution/reports/pr00-pr04-frontend-smoke.json",
+                "report_sha256": "frontend",
+                "repeat_sha256": "frontend",
+                "binary_deterministic": True,
+            },
         )
 
     def test_gate_quality_skipped_when_input_hash_matches(self) -> None:
@@ -808,7 +965,7 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
             {run_pr0699_build_reproducibility.GATE_QUALITY_CHILD_NAME: cached_hash},
         )
 
-    def test_skip_log_line_emitted_for_gate_quality(self) -> None:
+    def test_resolve_gate_quality_result_quiet_by_default(self) -> None:
         stdout = io.StringIO()
         with mock.patch.object(
             run_pr0699_build_reproducibility,
@@ -833,10 +990,43 @@ class Pr0699BuildReproducibilityTests(unittest.TestCase):
                 gate_quality_input_hash="cached-hash",
             )
 
-        self.assertEqual(
-            stdout.getvalue(),
-            "[pr0699] gate_quality inputs unchanged, reusing cached result (0.1s hash check)\n",
-        )
+        self.assertEqual(stdout.getvalue(), "")
+
+    def test_pipeline_frontend_smoke_emits_reuse_log_in_verbose_mode(self) -> None:
+        pipeline_input = {
+            "frontend_smoke": {
+                "result": {
+                    "command": [
+                        "python3",
+                        "scripts/run_frontend_smoke.py",
+                        "--report",
+                        "$TMPDIR/execution/reports/pr00-pr04-frontend-smoke.json",
+                    ],
+                    "cwd": "$REPO_ROOT",
+                    "returncode": 0,
+                    "stdout": "frontend smoke: OK ($TMPDIR/execution/reports/pr00-pr04-frontend-smoke.json)\n",
+                    "stderr": "",
+                },
+                "report": {
+                    "deterministic": True,
+                    "report_sha256": "frontend",
+                    "repeat_sha256": "frontend",
+                },
+            }
+        }
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            result = run_pr0699_build_reproducibility.resolve_frontend_smoke_result(
+                python="python3",
+                generated_root=None,
+                env={},
+                pipeline_input=pipeline_input,
+                verbose=True,
+            )
+
+        self.assertTrue(result["binary_deterministic"])
+        self.assertEqual(stdout.getvalue(), "[pr0699] reusing pipeline frontend_smoke result\n")
 
     def test_main_passes_authority_to_execution_state_validation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

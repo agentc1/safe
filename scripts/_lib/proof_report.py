@@ -63,7 +63,7 @@ def command_profile(command: list[str]) -> dict[str, Any]:
     require(command, "command profile requires a non-empty command")
     program = _command_name(command)
     if program.startswith("python"):
-        script = command[1] if len(command) > 1 else ""
+        script = _normalize_profile_arg(command[1]) if len(command) > 1 else ""
         return {
             "program": program,
             "script": script,

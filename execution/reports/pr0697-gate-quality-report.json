@@ -266,8 +266,8 @@
       }
     }
   ],
-  "repeat_sha256": "eac9edf1321e58794e82e6f4f705c8baa2cd5bb0f3a93b8922c42e182c38811f",
-  "report_sha256": "eac9edf1321e58794e82e6f4f705c8baa2cd5bb0f3a93b8922c42e182c38811f",
+  "repeat_sha256": "15ab6a0f2af8f7b8562846033b3e30f50265cd48b0b181f32d706a5a764fd64d",
+  "report_sha256": "15ab6a0f2af8f7b8562846033b3e30f50265cd48b0b181f32d706a5a764fd64d",
   "status": "ok",
   "task": "PR06.9.7",
   "unit_tests": {
@@ -293,6 +293,7 @@
       "scripts.tests.test_pr114_signature_control_flow_syntax",
       "scripts.tests.test_proof_report",
       "scripts.tests.test_render_execution_status",
+      "scripts.tests.test_run_frontend_smoke",
       "scripts.tests.test_run_gate_pipeline",
       "scripts.tests.test_run_local_pre_push",
       "scripts.tests.test_validate_execution_state",
@@ -318,15 +319,16 @@
       "scripts.tests.test_pr114_signature_control_flow_syntax",
       "scripts.tests.test_proof_report",
       "scripts.tests.test_render_execution_status",
+      "scripts.tests.test_run_frontend_smoke",
       "scripts.tests.test_run_gate_pipeline",
       "scripts.tests.test_run_local_pre_push",
       "scripts.tests.test_validate_execution_state",
       "scripts.tests.test_validate_output_contracts"
     ],
-    "observed_count": 269,
+    "observed_count": 283,
     "returncode": 0,
-    "stderr": ".............................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 269 tests in <elapsed>\n\nOK\n",
-    "stdout": "[pr0699] gate_quality inputs unchanged, reusing cached result (0.0s hash check)\n[pr0699] gate_quality inputs unchanged, reusing cached result (0.0s hash check)\n[pr0699] full reproducibility rebuild (0.0s)\n[pr0699] full reproducibility rebuild (0.0s)\n[pr0699] full reproducibility rebuild (0.0s)\n[pr0699] full reproducibility rebuild (0.0s)\n[gate-pipeline] total wall time: 0.0s\n"
+    "stderr": "...........................................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 283 tests in <elapsed>\n\nOK\n",
+    "stdout": "[gate-pipeline] total wall time: 0.0s\n"
   },
   "valid_output_contracts": [
     {

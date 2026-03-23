@@ -4,7 +4,6 @@
     "doc_policy_violations": [],
     "docs_scanned": [
       "compiler_impl/README.md",
-      "docs/macos_alire_toolchain_repair.md",
       "release/frontend_runtime_decision.md"
     ],
     "masked_python_interpreters": [
@@ -94,18 +93,17 @@
     ],
     "shell_assumption_violations": [],
     "supported_platforms": [
-      "linux",
-      "macos"
+      "linux"
     ],
     "tempdir_convention_violations": [],
     "unsupported_platforms": [
+      "macos",
       "windows"
     ]
   },
   "monitored_paths": [
     "compiler_impl/README.md",
     "release/frontend_runtime_decision.md",
-    "docs/macos_alire_toolchain_repair.md",
     "execution/reports/pr0693-runtime-boundary-report.json",
     "execution/reports/pr068-ada-ast-emit-no-python-report.json",
     "execution/reports/pr06910-portability-environment-report.json"
@@ -114,9 +112,9 @@
     "environment",
     "portability"
   ],
-  "policy_sha256": "97660f3a6bbcdb4f0ff99f330b1f23c53cb9cc886736f698b21bfd0b82fde363",
-  "repeat_sha256": "264af6189bd52b8689c01c480542fcdef562ff7df02f24f9441ccb4cadc77cfe",
-  "report_sha256": "264af6189bd52b8689c01c480542fcdef562ff7df02f24f9441ccb4cadc77cfe",
+  "policy_sha256": "361a24355e5503c9c95c305fac39327e740dc10864d94ecb48c1b2b4a16bc0b2",
+  "repeat_sha256": "8614acdb15de09296892c9c5df9209afa173fc1263f256ff57dfdd6dbd659d77",
+  "report_sha256": "8614acdb15de09296892c9c5df9209afa173fc1263f256ff57dfdd6dbd659d77",
   "reruns": {
     "ast_emit_no_python": {
       "committed_report_path": "execution/reports/pr068-ada-ast-emit-no-python-report.json",

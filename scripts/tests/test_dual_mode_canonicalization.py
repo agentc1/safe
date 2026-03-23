@@ -11,6 +11,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import run_pr08_frontend_baseline
+import run_pr0699_build_reproducibility
 import run_pr06910_portability_environment
 import run_pr06911_glue_script_safety
 import run_pr06913_documentation_architecture_clarity
@@ -21,6 +22,7 @@ from _lib.gate_manifest import NODES
 
 CANONICALIZED_DUAL_MODE_NODES = {
     "pr08_frontend_baseline",
+    "pr0699_build_reproducibility",
     "pr06910_portability_environment",
     "pr06911_glue_script_safety",
     "pr06913_documentation_architecture_clarity",
@@ -223,6 +225,102 @@ class DualModeCanonicalizationTests(unittest.TestCase):
                     },
                 },
                 generated_root=None,
+            )
+        self.assertEqual(hc.serialize_report(standalone), hc.serialize_report(pipeline))
+
+    def test_pr0699_standalone_and_pipeline_reports_share_canonical_bytes(self) -> None:
+        build_reproducibility = {"binary_deterministic": True}
+        gate_quality = {
+            "run": {"returncode": 0},
+            "report_path": "execution/reports/pr0697-gate-quality-report.json",
+            "report_sha256": "gate",
+            "repeat_sha256": "gate",
+        }
+        legacy_cleanup = {
+            "run": {"returncode": 0},
+            "report_path": "execution/reports/pr0698-legacy-package-cleanup-report.json",
+            "report_sha256": "legacy",
+            "repeat_sha256": "legacy",
+        }
+        standalone_frontend = {
+            "run": {
+                "command": ["python3", "scripts/run_frontend_smoke.py"],
+                "cwd": "$REPO_ROOT",
+                "returncode": 0,
+                "stdout": "frontend smoke: OK (execution/reports/pr00-pr04-frontend-smoke.json)\n",
+                "stderr": "",
+            },
+            "report_path": "execution/reports/pr00-pr04-frontend-smoke.json",
+            "report_sha256": "frontend",
+            "repeat_sha256": "frontend",
+        }
+        pipeline_input = {
+            "frontend_smoke": {
+                "result": {
+                    "command": [
+                        "python3",
+                        "scripts/run_frontend_smoke.py",
+                        "--report",
+                        "$TMPDIR/execution/reports/pr00-pr04-frontend-smoke.json",
+                    ],
+                    "cwd": "$REPO_ROOT",
+                    "returncode": 0,
+                    "stdout": "frontend smoke: OK ($TMPDIR/execution/reports/pr00-pr04-frontend-smoke.json)\n",
+                    "stderr": "",
+                },
+                "report": {
+                    "deterministic": True,
+                    "report_sha256": "frontend",
+                    "repeat_sha256": "frontend",
+                },
+            }
+        }
+        with mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "load_prior_report",
+            return_value=None,
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "resolve_build_reproducibility",
+            return_value=(build_reproducibility, "binary-hash"),
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "compute_gate_quality_input_hash",
+            return_value="gate-input-hash",
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "require_repo_command",
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "resolve_gate_quality_result",
+            return_value=gate_quality,
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "run_gate_script",
+            side_effect=[standalone_frontend, legacy_cleanup, legacy_cleanup],
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "resolve_generated_path",
+            return_value=run_pr0699_build_reproducibility.FRONTEND_SMOKE_REPORT,
+        ), mock.patch.object(
+            run_pr0699_build_reproducibility,
+            "load_json",
+            return_value={"build": {"binary_deterministic": True}},
+        ):
+            standalone = run_pr0699_build_reproducibility.generate_report(
+                python="python3",
+                alr="alr",
+                safec=Path("/tmp/safec"),
+                generated_root=None,
+                env={},
+            )
+            pipeline = run_pr0699_build_reproducibility.generate_report(
+                python="python3",
+                alr="alr",
+                safec=Path("/tmp/safec"),
+                generated_root=None,
+                env={},
+                pipeline_input=pipeline_input,
             )
         self.assertEqual(hc.serialize_report(standalone), hc.serialize_report(pipeline))
 

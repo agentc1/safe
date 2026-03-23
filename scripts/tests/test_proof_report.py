@@ -191,6 +191,19 @@ class ProofReportHelperTests(unittest.TestCase):
         )
         self.assertEqual(profile["project"], "companion.gpr")
 
+    def test_command_profile_normalizes_python_script_path(self) -> None:
+        profile = command_profile(
+            [
+                "python3",
+                "/tmp/work/run_pr104_gnatprove_evidence_parser_hardening.py",
+                "--report",
+                "/tmp/work/report.json",
+            ]
+        )
+        self.assertEqual(profile["program"], "python3")
+        self.assertEqual(profile["script"], "run_pr104_gnatprove_evidence_parser_hardening.py")
+        self.assertEqual(profile["args"], ["--report", "/tmp/work/report.json"])
+
     def test_split_proof_fixtures_builds_semantic_floor_and_machine_sensitive(self) -> None:
         semantic_floor, canonical, machine = split_proof_fixtures(
             [

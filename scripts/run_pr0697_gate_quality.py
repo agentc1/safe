@@ -41,6 +41,7 @@ EXPECTED_TEST_MODULES = (
     "scripts.tests.test_pr114_signature_control_flow_syntax",
     "scripts.tests.test_proof_report",
     "scripts.tests.test_render_execution_status",
+    "scripts.tests.test_run_frontend_smoke",
     "scripts.tests.test_run_gate_pipeline",
     "scripts.tests.test_run_local_pre_push",
     "scripts.tests.test_validate_execution_state",

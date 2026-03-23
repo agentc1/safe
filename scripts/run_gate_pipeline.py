@@ -15,8 +15,6 @@ from typing import Any
 
 from _lib.gate_manifest import (
     BUILD_INITIAL,
-    BUILD_POST_REPRO,
-    BUILD_STATEFUL,
     NODES,
     VALIDATE_EXECUTION_STATE_FINAL,
     VALIDATE_EXECUTION_STATE_PREFLIGHT,
@@ -48,8 +46,6 @@ from render_execution_status import load_tracker, render_dashboard
 
 BUILD_LABELS = {
     BUILD_INITIAL: "build_initial",
-    BUILD_STATEFUL: "build_stateful",
-    BUILD_POST_REPRO: "build_post_repro",
 }
 EVIDENCE_POLICY = load_evidence_policy()
 REPORTS_ROOT_REL = Path(EVIDENCE_POLICY["generated_outputs"]["reports_root"])

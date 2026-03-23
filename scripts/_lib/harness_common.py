@@ -16,7 +16,6 @@ from typing import Any, Callable
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPILER_ROOT = REPO_ROOT / "compiler_impl"
-DEFAULT_MACOS_SDKROOT = Path("/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk")
 EVIDENCE_POLICY_PATH = REPO_ROOT / "execution" / "evidence_policy.json"
 
 
@@ -143,9 +142,9 @@ def require_safec() -> Path:
 
 
 def compiler_build_argv(alr: str) -> list[str]:
-    # Keep Alire's workspace/config generation, but force gprbuild itself to
-    # run serially to avoid occasional corrupt dependency archives on macOS.
-    return [alr, "build", "--", "-j1", "-p"]
+    # Keep Alire's workspace/config generation while deferring actual job-count
+    # selection to gprbuild's default parallelism.
+    return [alr, "build", "--", "-j0", "-p"]
 
 
 def ensure_deterministic_env(
@@ -251,29 +250,7 @@ def ensure_sdkroot(
     *,
     platform_name: str = sys.platform,
     xcrun_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
-    fallback_sdkroot: Path = DEFAULT_MACOS_SDKROOT,
 ) -> dict[str, str]:
-    if platform_name != "darwin" or env.get("SDKROOT"):
-        return env
-    try:
-        xcrun = xcrun_runner(
-            ["xcrun", "--show-sdk-path"],
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-    except OSError:
-        xcrun = None
-    if xcrun is not None and xcrun.returncode == 0:
-        discovered = xcrun.stdout.strip()
-        if discovered:
-            updated = env.copy()
-            updated["SDKROOT"] = discovered
-            return updated
-    if fallback_sdkroot.exists():
-        updated = env.copy()
-        updated["SDKROOT"] = str(fallback_sdkroot)
-        return updated
     return env
 
 
@@ -598,9 +575,23 @@ def reference_committed_report(
 @contextmanager
 def managed_scratch_root(*, scratch_root: Path | None, prefix: str):
     if scratch_root is not None:
-        shutil.rmtree(scratch_root, ignore_errors=True)
-        scratch_root.mkdir(parents=True, exist_ok=True)
-        yield scratch_root
+        resolved_root = scratch_root.resolve()
+        shared_temp_root = Path(tempfile.gettempdir()).resolve()
+        require(resolved_root != Path(resolved_root.anchor), f"{scratch_root}: scratch root must not be filesystem root")
+        require(resolved_root != REPO_ROOT.resolve(), f"{scratch_root}: scratch root must not be the repository root")
+        require(
+            resolved_root != shared_temp_root,
+            f"{scratch_root}: scratch root must not be the shared temp root",
+        )
+        try:
+            resolved_root.relative_to(shared_temp_root)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"{scratch_root}: scratch root must live under {shared_temp_root}"
+            ) from exc
+        shutil.rmtree(resolved_root, ignore_errors=True)
+        resolved_root.mkdir(parents=True, exist_ok=True)
+        yield resolved_root
         return
     with tempfile.TemporaryDirectory(prefix=prefix) as temp_root_str:
         yield Path(temp_root_str)

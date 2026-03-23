@@ -43,7 +43,6 @@ NO_PYTHON_REPORT = REPO_ROOT / "execution" / "reports" / "pr068-ada-ast-emit-no-
 MONITORED_PATHS = [
     REPO_ROOT / "compiler_impl" / "README.md",
     REPO_ROOT / "release" / "frontend_runtime_decision.md",
-    REPO_ROOT / "docs" / "macos_alire_toolchain_repair.md",
     RUNTIME_BOUNDARY_REPORT,
     NO_PYTHON_REPORT,
     REPO_ROOT / "execution" / "reports" / "pr06910-portability-environment-report.json",

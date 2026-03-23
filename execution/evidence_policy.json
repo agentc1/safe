@@ -280,15 +280,7 @@
         "PATH-based command discovery",
         "deterministic TemporaryDirectory prefixes",
         "shell-free glue scripts",
-        "xcrun --show-sdk-path",
-        "SDKROOT",
         "Python glue/orchestration"
-      ],
-      "docs/macos_alire_toolchain_repair.md": [
-        "developer recovery procedure",
-        "not a compiler runtime dependency",
-        "xcrun --show-sdk-path",
-        "SDKROOT"
       ],
       "release/frontend_runtime_decision.md": [
         "Supported frontend environments:",
@@ -296,8 +288,6 @@
         "PATH-based command discovery",
         "deterministic TemporaryDirectory prefixes",
         "shell-free glue scripts",
-        "xcrun --show-sdk-path",
-        "SDKROOT",
         "Python glue/orchestration"
       ]
     },

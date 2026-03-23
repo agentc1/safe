@@ -26,7 +26,7 @@ defaults:
 jobs:
   execution-guard:
     name: Execution Guard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
 
     steps:
@@ -39,7 +39,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install Alire
         uses: alire-project/setup-alire@b607671067a8ca5d7b7f4a12dadb4dc009cd2cc7 # v3
@@ -59,7 +59,7 @@ jobs:
 
   lint-safe-syntax:
     name: Lint Safe Surface Syntax
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 2
 
     steps:
@@ -74,7 +74,7 @@ jobs:
 
   spark-verify:
     name: Build & Verify SPARK Companion
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
 
     steps:
@@ -211,7 +211,7 @@ jobs:
   # ====================================================================
   templates-verify:
     name: Build & Verify Emission Templates
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
 
     defaults:

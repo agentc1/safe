@@ -22,7 +22,7 @@ class RunLocalPrePushTests(unittest.TestCase):
         with mock.patch.object(run_local_pre_push, "parse_args", return_value=args), mock.patch.object(
             run_local_pre_push,
             "print_plan",
-            return_value=0,
+            return_value=None,
         ) as print_plan, mock.patch.object(
             run_local_pre_push,
             "verify_pipeline",

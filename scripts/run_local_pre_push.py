@@ -56,7 +56,8 @@ def main() -> int:
     branch = args.branch or current_branch(git=git, env=env)
 
     if args.dry_run:
-        return print_plan(branch)
+        print_plan(branch)
+        return 0
     if not resolve_branch(branch):
         print(f"[pre-push] branch: {branch}")
         print("[pre-push] no enforced local gate chain for this branch")

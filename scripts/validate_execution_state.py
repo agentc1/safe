@@ -29,7 +29,6 @@ from _lib.harness_common import (
 )
 from _lib.platform_assumptions import (
     DOCUMENTED_PYTHON_FORMS,
-    MACOS_SDK_DISCOVERY_FORMS,
     MASKED_PYTHON_INTERPRETERS,
     PATH_LOOKUP_POLICY_TEXT,
     SHELL_POLICY_TEXT,
@@ -297,7 +296,6 @@ ENVIRONMENT_DOC_REQUIREMENTS = {
         PATH_LOOKUP_POLICY_TEXT,
         TEMPDIR_POLICY_TEXT,
         SHELL_POLICY_TEXT,
-        *MACOS_SDK_DISCOVERY_FORMS,
         *DOCUMENTED_PYTHON_FORMS,
     ],
     "release/frontend_runtime_decision.md": [
@@ -306,13 +304,7 @@ ENVIRONMENT_DOC_REQUIREMENTS = {
         PATH_LOOKUP_POLICY_TEXT,
         TEMPDIR_POLICY_TEXT,
         SHELL_POLICY_TEXT,
-        *MACOS_SDK_DISCOVERY_FORMS,
         *DOCUMENTED_PYTHON_FORMS,
-    ],
-    "docs/macos_alire_toolchain_repair.md": [
-        "developer recovery procedure",
-        "not a compiler runtime dependency",
-        *MACOS_SDK_DISCOVERY_FORMS,
     ],
 }
 PORTABILITY_MODULE_REQUIREMENTS = {

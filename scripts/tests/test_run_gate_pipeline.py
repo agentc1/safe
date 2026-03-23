@@ -15,7 +15,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import run_gate_pipeline
-from _lib.gate_manifest import BUILD_POST_REPRO, DeterminismClass, Node, NodeKind, VALIDATE_EXECUTION_STATE_FINAL
+from _lib.gate_manifest import DeterminismClass, Node, NodeKind, VALIDATE_EXECUTION_STATE_FINAL
 
 
 class RunGatePipelineTests(unittest.TestCase):
@@ -611,13 +611,13 @@ class RunGatePipelineTests(unittest.TestCase):
             self.assertEqual(checkpoint["dependency_report_hashes"], {})
             self.assertEqual(checkpoint["pipeline_context_entry"]["report"]["report_sha256"], "1" * 64)
 
-    def test_final_rerun_start_index_rewinds_pr0699_to_build_post_repro(self) -> None:
+    def test_final_rerun_start_index_rewinds_pr0699_to_self_without_post_repro_build(self) -> None:
         self.assertEqual(
             run_gate_pipeline.final_rerun_start_index(
                 changed_nodes=["pr0699_build_reproducibility"],
                 dashboard_changed_flag=False,
             ),
-            run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO],
+            run_gate_pipeline.NODE_INDEX_BY_ID["pr0699_build_reproducibility"],
         )
 
     def test_final_rerun_start_index_starts_at_pr0697_when_pr0697_changed(self) -> None:
@@ -702,11 +702,11 @@ class RunGatePipelineTests(unittest.TestCase):
 
     def test_execution_indices_rerun_preflight_before_suffix(self) -> None:
         indices = run_gate_pipeline.execution_indices(
-            start_index=run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO],
+            start_index=run_gate_pipeline.NODE_INDEX_BY_ID["pr0697_gate_quality"],
             rerun_preflight=True,
         )
         self.assertEqual(indices[0], run_gate_pipeline.NODE_INDEX_BY_ID["validate_execution_state_preflight"])
-        self.assertEqual(indices[1], run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO])
+        self.assertEqual(indices[1], run_gate_pipeline.NODE_INDEX_BY_ID["pr0697_gate_quality"])
 
     def test_load_seed_pipeline_context_reads_non_build_prefix_checkpoints(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -829,12 +829,12 @@ class RunGatePipelineTests(unittest.TestCase):
                     text,
                 )
                 self.assertIn(
-                    f"[gate-pipeline] phase: final rerun (start node: {BUILD_POST_REPRO})",
+                    "[gate-pipeline] phase: final rerun (start node: pr0699_build_reproducibility)",
                     text,
                 )
                 load_seed_pipeline_context.assert_called_once_with(
                     checkpoint_root=stage_verify_root / "checkpoints",
-                    start_index=run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO],
+                    start_index=run_gate_pipeline.NODE_INDEX_BY_ID["pr0699_build_reproducibility"],
                 )
                 baseline_file = execute_pipeline.call_args.kwargs["preflight_generated_output_baseline_file"]
                 self.assertEqual(
@@ -843,7 +843,7 @@ class RunGatePipelineTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     execute_pipeline.call_args.kwargs["start_index"],
-                    run_gate_pipeline.NODE_INDEX_BY_ID[BUILD_POST_REPRO],
+                    run_gate_pipeline.NODE_INDEX_BY_ID["pr0699_build_reproducibility"],
                 )
                 self.assertEqual(
                     execute_pipeline.call_args.kwargs["seed_pipeline_context"],

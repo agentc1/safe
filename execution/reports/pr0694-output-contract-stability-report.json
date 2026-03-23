@@ -308,7 +308,7 @@
             "command": [
               "compiler_impl/bin/safec",
               "emit",
-              "compiler_impl/obj/pr0694-output-contract-stability/public_interface.safe",
+              "$TMPDIR/inline-sources/public_interface.safe",
               "--out-dir",
               "$TMPDIR/public_interface-emit-a/out",
               "--interface-dir",
@@ -323,7 +323,7 @@
             "command": [
               "compiler_impl/bin/safec",
               "emit",
-              "compiler_impl/obj/pr0694-output-contract-stability/public_interface.safe",
+              "$TMPDIR/inline-sources/public_interface.safe",
               "--out-dir",
               "$TMPDIR/public_interface-emit-b/out",
               "--interface-dir",
@@ -338,7 +338,7 @@
         "file_hashes": {
           "iface/public_interface.safei.json": "2e9be23e1ccf05765fc9d699a78926e3942b979e5b8a9321e2b3d59ff0a41d83",
           "out/public_interface.ast.json": "045dacb751656bae325e37ea0ee29fef337bb8f578f13383cc1fb9c703e4c171",
-          "out/public_interface.mir.json": "3bee07ae0461ce0728ed15e2e2f7414630bbfd40bb489c43bae21aae40ee536c",
+          "out/public_interface.mir.json": "4c4350aa8145688c56382de83af3be94268c6977c410dc298090ce57c0ec0694",
           "out/public_interface.typed.json": "29c8a06de72d1652c364805ad50b60fc68a8be2ed4843402389838acd4adff57"
         },
         "format_tags": {
@@ -346,7 +346,7 @@
           "safei": "safei-v1",
           "typed": "typed-v2"
         },
-        "mir_source_path": "$REPO_ROOT/compiler_impl/obj/pr0694-output-contract-stability/public_interface.safe",
+        "mir_source_path": "$TMPDIR/inline-sources/public_interface.safe",
         "public_contract": {
           "expected_kinds": [
             "TypeDeclaration",
@@ -367,7 +367,7 @@
           "Seed",
           "Identity"
         ],
-        "source": "$REPO_ROOT/compiler_impl/obj/pr0694-output-contract-stability/public_interface.safe",
+        "source": "$TMPDIR/inline-sources/public_interface.safe",
         "typed_executable_names": [
           "Identity"
         ],
@@ -412,7 +412,7 @@
               "--safei",
               "$TMPDIR/public_interface-emit-a/iface/public_interface.safei.json",
               "--source-path",
-              "compiler_impl/obj/pr0694-output-contract-stability/public_interface.safe"
+              "$TMPDIR/inline-sources/public_interface.safe"
             ],
             "cwd": "$REPO_ROOT",
             "returncode": 0,
@@ -434,8 +434,8 @@
       "public_interface"
     ]
   },
-  "repeat_sha256": "320d2a88ef39148fe7992ac9e735d053c5a971f58102d52ffc65804d28ffb879",
-  "report_sha256": "320d2a88ef39148fe7992ac9e735d053c5a971f58102d52ffc65804d28ffb879",
+  "repeat_sha256": "848017056699bd42aab736e12d1dad9fc59f02270c42217b5a32b3dac34d5268",
+  "report_sha256": "848017056699bd42aab736e12d1dad9fc59f02270c42217b5a32b3dac34d5268",
   "status": "ok",
   "task": "PR06.9.4"
 }
