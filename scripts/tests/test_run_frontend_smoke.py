@@ -66,7 +66,7 @@ class RunFrontendSmokeTests(unittest.TestCase):
                 "binary_deterministic": True,
                 "build_input_hash": "same-hash",
             }
-            build_cache: dict[str, dict[str, object]] = {}
+            build_cache: dict[str, object] = {}
 
             with mock.patch.object(
                 run_frontend_smoke,
@@ -74,8 +74,19 @@ class RunFrontendSmokeTests(unittest.TestCase):
                 return_value="same-hash",
             ), mock.patch.object(
                 run_frontend_smoke,
+                "stable_binary_sha256",
+                side_effect=["current-hash", "current-hash"],
+            ), mock.patch.object(
+                run_frontend_smoke,
+                "clean_frontend_build_outputs",
+            ), mock.patch.object(
+                run_frontend_smoke,
                 "build_frontend",
-            ) as build_mock:
+                return_value={"command": ["alr", "build"], "cwd": "$REPO_ROOT/compiler_impl", "returncode": 0},
+            ) as build_mock, mock.patch.object(
+                run_frontend_smoke,
+                "require_repo_command",
+            ):
                 resolved = run_frontend_smoke.resolve_build(
                     alr="alr",
                     safec=safec,
@@ -84,9 +95,10 @@ class RunFrontendSmokeTests(unittest.TestCase):
                     env={},
                 )
 
-        build_mock.assert_not_called()
+        build_mock.assert_called_once()
         self.assertEqual(resolved, prior_build)
         self.assertEqual(build_cache["build"], prior_build)
+        self.assertEqual(build_cache["binary_sha256"], "current-hash")
 
     def test_resolve_build_reuses_in_process_cache_when_hash_matches(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -107,13 +119,17 @@ class RunFrontendSmokeTests(unittest.TestCase):
                 return_value="same-hash",
             ), mock.patch.object(
                 run_frontend_smoke,
+                "stable_binary_sha256",
+                return_value="cached-hash",
+            ), mock.patch.object(
+                run_frontend_smoke,
                 "build_frontend",
             ) as build_mock:
                 resolved = run_frontend_smoke.resolve_build(
                     alr="alr",
                     safec=safec,
                     prior_report=None,
-                    build_cache={"build": cached_build},
+                    build_cache={"build": cached_build, "binary_sha256": "cached-hash"},
                     env={},
                 )
 
@@ -123,7 +139,7 @@ class RunFrontendSmokeTests(unittest.TestCase):
     def test_resolve_build_falls_back_when_prior_report_missing_binary_sha256(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             safec = Path(temp_dir) / "safec"
-            build_cache: dict[str, dict[str, object]] = {}
+            build_cache: dict[str, object] = {}
 
             with mock.patch.object(
                 run_frontend_smoke,
@@ -159,11 +175,12 @@ class RunFrontendSmokeTests(unittest.TestCase):
         self.assertEqual(resolved["build_input_hash"], "build-input-hash")
         self.assertEqual(resolved["returncodes"], [0, 0])
         self.assertEqual(build_cache["build"], resolved)
+        self.assertEqual(build_cache["binary_sha256"], "proved-hash")
 
     def test_resolve_build_caches_proven_build_for_second_call(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             safec = Path(temp_dir) / "safec"
-            build_cache: dict[str, dict[str, object]] = {}
+            build_cache: dict[str, object] = {}
 
             with mock.patch.object(
                 run_frontend_smoke,
@@ -207,6 +224,55 @@ class RunFrontendSmokeTests(unittest.TestCase):
         self.assertEqual(first["build_input_hash"], "build-input-hash")
         self.assertEqual(second, first)
 
+    def test_resolve_build_rebuilds_when_prior_report_validation_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            safec = Path(temp_dir) / "safec"
+            safec.write_bytes(b"binary")
+            prior_build = {
+                "command": ["alr", "build"],
+                "cwd": "$REPO_ROOT/compiler_impl",
+                "returncodes": [0, 0],
+                "binary_path": "compiler_impl/bin/safec",
+                "binary_deterministic": True,
+                "build_input_hash": "same-hash",
+            }
+            build_cache: dict[str, object] = {}
+
+            with mock.patch.object(
+                run_frontend_smoke,
+                "compute_build_input_hash",
+                return_value="same-hash",
+            ), mock.patch.object(
+                run_frontend_smoke,
+                "clean_frontend_build_outputs",
+            ), mock.patch.object(
+                run_frontend_smoke,
+                "build_frontend",
+                side_effect=[
+                    {"command": ["alr", "build"], "cwd": "$REPO_ROOT/compiler_impl", "returncode": 0},
+                    {"command": ["alr", "build"], "cwd": "$REPO_ROOT/compiler_impl", "returncode": 0},
+                ],
+            ) as build_mock, mock.patch.object(
+                run_frontend_smoke,
+                "require_repo_command",
+            ), mock.patch.object(
+                run_frontend_smoke,
+                "stable_binary_sha256",
+                side_effect=["current-hash", "rebuilt-hash", "rebuilt-hash"],
+            ):
+                resolved = run_frontend_smoke.resolve_build(
+                    alr="alr",
+                    safec=safec,
+                    prior_report={"build": prior_build},
+                    build_cache=build_cache,
+                    env={},
+                )
+
+        self.assertEqual(build_mock.call_count, 2)
+        self.assertEqual(resolved["build_input_hash"], "same-hash")
+        self.assertEqual(build_cache["build"], resolved)
+        self.assertEqual(build_cache["binary_sha256"], "rebuilt-hash")
+
     def test_resolve_build_emits_skip_log_in_verbose_mode(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             safec = Path(temp_dir) / "safec"
@@ -226,9 +292,23 @@ class RunFrontendSmokeTests(unittest.TestCase):
                 "compute_build_input_hash",
                 return_value="same-hash",
             ), mock.patch.object(
+                run_frontend_smoke,
+                "stable_binary_sha256",
+                side_effect=["current-hash", "current-hash"],
+            ), mock.patch.object(
+                run_frontend_smoke,
+                "clean_frontend_build_outputs",
+            ), mock.patch.object(
+                run_frontend_smoke,
+                "build_frontend",
+                return_value={"command": ["alr", "build"], "cwd": "$REPO_ROOT/compiler_impl", "returncode": 0},
+            ), mock.patch.object(
+                run_frontend_smoke,
+                "require_repo_command",
+            ), mock.patch.object(
                 run_frontend_smoke.time,
                 "monotonic",
-                side_effect=[10.0, 10.2],
+                side_effect=[10.0, 10.2, 10.8, 11.0],
             ), redirect_stdout(stdout):
                 run_frontend_smoke.resolve_build(
                     alr="alr",
@@ -241,7 +321,7 @@ class RunFrontendSmokeTests(unittest.TestCase):
 
         self.assertEqual(
             stdout.getvalue(),
-            "[frontend_smoke] build inputs unchanged, skipping clean rebuild (0.2s hash check)\n",
+            "[frontend_smoke] build inputs unchanged, validated cached build (0.6s rebuild, 1.0s total)\n",
         )
 
 

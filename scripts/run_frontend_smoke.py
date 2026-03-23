@@ -175,17 +175,25 @@ def resolve_build(
     alr: str,
     safec: Path,
     prior_report: dict[str, Any] | None,
-    build_cache: dict[str, dict[str, Any]] | None,
+    build_cache: dict[str, Any] | None,
     env: dict[str, str],
     verbose: bool = False,
 ) -> dict[str, Any]:
     hash_check_started = time.monotonic()
     current_build_input_hash = compute_build_input_hash(alr=alr)
+    current_binary_sha256: str | None = None
+
+    if safec.exists():
+        current_binary_sha256 = stable_binary_sha256(safec)
+
     if safec.exists() and build_cache is not None:
         cached_build = build_cache.get("build")
+        cached_binary_sha256 = build_cache.get("binary_sha256")
         if (
             isinstance(cached_build, dict)
             and cached_build.get("build_input_hash") == current_build_input_hash
+            and isinstance(cached_binary_sha256, str)
+            and current_binary_sha256 == cached_binary_sha256
         ):
             log_progress(
                 verbose=verbose,
@@ -203,16 +211,54 @@ def resolve_build(
             and prior_build.get("build_input_hash") == current_build_input_hash
             and prior_build.get("binary_deterministic") is True
         ):
+            validation_started = time.monotonic()
+            clean_frontend_build_outputs(safec)
+            validation_build = build_frontend(alr, env)
+            require_repo_command(safec, "safec")
+            rebuilt_binary_sha256 = stable_binary_sha256(safec)
+            if current_binary_sha256 == rebuilt_binary_sha256:
+                if build_cache is not None:
+                    build_cache["build"] = prior_build
+                    build_cache["binary_sha256"] = rebuilt_binary_sha256
+                log_progress(
+                    verbose=verbose,
+                    message=(
+                        "[frontend_smoke] build inputs unchanged, validated cached build "
+                        f"({format_elapsed(time.monotonic() - validation_started)} rebuild, "
+                        f"{format_elapsed(time.monotonic() - hash_check_started)} total)"
+                    ),
+                )
+                return prior_build
+
+            first_build = validation_build
+            first_binary_sha256 = rebuilt_binary_sha256
+            clean_frontend_build_outputs(safec)
+            second_build = build_frontend(alr, env)
+            require_repo_command(safec, "safec")
+            second_binary_sha256 = stable_binary_sha256(safec)
+            require(
+                first_binary_sha256 == second_binary_sha256,
+                "frontend build is non-deterministic: normalized compiler payload drifted across clean rebuilds",
+            )
+            build = {
+                "command": first_build["command"],
+                "cwd": first_build["cwd"],
+                "returncodes": [first_build["returncode"], second_build["returncode"]],
+                "binary_path": display_path(safec, repo_root=REPO_ROOT),
+                "binary_deterministic": True,
+                "build_input_hash": current_build_input_hash,
+            }
             if build_cache is not None:
-                build_cache["build"] = prior_build
+                build_cache["build"] = build
+                build_cache["binary_sha256"] = second_binary_sha256
             log_progress(
                 verbose=verbose,
                 message=(
-                    "[frontend_smoke] build inputs unchanged, skipping clean rebuild "
-                    f"({format_elapsed(time.monotonic() - hash_check_started)} hash check)"
+                    "[frontend_smoke] cached build drifted, reran clean rebuild proof "
+                    f"({format_elapsed(time.monotonic() - validation_started)} total)"
                 ),
             )
-            return prior_build
+            return build
 
     rebuild_started = time.monotonic()
     clean_frontend_build_outputs(safec)
@@ -237,6 +283,7 @@ def resolve_build(
     }
     if build_cache is not None:
         build_cache["build"] = build
+        build_cache["binary_sha256"] = second_binary_sha256
     log_progress(
         verbose=verbose,
         message=f"[frontend_smoke] full clean rebuild proof ({format_elapsed(time.monotonic() - rebuild_started)})",
@@ -251,7 +298,7 @@ def generate_report(
     safec: Path,
     env: dict[str, str],
     prior_report: dict[str, Any] | None = None,
-    build_cache: dict[str, dict[str, Any]] | None = None,
+    build_cache: dict[str, Any] | None = None,
     verbose: bool = False,
 ) -> dict[str, Any]:
     build = resolve_build(
@@ -389,7 +436,7 @@ def main() -> int:
 
     safec = COMPILER_ROOT / "bin" / "safec"
     prior_report = load_prior_report(report_path=args.report)
-    build_cache: dict[str, dict[str, Any]] = {}
+    build_cache: dict[str, Any] = {}
     report = finalize_deterministic_report(
         lambda: generate_report(
             alr=alr,
