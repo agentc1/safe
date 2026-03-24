@@ -1152,6 +1152,7 @@ def attestation_chain_compression_report(
     proof_violations: List[str] = []
     receipt_violations: List[str] = []
     receipt_payload: Dict[str, Any] | None = None
+    receipt_retired_nodes: Dict[str, Dict[str, Any]] = {}
 
     if not receipt_path.exists():
         receipt_violations.append(f"missing {COMPACTION_RECEIPT_REL}")
@@ -1198,10 +1199,26 @@ def attestation_chain_compression_report(
         retired_nodes = receipt_payload.get("retired_nodes")
         if not isinstance(retired_nodes, list) or len(retired_nodes) != len(RETIRED_NODE_IDS):
             receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes")
+        elif any(not isinstance(entry, dict) for entry in retired_nodes):
+            receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:entries")
+        else:
+            receipt_node_ids: List[str] = []
+            for entry in retired_nodes:
+                node_id = entry.get("node_id")
+                if not isinstance(node_id, str):
+                    receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:node_id")
+                    continue
+                receipt_node_ids.append(node_id)
+                if node_id in receipt_retired_nodes:
+                    receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{node_id}:duplicate")
+                    continue
+                receipt_retired_nodes[node_id] = entry
+            if receipt_node_ids != list(RETIRED_NODE_IDS):
+                receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:order")
 
     for spec in RETIRED_NODE_SPECS:
-        report_path = spec.archive_report_path
-        provenance_path = spec.archive_provenance_path
+        report_path = spec.archive_report_path_at(repo_root)
+        provenance_path = spec.archive_provenance_path_at(repo_root)
         if not report_path.exists():
             archive_missing.append(spec.archive_report_rel)
             continue
@@ -1266,6 +1283,39 @@ def attestation_chain_compression_report(
                 root_hex=pre_merkle_root,
             ):
                 proof_violations.append(spec.node_id)
+
+        receipt_node = receipt_retired_nodes.get(spec.node_id)
+        if receipt_payload is not None and receipt_node is None:
+            receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:missing")
+            continue
+        if receipt_node is None:
+            continue
+        if receipt_node.get("original_report_path") != spec.original_report_rel:
+            receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:original_report_path")
+        if receipt_node.get("archived_report_path") != spec.archive_report_rel:
+            receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:archived_report_path")
+        if receipt_node.get("live_subsumer") != "pr101_comprehensive_audit":
+            receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:live_subsumer")
+        if receipt_node.get("transitive_chain") != list(spec.transitive_chain):
+            receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:transitive_chain")
+        if receipt_node.get("report_sha256") != report_sha256:
+            receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:report_sha256")
+        if receipt_node.get("pre_compaction_commit") != pre_commit:
+            receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:pre_compaction_commit")
+        if receipt_node.get("pre_merkle_root") != pre_merkle_root:
+            receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:pre_merkle_root")
+        receipt_proof = receipt_node.get("inclusion_proof")
+        if not isinstance(receipt_proof, list):
+            receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:inclusion_proof")
+            continue
+        if isinstance(pre_merkle_root, str):
+            if not verify_inclusion_proof(
+                path=spec.original_report_rel,
+                file_bytes=report_raw.encode("utf-8"),
+                proof=receipt_proof,
+                root_hex=pre_merkle_root,
+            ):
+                receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:inclusion_proof")
 
     if isinstance(post_merkle_root, str):
         actual_post_root = merkle_root(active_report_entries(repo_root=repo_root))

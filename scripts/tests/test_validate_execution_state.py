@@ -15,7 +15,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import validate_execution_state
-from _lib.attestation_compression import RETIRED_ARCHIVE_REPORT_RELS
+from _lib.attestation_compression import RETIRED_ARCHIVE_REPORT_RELS, RETIRED_NODE_SPECS
 from validate_execution_state import (
     EVIDENCE_POLICY_SHA256,
     GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS,
@@ -1568,6 +1568,181 @@ class ValidateExecutionStateTests(unittest.TestCase):
         self.assertEqual(report["dashboard_path"], "execution/dashboard.md")
         self.assertEqual(report["policy_sha256"], EVIDENCE_POLICY_SHA256)
         self.assertIn("documentation_architecture", report["policy_sections_used"])
+
+    def test_attestation_chain_compression_report_uses_explicit_repo_root_for_archives(self) -> None:
+        spec = RETIRED_NODE_SPECS[0]
+        pre_root = "1" * 64
+        post_root = "2" * 64
+        pre_commit = "a" * 40
+        post_commit = "b" * 40
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            archived_report = spec.archive_report_path_at(repo_root)
+            report_sha = self._write_finalized_report(archived_report, {"status": "ok"})
+            provenance_path = spec.archive_provenance_path_at(repo_root)
+            provenance_path.parent.mkdir(parents=True, exist_ok=True)
+            provenance_path.write_text(
+                self._serialize_report(
+                    {
+                        "schema_version": 1,
+                        "node_id": spec.node_id,
+                        "original_report_path": spec.original_report_rel,
+                        "archived_report_path": spec.archive_report_rel,
+                        "report_sha256": report_sha,
+                        "live_subsumer": "pr101_comprehensive_audit",
+                        "transitive_chain": list(spec.transitive_chain),
+                        "pre_merkle_root": pre_root,
+                        "inclusion_proof": [],
+                        "pre_compaction_commit": pre_commit,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            receipt_path = repo_root / validate_execution_state.COMPACTION_RECEIPT_REL
+            receipt_path.parent.mkdir(parents=True, exist_ok=True)
+            receipt_path.write_text(
+                self._serialize_report(
+                    {
+                        "schema_version": 1,
+                        "task_id": "PR11.6.1",
+                        "retired_node_ids": [spec.node_id],
+                        "pre_merkle_root": pre_root,
+                        "post_merkle_root": post_root,
+                        "pre_compaction_commit": pre_commit,
+                        "post_compaction_commit": post_commit,
+                        "archive_root": "execution/archive",
+                        "retired_nodes": [
+                            {
+                                "node_id": spec.node_id,
+                                "original_report_path": spec.original_report_rel,
+                                "archived_report_path": spec.archive_report_rel,
+                                "report_sha256": report_sha,
+                                "live_subsumer": "pr101_comprehensive_audit",
+                                "transitive_chain": list(spec.transitive_chain),
+                                "pre_merkle_root": pre_root,
+                                "inclusion_proof": [],
+                                "pre_compaction_commit": pre_commit,
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(validate_execution_state, "RETIRED_NODE_SPECS", (spec,)), mock.patch.object(
+                validate_execution_state,
+                "RETIRED_NODE_IDS",
+                (spec.node_id,),
+            ), mock.patch.object(
+                validate_execution_state,
+                "verify_inclusion_proof",
+                return_value=True,
+            ), mock.patch.object(
+                validate_execution_state,
+                "active_report_entries",
+                return_value=[("execution/reports/live.json", b"live")],
+            ), mock.patch.object(
+                validate_execution_state,
+                "merkle_root",
+                return_value=post_root,
+            ):
+                report = validate_execution_state.attestation_chain_compression_report(repo_root=repo_root)
+
+        self.assertEqual(report["archive_missing"], [])
+        self.assertEqual(report["provenance_missing"], [])
+        self.assertEqual(report["archive_noncanonical"], [])
+        self.assertEqual(report["provenance_noncanonical"], [])
+        self.assertEqual(report["provenance_violations"], [])
+        self.assertEqual(report["proof_violations"], [])
+        self.assertEqual(report["receipt_violations"], [])
+
+    def test_attestation_chain_compression_report_rejects_tampered_receipt_retired_node_summary(self) -> None:
+        spec = RETIRED_NODE_SPECS[0]
+        pre_root = "1" * 64
+        post_root = "2" * 64
+        pre_commit = "a" * 40
+        post_commit = "b" * 40
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            archived_report = spec.archive_report_path_at(repo_root)
+            report_sha = self._write_finalized_report(archived_report, {"status": "ok"})
+            provenance_path = spec.archive_provenance_path_at(repo_root)
+            provenance_path.parent.mkdir(parents=True, exist_ok=True)
+            provenance_path.write_text(
+                self._serialize_report(
+                    {
+                        "schema_version": 1,
+                        "node_id": spec.node_id,
+                        "original_report_path": spec.original_report_rel,
+                        "archived_report_path": spec.archive_report_rel,
+                        "report_sha256": report_sha,
+                        "live_subsumer": "pr101_comprehensive_audit",
+                        "transitive_chain": list(spec.transitive_chain),
+                        "pre_merkle_root": pre_root,
+                        "inclusion_proof": [],
+                        "pre_compaction_commit": pre_commit,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            receipt_path = repo_root / validate_execution_state.COMPACTION_RECEIPT_REL
+            receipt_path.parent.mkdir(parents=True, exist_ok=True)
+            receipt_path.write_text(
+                self._serialize_report(
+                    {
+                        "schema_version": 1,
+                        "task_id": "PR11.6.1",
+                        "retired_node_ids": [spec.node_id],
+                        "pre_merkle_root": pre_root,
+                        "post_merkle_root": post_root,
+                        "pre_compaction_commit": pre_commit,
+                        "post_compaction_commit": post_commit,
+                        "archive_root": "execution/archive",
+                        "retired_nodes": [
+                            {
+                                "node_id": spec.node_id,
+                                "original_report_path": spec.original_report_rel,
+                                "archived_report_path": spec.archive_report_rel,
+                                "report_sha256": "0" * 64,
+                                "live_subsumer": "pr101_comprehensive_audit",
+                                "transitive_chain": list(spec.transitive_chain),
+                                "pre_merkle_root": pre_root,
+                                "inclusion_proof": [],
+                                "pre_compaction_commit": pre_commit,
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(validate_execution_state, "RETIRED_NODE_SPECS", (spec,)), mock.patch.object(
+                validate_execution_state,
+                "RETIRED_NODE_IDS",
+                (spec.node_id,),
+            ), mock.patch.object(
+                validate_execution_state,
+                "verify_inclusion_proof",
+                return_value=True,
+            ), mock.patch.object(
+                validate_execution_state,
+                "active_report_entries",
+                return_value=[("execution/reports/live.json", b"live")],
+            ), mock.patch.object(
+                validate_execution_state,
+                "merkle_root",
+                return_value=post_root,
+            ):
+                report = validate_execution_state.attestation_chain_compression_report(repo_root=repo_root)
+
+        self.assertEqual(
+            report["receipt_violations"],
+            [
+                f"{validate_execution_state.COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:report_sha256",
+            ],
+        )
 
     def test_check_policy_anchoring_detects_mismatched_hash(self) -> None:
         from validate_execution_state import check_policy_anchoring

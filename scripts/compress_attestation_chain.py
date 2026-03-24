@@ -168,26 +168,60 @@ def finalize_receipt(
 def verify_receipt(*, receipt_path: Path, repo_root: Path, pre_compaction_root: Path | None = None) -> int:
     require(receipt_path.exists(), f"missing receipt {display_path(receipt_path, repo_root=repo_root)}")
     payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    require(isinstance(payload, dict), "receipt root must be a JSON object")
     require(payload["task_id"] == "PR11.6.1", "receipt task_id must be PR11.6.1")
     require(payload["retired_node_ids"] == list(RETIRED_NODE_IDS), "receipt retired_node_ids drifted")
+    require(payload["archive_root"] == "execution/archive", "receipt archive_root drifted")
     pre_root = payload["pre_merkle_root"]
     post_root = payload["post_merkle_root"]
+    pre_commit = payload["pre_compaction_commit"]
+    retired_nodes = payload.get("retired_nodes")
+    require(isinstance(retired_nodes, list), "receipt retired_nodes must be a list")
+    require(len(retired_nodes) == len(RETIRED_NODE_SPECS), "receipt retired_nodes length drifted")
+    retired_nodes_by_id: dict[str, dict[str, Any]] = {}
+    for entry in retired_nodes:
+        require(isinstance(entry, dict), "receipt retired_nodes entries must be JSON objects")
+        node_id = entry.get("node_id")
+        require(isinstance(node_id, str), "receipt retired_nodes entries must include node_id")
+        require(node_id not in retired_nodes_by_id, f"{node_id}: duplicate retired node in receipt")
+        retired_nodes_by_id[node_id] = entry
+    require(list(retired_nodes_by_id) == list(RETIRED_NODE_IDS), "receipt retired_nodes order drifted")
     if pre_compaction_root is not None:
         require(
             merkle_root(retired_entries(repo_root=pre_compaction_root)) == pre_root,
             "receipt pre_merkle_root does not match the supplied pre-compaction checkout",
         )
     for spec in RETIRED_NODE_SPECS:
+        retired_node = retired_nodes_by_id[spec.node_id]
         archived_report_bytes = spec.archive_report_path_at(repo_root).read_bytes()
+        archived_report_payload = json.loads(archived_report_bytes.decode("utf-8"))
+        require(isinstance(archived_report_payload, dict), f"{spec.node_id}: archived report root must be a JSON object")
         report_bytes = archived_report_bytes
         if pre_compaction_root is not None:
             report_bytes = spec.original_report_path_at(pre_compaction_root).read_bytes()
-        provenance = json.loads(spec.archive_provenance_path_at(repo_root).read_text(encoding="utf-8"))
+        require(retired_node.get("original_report_path") == spec.original_report_rel, f"{spec.node_id}: original_report_path drifted")
+        require(retired_node.get("archived_report_path") == spec.archive_report_rel, f"{spec.node_id}: archived_report_path drifted")
+        require(retired_node.get("live_subsumer") == LIVE_SUBSUMER, f"{spec.node_id}: live_subsumer drifted")
+        require(
+            retired_node.get("transitive_chain") == list(spec.transitive_chain),
+            f"{spec.node_id}: transitive_chain drifted",
+        )
+        require(retired_node.get("pre_merkle_root") == pre_root, f"{spec.node_id}: pre_merkle_root drifted")
+        require(
+            retired_node.get("pre_compaction_commit") == pre_commit,
+            f"{spec.node_id}: pre_compaction_commit drifted",
+        )
+        require(
+            retired_node.get("report_sha256") == archived_report_payload.get("report_sha256"),
+            f"{spec.node_id}: report_sha256 drifted",
+        )
+        proof = retired_node.get("inclusion_proof")
+        require(isinstance(proof, list), f"{spec.node_id}: inclusion_proof must be a list")
         require(
             verify_inclusion_proof(
                 path=spec.original_report_rel,
                 file_bytes=report_bytes,
-                proof=provenance["inclusion_proof"],
+                proof=proof,
                 root_hex=pre_root,
             ),
             f"{spec.node_id}: inclusion proof failed",

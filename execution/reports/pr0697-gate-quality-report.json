@@ -266,8 +266,8 @@
       }
     }
   ],
-  "repeat_sha256": "24bcbdc7b50b50865dde9f1a7b1c75e09fadd28be040aa664aea6dc3da2557c0",
-  "report_sha256": "24bcbdc7b50b50865dde9f1a7b1c75e09fadd28be040aa664aea6dc3da2557c0",
+  "repeat_sha256": "9089aee662b4c518379be6ad1f5128b235d87cdddc737721d6af7754d0335a2f",
+  "report_sha256": "9089aee662b4c518379be6ad1f5128b235d87cdddc737721d6af7754d0335a2f",
   "status": "ok",
   "task": "PR06.9.7",
   "unit_tests": {
@@ -337,10 +337,10 @@
       "scripts.tests.test_validate_execution_state",
       "scripts.tests.test_validate_output_contracts"
     ],
-    "observed_count": 319,
+    "observed_count": 322,
     "returncode": 0,
-    "stderr": "...............................................................................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 319 tests in <elapsed>\n\nOK\n",
-    "stdout": "attestation compression applied: execution/archive\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\ncompaction receipt verified: execution/compaction-receipts/pr1161-attestation-chain-compression.json\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\n[gate-pipeline] total wall time: 0.0s\n"
+    "stderr": "..................................................................................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 322 tests in <elapsed>\n\nOK\n",
+    "stdout": "attestation compression applied: execution/archive\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\ncompaction receipt verified: execution/compaction-receipts/pr1161-attestation-chain-compression.json\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\n[gate-pipeline] total wall time: 0.0s\n"
   },
   "valid_output_contracts": [
     {
