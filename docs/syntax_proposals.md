@@ -457,6 +457,9 @@ while staying consistent with the rest of the language.
 
 # `pragma Strict`
 
+Status: post-1.0 deferred design note. PR11.6 ships meaningful whitespace and
+does not implement `pragma Strict` in the pre-1.0 roadmap.
+
 ## Motivation
 
 The whitespace-significant syntax proposed earlier optimizes for conciseness
@@ -1373,8 +1376,9 @@ var scores : vector (integer)     -- REJECTED
 var scores : vector (integer, 32) -- OK
 ```
 
-Whether `pragma Strict` enforces this is a design decision for the PR11.6
-evaluation. The option is noted here so the interaction is considered.
+`pragma Strict` is now deferred beyond the pre-1.0 PR11.x roadmap. The option
+is noted here as a post-1.0 design interaction rather than an in-flight PR11.6
+evaluation item.
 
 ## How Guards Work with Default Capacity
 
