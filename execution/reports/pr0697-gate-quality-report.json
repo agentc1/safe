@@ -266,8 +266,8 @@
       }
     }
   ],
-  "repeat_sha256": "4af8001e9dd380c37b3a6e44b556705d3d334014c7bebe2d39239631f9948574",
-  "report_sha256": "4af8001e9dd380c37b3a6e44b556705d3d334014c7bebe2d39239631f9948574",
+  "repeat_sha256": "9089aee662b4c518379be6ad1f5128b235d87cdddc737721d6af7754d0335a2f",
+  "report_sha256": "9089aee662b4c518379be6ad1f5128b235d87cdddc737721d6af7754d0335a2f",
   "status": "ok",
   "task": "PR06.9.7",
   "unit_tests": {
@@ -275,6 +275,7 @@
       "python3",
       "-m",
       "unittest",
+      "scripts.tests.test_compress_attestation_chain",
       "scripts.tests.test_dual_mode_canonicalization",
       "scripts.tests.test_gate_manifest",
       "scripts.tests.test_harness_common",
@@ -306,6 +307,7 @@
     ],
     "cwd": "$REPO_ROOT",
     "modules": [
+      "scripts.tests.test_compress_attestation_chain",
       "scripts.tests.test_dual_mode_canonicalization",
       "scripts.tests.test_gate_manifest",
       "scripts.tests.test_harness_common",
@@ -335,10 +337,10 @@
       "scripts.tests.test_validate_execution_state",
       "scripts.tests.test_validate_output_contracts"
     ],
-    "observed_count": 316,
+    "observed_count": 322,
     "returncode": 0,
-    "stderr": "............................................................................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 316 tests in <elapsed>\n\nOK\n",
-    "stdout": "[gate-pipeline] total wall time: 0.0s\n"
+    "stderr": "..................................................................................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 322 tests in <elapsed>\n\nOK\n",
+    "stdout": "attestation compression applied: execution/archive\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\ncompaction receipt verified: execution/compaction-receipts/pr1161-attestation-chain-compression.json\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\n[gate-pipeline] total wall time: 0.0s\n"
   },
   "valid_output_contracts": [
     {

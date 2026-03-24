@@ -6,9 +6,11 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import tempfile
 from pathlib import Path
 from typing import Any
 
+from _lib.attestation_compression import RETIRED_ARCHIVE_REPORT_PATHS, RETIRED_ARCHIVE_REPORT_RELS
 from _lib.harness_common import (
     canonicalize_serialized_child_result,
     display_path,
@@ -25,7 +27,7 @@ from _lib.harness_common import (
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_REPORT = REPO_ROOT / "execution" / "reports" / "pr08-frontend-baseline-report.json"
+DEFAULT_REPORT = RETIRED_ARCHIVE_REPORT_PATHS["pr08_frontend_baseline"]
 TRACKER_PATH = REPO_ROOT / "execution" / "tracker.json"
 DASHBOARD_PATH = REPO_ROOT / "execution" / "dashboard.md"
 FRONTEND_BASELINE_PATH = REPO_ROOT / "docs" / "frontend_architecture_baseline.md"
@@ -46,11 +48,11 @@ SUBGATE_PIPELINE_IDS = {
     "run_pr084_transitive_concurrency_integration.py": "pr084_transitive_concurrency",
 }
 SUBGATE_REPORTS = {
-    "run_pr081_local_concurrency_frontend.py": REPO_ROOT / "execution" / "reports" / "pr081-local-concurrency-frontend-report.json",
-    "run_pr082_local_concurrency_analysis.py": REPO_ROOT / "execution" / "reports" / "pr082-local-concurrency-analysis-report.json",
-    "run_pr083_interface_contracts.py": REPO_ROOT / "execution" / "reports" / "pr083-interface-contracts-report.json",
-    "run_pr083a_public_constants.py": REPO_ROOT / "execution" / "reports" / "pr083a-public-constants-report.json",
-    "run_pr084_transitive_concurrency_integration.py": REPO_ROOT / "execution" / "reports" / "pr084-transitive-concurrency-integration-report.json",
+    "run_pr081_local_concurrency_frontend.py": RETIRED_ARCHIVE_REPORT_PATHS["pr081_local_concurrency_frontend"],
+    "run_pr082_local_concurrency_analysis.py": RETIRED_ARCHIVE_REPORT_PATHS["pr082_local_concurrency_analysis"],
+    "run_pr083_interface_contracts.py": RETIRED_ARCHIVE_REPORT_PATHS["pr083_interface_contracts"],
+    "run_pr083a_public_constants.py": RETIRED_ARCHIVE_REPORT_PATHS["pr083a_public_constants"],
+    "run_pr084_transitive_concurrency_integration.py": RETIRED_ARCHIVE_REPORT_PATHS["pr084_transitive_concurrency"],
 }
 EVIDENCE_POLICY = load_evidence_policy()
 
@@ -96,9 +98,13 @@ def next_task_is_at_or_beyond_pr09(value: object) -> bool:
 
 def run_subgates(*, python: str) -> dict[str, Any]:
     results: dict[str, Any] = {}
-    for script in SUBGATE_SCRIPTS:
-        result = run([python, script], cwd=REPO_ROOT)
-        results[Path(script).name] = compact_subgate_result(canonicalize_serialized_child_result(result))
+    with tempfile.TemporaryDirectory(prefix="pr08-subgates-") as temp_root_str:
+        temp_root = Path(temp_root_str)
+        for script in SUBGATE_SCRIPTS:
+            script_name = Path(script).name
+            report_path = temp_root / f"{script_name}.json"
+            result = run([python, script, "--report", str(report_path)], cwd=REPO_ROOT, temp_root=temp_root)
+            results[script_name] = compact_subgate_result(canonicalize_serialized_child_result(result))
     return results
 
 
@@ -126,12 +132,12 @@ def generate_report(
     require(task_map["PR08.4"]["status"] == "done", "PR08.4 must be marked done")
     require(task_map["PR08"]["status"] == "done", "PR08 umbrella task must be marked done")
     require(
-        "execution/reports/pr084-transitive-concurrency-integration-report.json"
+        RETIRED_ARCHIVE_REPORT_RELS["pr084_transitive_concurrency"]
         in task_map["PR08.4"]["evidence"],
         "PR08.4 evidence must include the transitive integration report",
     )
     require(
-        "execution/reports/pr08-frontend-baseline-report.json" in task_map["PR08"]["evidence"],
+        RETIRED_ARCHIVE_REPORT_RELS["pr08_frontend_baseline"] in task_map["PR08"]["evidence"],
         "PR08 umbrella evidence must include the PR08 baseline report",
     )
 
