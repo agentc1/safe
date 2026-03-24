@@ -97,14 +97,11 @@ end Package_Global_Array;
 NESTED_DECLARE_SCOPE_SOURCE = """package Nested_Declare_Scope is
    function Read returns Integer is
       Total : Integer = 1;
-   begin
-      declare
-         Inner : Integer = Total;
-         Copy : Integer;
-      begin
+      if True
+         var Inner : Integer = Total;
+         var Copy : Integer;
          Copy = Inner;
          Total = Copy;
-      end;
       return Total;
    end Read;
 end Nested_Declare_Scope;
@@ -475,21 +472,30 @@ def assert_case_specific(case_name: str, mir_payload: dict[str, Any]) -> dict[st
         summary["data_local_id"] = data_local["id"]
 
     elif case_name == "nested_declare_scope":
-        scope1 = graph_by_name(mir_payload, "Read")["scopes"][1]
+        require(len(graph["scopes"]) == 1, "nested_declare_scope: locals now remain in the enclosing subprogram scope")
+        inner_local = local_by_name(graph, "Inner")
+        copy_local = local_by_name(graph, "Copy")
         inner_assigns = assign_ops_for_name(graph, "Inner")
         copy_assigns = assign_ops_for_name(graph, "Copy")
         total_assigns = assign_ops_for_name(graph, "Total")
-        exit_block = block_map(graph)[scope1["exit_blocks"][0]]
-        require(scope1["kind"] == "block", "nested_declare_scope: inner scope must be block")
-        require(scope1["parent_scope_id"] == "scope0", "nested_declare_scope: inner scope must parent scope0")
+        then_block = block_by_role(graph, "if_then")
+        else_block = block_by_role(graph, "if_else")
+        join_block = block_by_role(graph, "if_join")
+        require(inner_local["scope_id"] == "scope0", "nested_declare_scope: Inner must belong to scope0")
+        require(copy_local["scope_id"] == "scope0", "nested_declare_scope: Copy must belong to scope0")
         require(inner_assigns and inner_assigns[0]["declaration_init"], "nested_declare_scope: Inner init must be declaration_init")
         require(copy_assigns and not copy_assigns[0]["declaration_init"], "nested_declare_scope: Copy assignment must not be declaration_init")
-        require(len(total_assigns) >= 2 and not total_assigns[-1]["declaration_init"], "nested_declare_scope: reassigned Total must not be declaration_init")
         require(
-            any(op["kind"] == "scope_exit" and op["scope_id"] == "scope1" for op in exit_block["ops"]),
-            "nested_declare_scope: exit block must contain scope_exit for scope1",
+            total_assigns and not total_assigns[-1]["declaration_init"],
+            "nested_declare_scope: reassigned Total must not be declaration_init",
         )
-        summary["inner_scope_exit_block"] = scope1["exit_blocks"][0]
+        require(
+            then_block["terminator"]["kind"] == "jump"
+            and else_block["terminator"]["kind"] == "jump"
+            and join_block["terminator"]["kind"] == "return",
+            "nested_declare_scope: inner conditional must preserve branch/join CFG shape",
+        )
+        summary["inner_cfg_roles"] = [then_block["role"], else_block["role"], join_block["role"]]
 
     elif case_name == "for_loop_scope":
         scope1 = graph["scopes"][1]

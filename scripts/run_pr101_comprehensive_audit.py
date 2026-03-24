@@ -166,10 +166,18 @@ EXPECTED_PR115_EVIDENCE = [
 EXPECTED_PR116_ACCEPTANCE = [
     "Meaningful whitespace is the admitted block-structuring surface for covered constructs, and legacy explicit block-closing syntax for those constructs is rejected.",
     "The compiler enforces deterministic indentation rules: spaces only, fixed 3-space indentation steps, no accidental mixed-syntax acceptance, and stable structural parsing via indentation tokens.",
-    "A mechanical migration path and deterministic corpus evidence exist for the shipped whitespace surface, while `declare` blocks and `declare_expression` remain explicit in this milestone.",
+    "A mechanical migration path and deterministic corpus evidence exist for the shipped whitespace surface for the covered block forms, while deferred post-PR11.6 cleanup of retained Ada spellings lands separately.",
 ]
 EXPECTED_PR116_EVIDENCE = [
     "execution/reports/pr116-meaningful-whitespace-report.json",
+]
+EXPECTED_PR1162_ACCEPTANCE = [
+    "Statement-level `declare` blocks and `declare_expression` are removed from the admitted Safe source surface; straightforward former uses migrate to enclosing-suite `var` declarations and explicit negative coverage locks the removed forms.",
+    "Source `null` statements, named `exit`, `goto`, `aliased`, and legacy representation-clause syntax are removed from the admitted Safe surface, while empty suites and existing structured control flow remain the only accepted replacements.",
+    "A dedicated PR11.6.2 gate, migration helper, corpus/docs/spec refresh, and full pipeline verify evidence demonstrate the narrowed post-whitespace source surface without weakening emitted Ada implementation detail.",
+]
+EXPECTED_PR1162_EVIDENCE = [
+    "execution/reports/pr1162-legacy-ada-syntax-removal-report.json",
 ]
 EXPECTED_PR102_ACCEPTANCE = [
     "The exact six-fixture PR10.2 Rule 5 positive corpus is tests/positive/rule5_filter.safe, tests/positive/rule5_interpolate.safe, tests/positive/rule5_normalize.safe, tests/positive/rule5_statistics.safe, tests/positive/rule5_temperature.safe, and tests/positive/rule5_vector_normalize.safe; that merged PR07-plus-PR10 set is non-shrinkable and each fixture is frontend-accepted, Ada-emitted, compile-valid, and passes emitted GNATprove flow and prove under the all-proved-only policy.",
@@ -396,6 +404,20 @@ def task_is_at_or_beyond_pr1161(value: object) -> bool:
     if not isinstance(value, str):
         return False
     if re.fullmatch(r"PR11\.6\.[1-9]\d*[A-Za-z0-9]*", value):
+        return True
+    parsed = parse_task_id(value)
+    if parsed is None:
+        return False
+    major, minor = parsed
+    return major > 11 or (major == 11 and minor is not None and minor >= 7)
+
+
+def task_is_at_or_beyond_pr1162(value: object) -> bool:
+    if value is None:
+        return True
+    if not isinstance(value, str):
+        return False
+    if re.fullmatch(r"PR11\.6\.[2-9]\d*[A-Za-z0-9]*", value):
         return True
     parsed = parse_task_id(value)
     if parsed is None:
@@ -840,6 +862,24 @@ def build_report(*, baseline_truth: dict[str, Any], generated_root: Path | None)
         task_is_at_or_beyond_pr1161(tracker.get("next_task_id")),
         "next_task_id must remain at or beyond PR11.6.1 after PR11.6",
     )
+    require("PR11.6.2" in task_map, "tracker must define PR11.6.2")
+    require(task_map["PR11.6.2"]["depends_on"] == ["PR11.6.1"], "PR11.6.2 must depend on PR11.6.1")
+    require(
+        task_map["PR11.6.2"]["acceptance"] == EXPECTED_PR1162_ACCEPTANCE,
+        "PR11.6.2 acceptance text must match the committed legacy-syntax-removal contract",
+    )
+    require(
+        task_map["PR11.6.2"]["status"] == "done",
+        "PR11.6.2 must be marked done",
+    )
+    require(
+        task_map["PR11.6.2"]["evidence"] == EXPECTED_PR1162_EVIDENCE,
+        "PR11.6.2 evidence must list the committed legacy-syntax-removal report",
+    )
+    require(
+        task_is_at_or_beyond_pr117(tracker.get("next_task_id")),
+        "next_task_id must remain at or beyond PR11.7 after PR11.6.2",
+    )
     for task_id in PROMOTED_TASKS:
         require(task_id in task_map, f"tracker must define promoted task {task_id}")
         require(
@@ -895,8 +935,8 @@ def build_report(*, baseline_truth: dict[str, Any], generated_root: Path | None)
     next_task_match = re.search(r"- \*\*Next task:\*\* `([^`]+)`", dashboard_text)
     require(next_task_match is not None, "execution/dashboard.md must render the next-task line")
     require(
-        task_is_at_or_beyond_pr1161(next_task_match.group(1) if next_task_match is not None else None),
-        "execution/dashboard.md must show a next task at or beyond PR11.6.1 (or none)",
+        task_is_at_or_beyond_pr117(next_task_match.group(1) if next_task_match is not None else None),
+        "execution/dashboard.md must show a next task at or beyond PR11.7 (or none)",
     )
     require(
         re.search(r"\| PR10\.4 \| done \| PR10\.1 \| \d+ \|", dashboard_text)

@@ -156,15 +156,18 @@ def run_emitted_sample_checks(safec: Path, env: dict[str, str], temp_root: Path)
 def run_harness_checks(env: dict[str, str], temp_root: Path) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for harness in HARNESSES:
+        report_path = temp_root / f"{harness.stem}.json"
         result = run(
-            ["python3", str(harness)],
+            ["python3", str(harness), "--report", str(report_path)],
             cwd=REPO_ROOT,
             env=env,
             temp_root=temp_root,
         )
+        require(report_path.exists(), f"{harness}: expected report at {report_path}")
         results.append(
             {
                 "harness": str(harness.relative_to(REPO_ROOT)),
+                "report_path": str(report_path.relative_to(temp_root)),
                 "result": result,
             }
         )

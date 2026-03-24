@@ -112,8 +112,7 @@ Phase 1 formalizes the sequential, single-task subset of Safe sufficient to expr
 | Assignment | `X = Expr;` with narrowing-point check | `AssignmentStatement` |
 | Procedure call | `P(Args);` with parameter narrowing | `ProcedureCallStatement` |
 | Return | `return Expr;` with return narrowing | `SimpleReturnStatement`, `ExtendedReturnStatement` |
-| Control flow | `if`/`elsif`/`else`, `case`, `loop` (while, for-in, for-of, unconditional), `exit`, `goto`, `null` | `IfStatement`, `CaseStatement`, `LoopStatement`, `ExitStatement`, `GotoStatement`, `NullStatement` |
-| Block | `declare ... begin ... end;` | `BlockStatement` |
+| Control flow | `if`/`else if`/`else`, `case`, `loop` (while, for-in, for-of, unconditional), `exit`, `return`, `delay`, `select` | `IfStatement`, `CaseStatement`, `LoopStatement`, `ExitStatement`, `SimpleReturnStatement`, `ExtendedReturnStatement`, `DelayStatement`, `SelectStatement` |
 | Assertion | `pragma Assert(Cond);` | `Pragma` |
 | Delay | `delay Expr;` | `DelayStatement` |
 
@@ -151,7 +150,7 @@ Phase 2 adds the memory model: heap-allocated objects, ownership state tracking,
 | Dereference (`.all`, implicit) | Requires `not null` subtype | Rule 4 (p136) |
 | Null comparison (`= null`, `/= null`) | Always legal | -- |
 | `.Access` on heap object | Creates observer/borrower | 2.3.8, p110 |
-| `.Access` on aliased local | Accessibility check (compile-time) | 2.3.8, p111 |
+| `.Access` on local object | Accessibility check (compile-time) | 2.3.8, p111 |
 
 **Array operations formalized:**
 
@@ -170,7 +169,7 @@ Phase 2 adds the memory model: heap-allocated objects, ownership state tracking,
 | Record aggregate `(F1 => V1, ...)` | All fields covered, types match |
 | Discriminant-dependent access | Discriminant value matches variant |
 
-**Automatic deallocation:** At every scope exit point (normal end, `return`, `exit`, `goto`), all pool-specific access variables in scope with non-null values are deallocated in reverse declaration order (spec/02-restrictions.md section 2.3.5, paragraphs 104-105). The K rules model this as a cleanup sequence triggered by the scope-exit transition.
+**Automatic deallocation:** At every scope exit point (normal end, `return`, `exit`), all pool-specific access variables in scope with non-null values are deallocated in reverse declaration order (spec/02-restrictions.md section 2.3.5, paragraphs 104-105). The K rules model this as a cleanup sequence triggered by the scope-exit transition.
 
 ### 2.3 Phase 3: Concurrency -- Tasks, Channels, Select
 

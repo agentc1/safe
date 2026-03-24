@@ -24,7 +24,6 @@ package Try_Send_Ownership
          P = new ((Id = Counter, Value = Counter * 10) as Payload);
          try_send Data_Ch, P, Success;
          if Success
-            null;
          else
             P.all.Value = P.all.Value + 1;
             send Data_Ch, P;
@@ -43,7 +42,6 @@ package Try_Send_Ownership
          receive Data_Ch, Item;
          if Item != null
             Item.all.Value = 0;
-
 
 
 

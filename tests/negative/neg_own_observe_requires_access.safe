@@ -15,7 +15,4 @@ package Observe_Requires_Access_Test
       Owner    : Config_Ptr = new ((Rate = 100) as Config);
       Observer : access constant Config = Owner;  -- ERROR: must use Owner.Access
 
-      null;
-
-
 

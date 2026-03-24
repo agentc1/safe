@@ -24,7 +24,8 @@ from _lib.harness_common import (
     stable_emitted_artifact_sha256,
     write_report,
 )
-from migrate_pr116_whitespace import rewrite_safe_source
+from migrate_pr116_whitespace import rewrite_safe_source as rewrite_pr116_whitespace_source
+from migrate_pr1162_legacy_syntax import rewrite_safe_source as rewrite_pr1162_legacy_source
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -146,10 +147,10 @@ ANALYSIS_REGRESSION_CASES = [
             "      loop\n"
             "         select\n"
             "            when Item : Message from Data_Ch then\n"
-            "               null;\n"
+            "               delay 0.0;\n"
             "         or\n"
             "            delay 1.0 / 0.0 then\n"
-            "               null;\n"
+            "               delay 0.0;\n"
             "         end select;\n"
             "      end loop;\n"
             "   end Worker;\n"
@@ -543,7 +544,10 @@ def validate_analysis_regression_case(
     temp_root: Path,
 ) -> dict[str, Any]:
     source = temp_root / sample["name"]
-    source.write_text(rewrite_safe_source(sample["text"]), encoding="utf-8")
+    source.write_text(
+        rewrite_pr1162_legacy_source(rewrite_pr116_whitespace_source(sample["text"])),
+        encoding="utf-8",
+    )
 
     ast_result = run([str(safec), "ast", str(source)], cwd=REPO_ROOT, env=env, temp_root=temp_root)
     check_diag_json = run(

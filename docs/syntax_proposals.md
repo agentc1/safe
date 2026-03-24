@@ -1807,8 +1807,9 @@ a natural size of 16 bits — the compiler should use it without requiring
 `for X'Size use 16`.
 
 For cases where explicit layout control is needed (hardware registers,
-protocol headers), representation clauses remain available per §2.1.12 of
-the spec.
+protocol headers), this proposal assumes a separate dedicated surface rather
+than relying on Ada representation clauses. PR11.6.2 removes user-authored
+representation clauses from the admitted Safe source surface.
 
 ## Design Rationale
 
@@ -1831,10 +1832,10 @@ the spec.
    explicitly. This is what the spec currently implies. It works but pushes
    portability onto every developer.
 
-2. **Provide only `Integer` (no fixed-width types)** — rely on `'Size`
-   representation clauses for storage control. This is Ada-idiomatic but
-   requires developers to know the representation clause mechanism for
-   basic hardware interfacing.
+2. **Provide only `Integer` (no fixed-width types)** — rely on a separate
+   explicit layout mechanism for storage control. This would avoid fixed-width
+   type names, but still pushes low-level layout concerns onto ordinary source
+   authors.
 
 3. **Rust-style naming (`i8`, `i16`, `u32`, etc.)** — concise but inconsistent
    with Safe's Ada heritage and word-based naming philosophy (`in out` not

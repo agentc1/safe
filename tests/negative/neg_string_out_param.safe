@@ -5,8 +5,5 @@
 package Neg_String_Out_Param
 
    function Set_Name (Name : out String)
-
-      null;
-
-
+      return;
 

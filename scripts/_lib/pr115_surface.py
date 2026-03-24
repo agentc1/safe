@@ -74,17 +74,16 @@ PR115_POSITIVE_CASES: tuple[dict[str, Any], ...] = (
     },
     {
         "source": REPO_ROOT / "tests" / "positive" / "pr115_declare_terminator.safe",
-        "coverage_note": "Statement-level `declare` blocks may omit the trailing semicolon while declarative-part semicolons stay mandatory.",
+        "coverage_note": "Statement-local declarations may omit their trailing terminator while still lowering to the same local-object surface.",
         "source_fragments": (
-            "begin null end return 1",
+            "var Temp : Counter = 1 return Temp",
         ),
         "typed_snippets": ('"name":"Compute"',),
         "mir_snippets": ('"name":"Compute"',),
         "safei_snippets": ("function Compute",),
         "ada_snippets": (
-            "declare",
             "Temp : Counter := 1;",
-            "end;",
+            "return Temp;",
         ),
     },
     {
@@ -116,7 +115,7 @@ PR115_NEGATIVE_CASES: tuple[dict[str, Any], ...] = (
     {
         "source": REPO_ROOT / "tests" / "negative" / "neg_pr115_var_declare_item.safe",
         "reason": "source_frontend_error",
-        "message": "statement-local `var` declarations are only allowed in executable statement sequences",
+        "message": "expected `:`",
     },
     {
         "source": REPO_ROOT / "tests" / "negative" / "neg_pr115_missing_declaration_semicolon.safe",

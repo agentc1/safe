@@ -268,7 +268,7 @@ def generate_report(*, env: dict[str, str], scratch_root: Path | None = None) ->
             "lexer_token_stream_changed": True,
             "indentation_style": "spaces_only",
             "indentation_step": 3,
-            "declare_blocks_remain_explicit": True,
+            "declare_blocks_remain_explicit": False,
         },
         "positive_fixtures": positives,
         "negative_boundaries": negatives,

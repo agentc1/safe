@@ -12,8 +12,7 @@ package Inout_Move_Test
    type Payload_Ptr is access Payload;
 
    function Consume (Ref : in out Payload_Ptr)
-
-      null;
+      return;
 
 
    function Use_Inout
@@ -21,6 +20,4 @@ package Inout_Move_Test
 
       Consume (Owner);
       Consume (Owner);  -- ERROR: Owner was already moved by the first call
-
-
 

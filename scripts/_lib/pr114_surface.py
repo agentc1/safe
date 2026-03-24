@@ -91,22 +91,22 @@ PR114_NEGATIVE_CASES: tuple[dict[str, Any], ...] = (
     {
         "source": REPO_ROOT / "tests" / "negative" / "neg_pr114_legacy_procedure.safe",
         "reason": "source_frontend_error",
-        "message": "legacy `procedure` is not allowed in subprogram declarations; use `function`",
+        "message": "removed source spelling `procedure` is not allowed in subprogram declarations",
     },
     {
         "source": REPO_ROOT / "tests" / "negative" / "neg_pr114_legacy_signature_return.safe",
         "reason": "source_frontend_error",
-        "message": "legacy `return` is not allowed in subprogram signatures; use `returns`",
+        "message": "removed source spelling `return` is not allowed in subprogram signatures",
     },
     {
         "source": REPO_ROOT / "tests" / "negative" / "neg_pr114_legacy_elsif.safe",
         "reason": "source_frontend_error",
-        "message": "legacy `elsif` is not allowed in conditional chains; use `else if`",
+        "message": "removed source spelling `elsif` is not allowed in conditional chains",
     },
     {
         "source": REPO_ROOT / "tests" / "negative" / "neg_pr114_legacy_range_dots.safe",
         "reason": "source_frontend_error",
-        "message": "legacy `..` is not allowed in source ranges; use `to`",
+        "message": "removed source spelling `..` is not allowed in source ranges",
     },
 )
 

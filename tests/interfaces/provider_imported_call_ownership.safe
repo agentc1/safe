@@ -17,8 +17,5 @@ package Provider_Imported_Call_Ownership
 
 
    public function Consume (Ref : in out Payload_Ptr)
-
-      null;
-
-
+      return;
 

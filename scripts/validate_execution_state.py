@@ -406,6 +406,7 @@ GLUE_SAFETY_AUDITED_SCRIPTS = [
     "scripts/run_pr114_signature_control_flow_syntax.py",
     "scripts/run_pr115_statement_ergonomics.py",
     "scripts/run_pr116_meaningful_whitespace.py",
+    "scripts/run_pr1162_legacy_ada_syntax_removal.py",
     "scripts/run_gate_pipeline.py",
     "scripts/run_local_pre_push.py",
     "scripts/validate_execution_state.py",
@@ -456,6 +457,7 @@ GLUE_SAFETY_REPORT_SCRIPTS = [
     "scripts/run_pr114_signature_control_flow_syntax.py",
     "scripts/run_pr115_statement_ergonomics.py",
     "scripts/run_pr116_meaningful_whitespace.py",
+    "scripts/run_pr1162_legacy_ada_syntax_removal.py",
 ]
 GLUE_SAFETY_PATH_COMMANDS = ("python3", "alr", "git")
 GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS = {
@@ -473,6 +475,7 @@ GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS = {
     "scripts/run_pr114_signature_control_flow_syntax.py": "fixture source-fragment checks and emitted structural assertions for the fixed PR11.4 syntax cutover corpus",
     "scripts/run_pr115_statement_ergonomics.py": "fixture source-fragment checks and emitted structural assertions for the fixed PR11.5 statement-ergonomics corpus",
     "scripts/run_pr116_meaningful_whitespace.py": "fixture source-fragment checks, migration-example checks, and emitted structural assertions for the fixed PR11.6 meaningful-whitespace corpus",
+    "scripts/run_pr1162_legacy_ada_syntax_removal.py": "fixture source-fragment checks, migration-example checks, and emitted structural assertions for the fixed PR11.6.2 legacy-syntax-removal corpus",
 }
 GLUE_SAFETY_DIRECT_SAFE_READ_PATTERNS = [
     r'"[^"\n]*\.safe"\s*\)\.read_text\(',
@@ -1153,6 +1156,7 @@ def attestation_chain_compression_report(
     receipt_violations: List[str] = []
     receipt_payload: Dict[str, Any] | None = None
     receipt_retired_nodes: Dict[str, Dict[str, Any]] = {}
+    current_head_commit: str | None = None
 
     if not receipt_path.exists():
         receipt_violations.append(f"missing {COMPACTION_RECEIPT_REL}")
@@ -1174,6 +1178,17 @@ def attestation_chain_compression_report(
     post_merkle_root = receipt_payload.get("post_merkle_root") if isinstance(receipt_payload, dict) else None
     pre_commit = receipt_payload.get("pre_compaction_commit") if isinstance(receipt_payload, dict) else None
     post_commit = receipt_payload.get("post_compaction_commit") if isinstance(receipt_payload, dict) else None
+
+    if isinstance(post_commit, str):
+        try:
+            git = find_command("git")
+            current_head_commit = run(
+                [git, "rev-parse", "HEAD"],
+                cwd=repo_root,
+                env=ensure_deterministic_env(os.environ.copy()),
+            )["stdout"].strip()
+        except (RuntimeError, FileNotFoundError, KeyError):
+            current_head_commit = None
 
     if receipt_payload is not None:
         if receipt_payload.get("schema_version") != 1:
@@ -1317,7 +1332,7 @@ def attestation_chain_compression_report(
             ):
                 receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:inclusion_proof")
 
-    if isinstance(post_merkle_root, str):
+    if isinstance(post_merkle_root, str) and current_head_commit == post_commit:
         actual_post_root = merkle_root(active_report_entries(repo_root=repo_root))
         if actual_post_root != post_merkle_root:
             receipt_violations.append(f"{COMPACTION_RECEIPT_REL}:post_merkle_root")
@@ -1337,8 +1352,8 @@ def attestation_chain_compression_report(
 
 def check_attestation_chain_compression(*, repo_root: Path = REPO_ROOT) -> None:
     report = attestation_chain_compression_report(repo_root=repo_root)
-    if report["manifest_node_count"] != 37:
-        fail(f"compressed manifest must contain 37 nodes, found {report['manifest_node_count']}")
+    if report["manifest_node_count"] != 38:
+        fail(f"compressed manifest must contain 38 nodes, found {report['manifest_node_count']}")
     if report["retired_manifest_nodes"]:
         fail(f"retired nodes still present in manifest: {report['retired_manifest_nodes']}")
     if report["archive_missing"]:

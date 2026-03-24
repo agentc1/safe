@@ -71,7 +71,7 @@
         "returncode": 1
       },
       "first_diagnostic": {
-        "message": "statement-local `var` declarations are only allowed in executable statement sequences",
+        "message": "expected `:`",
         "path": "tests/negative/neg_pr115_var_declare_item.safe",
         "reason": "source_frontend_error"
       },
@@ -388,9 +388,8 @@
     },
     {
       "ada_snippets": [
-        "declare",
         "Temp : Counter := 1;",
-        "end;"
+        "return Temp;"
       ],
       "check": {
         "command": [
@@ -410,7 +409,7 @@
           "-c",
           "-P",
           "$TMPDIR/pr115_declare_terminator/ada/build.gpr",
-          "pr115_declare_terminator.adb"
+          "pr115_local_decl_terminator.adb"
         ],
         "cwd": "$REPO_ROOT/compiler_impl",
         "returncode": 0
@@ -438,7 +437,7 @@
       ],
       "source": "tests/positive/pr115_declare_terminator.safe",
       "source_fragments": [
-        "begin null end return 1"
+        "var Temp : Counter = 1 return Temp"
       ],
       "typed_snippets": [
         "\"name\":\"Compute\""
@@ -519,8 +518,8 @@
       }
     }
   ],
-  "repeat_sha256": "51eb46e515f7405f4eabcd640dcec945519164100d025902fe4faa3695ce05cb",
-  "report_sha256": "51eb46e515f7405f4eabcd640dcec945519164100d025902fe4faa3695ce05cb",
+  "repeat_sha256": "e90217df61d8b6940a0bb01884e7a214b71b793afc5621084c83ac135126c35d",
+  "report_sha256": "e90217df61d8b6940a0bb01884e7a214b71b793afc5621084c83ac135126c35d",
   "rosetta_readability_samples": [
     {
       "ada_snippets": [],

@@ -312,7 +312,6 @@ package Safe_Frontend.Check_Model is
 
    type Statement_Kind is
      (Stmt_Unknown,
-      Stmt_Null,
       Stmt_Object_Decl,
       Stmt_Destructure_Decl,
       Stmt_Assign,
@@ -322,7 +321,6 @@ package Safe_Frontend.Check_Model is
       Stmt_Case,
       Stmt_While,
       Stmt_For,
-      Stmt_Block,
       Stmt_Loop,
       Stmt_Exit,
       Stmt_Send,

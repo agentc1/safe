@@ -158,9 +158,9 @@
               {
                 "highlight_span": {
                   "end_col": 20,
-                  "end_line": 23,
+                  "end_line": 22,
                   "start_col": 16,
-                  "start_line": 23
+                  "start_line": 22
                 },
                 "message": "use of moved value 'Owner'",
                 "notes": [
@@ -171,9 +171,9 @@
                 "reason": "double_move",
                 "span": {
                   "end_col": 20,
-                  "end_line": 23,
+                  "end_line": 22,
                   "start_col": 16,
-                  "start_line": 23
+                  "start_line": 22
                 },
                 "suggestions": []
               }
@@ -182,7 +182,7 @@
           },
           "returncode": 1,
           "stderr": "",
-          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"double_move\",\"message\":\"use of moved value 'Owner'\",\"path\":\"$REPO_ROOT/tests/negative/neg_own_inout_move.safe\",\"span\":{\"start_line\":23,\"start_col\":16,\"end_line\":23,\"end_col\":20},\"highlight_span\":{\"start_line\":23,\"start_col\":16,\"end_line\":23,\"end_col\":20},\"notes\":[\"the access actual for this call was already moved earlier on this path.\",\"rule: Safe \u00a72.3.2 (move semantics)\"],\"suggestions\":[]}]}\n"
+          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"double_move\",\"message\":\"use of moved value 'Owner'\",\"path\":\"$REPO_ROOT/tests/negative/neg_own_inout_move.safe\",\"span\":{\"start_line\":22,\"start_col\":16,\"end_line\":22,\"end_col\":20},\"highlight_span\":{\"start_line\":22,\"start_col\":16,\"end_line\":22,\"end_col\":20},\"notes\":[\"the access actual for this call was already moved earlier on this path.\",\"rule: Safe \u00a72.3.2 (move semantics)\"],\"suggestions\":[]}]}\n"
         },
         "expected_reason": "double_move",
         "source": "tests/negative/neg_own_inout_move.safe"
@@ -595,8 +595,8 @@
       }
     }
   },
-  "repeat_sha256": "9b9a90e6ef3eeef55571d5949a20f312467c28a8ffd831b333628db703fa3ba8",
-  "report_sha256": "9b9a90e6ef3eeef55571d5949a20f312467c28a8ffd831b333628db703fa3ba8",
+  "repeat_sha256": "811b8990f908d7eb73c180e4ce9b2d7d91249f3c40c0727ae7343be77ca8aac2",
+  "report_sha256": "811b8990f908d7eb73c180e4ce9b2d7d91249f3c40c0727ae7343be77ca8aac2",
   "scope": {
     "analyzer_fixture_pairs": [
       {
@@ -858,9 +858,9 @@
               {
                 "highlight_span": {
                   "end_col": 20,
-                  "end_line": 23,
+                  "end_line": 22,
                   "start_col": 16,
-                  "start_line": 23
+                  "start_line": 22
                 },
                 "message": "use of moved value 'Owner'",
                 "notes": [
@@ -871,9 +871,9 @@
                 "reason": "double_move",
                 "span": {
                   "end_col": 20,
-                  "end_line": 23,
+                  "end_line": 22,
                   "start_col": 16,
-                  "start_line": 23
+                  "start_line": 22
                 },
                 "suggestions": []
               }
@@ -882,7 +882,7 @@
           },
           "returncode": 1,
           "stderr": "",
-          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"double_move\",\"message\":\"use of moved value 'Owner'\",\"path\":\"$REPO_ROOT/tests/negative/neg_own_inout_move.safe\",\"span\":{\"start_line\":23,\"start_col\":16,\"end_line\":23,\"end_col\":20},\"highlight_span\":{\"start_line\":23,\"start_col\":16,\"end_line\":23,\"end_col\":20},\"notes\":[\"the access actual for this call was already moved earlier on this path.\",\"rule: Safe \u00a72.3.2 (move semantics)\"],\"suggestions\":[]}]}\n"
+          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"double_move\",\"message\":\"use of moved value 'Owner'\",\"path\":\"$REPO_ROOT/tests/negative/neg_own_inout_move.safe\",\"span\":{\"start_line\":22,\"start_col\":16,\"end_line\":22,\"end_col\":20},\"highlight_span\":{\"start_line\":22,\"start_col\":16,\"end_line\":22,\"end_col\":20},\"notes\":[\"the access actual for this call was already moved earlier on this path.\",\"rule: Safe \u00a72.3.2 (move semantics)\"],\"suggestions\":[]}]}\n"
         },
         "expected_reason": "double_move",
         "source": "tests/negative/neg_own_inout_move.safe"
@@ -992,9 +992,9 @@
               {
                 "highlight_span": {
                   "end_col": 33,
-                  "end_line": 23,
+                  "end_line": 22,
                   "start_col": 20,
-                  "start_line": 23
+                  "start_line": 22
                 },
                 "message": "explicit conversion is not provably within target range",
                 "notes": [
@@ -1005,9 +1005,9 @@
                 "reason": "narrowing_check_failure",
                 "span": {
                   "end_col": 33,
-                  "end_line": 23,
+                  "end_line": 22,
                   "start_col": 20,
-                  "start_line": 23
+                  "start_line": 22
                 },
                 "suggestions": []
               }
@@ -1016,7 +1016,7 @@
           },
           "returncode": 1,
           "stderr": "",
-          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"narrowing_check_failure\",\"message\":\"explicit conversion is not provably within target range\",\"path\":\"$REPO_ROOT/tests/negative/neg_rule1_param_fail.safe\",\"span\":{\"start_line\":23,\"start_col\":20,\"end_line\":23,\"end_col\":33},\"highlight_span\":{\"start_line\":23,\"start_col\":20,\"end_line\":23,\"end_col\":33},\"notes\":[\"target type 'Percentage' has range [0 .. 100]\",\"expression range is [-10_000 .. 10_000]\"],\"suggestions\":[]}]}\n"
+          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"narrowing_check_failure\",\"message\":\"explicit conversion is not provably within target range\",\"path\":\"$REPO_ROOT/tests/negative/neg_rule1_param_fail.safe\",\"span\":{\"start_line\":22,\"start_col\":20,\"end_line\":22,\"end_col\":33},\"highlight_span\":{\"start_line\":22,\"start_col\":20,\"end_line\":22,\"end_col\":33},\"notes\":[\"target type 'Percentage' has range [0 .. 100]\",\"expression range is [-10_000 .. 10_000]\"],\"suggestions\":[]}]}\n"
         },
         "expected_reason": "narrowing_check_failure",
         "source": "tests/negative/neg_rule1_param_fail.safe"

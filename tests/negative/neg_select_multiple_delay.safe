@@ -10,11 +10,8 @@ package Select_Multiple_Delay_Test
       loop
          select
             delay 0.10
-               null;
          or
             delay 0.20
-               null;
-
 
 
 

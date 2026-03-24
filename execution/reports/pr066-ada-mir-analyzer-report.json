@@ -187,28 +187,34 @@
   "harnesses": [
     {
       "harness": "scripts/run_pr05_d27_harness.py",
+      "report_path": "run_pr05_d27_harness.json",
       "result": {
         "command": [
           "python3",
-          "scripts/run_pr05_d27_harness.py"
+          "scripts/run_pr05_d27_harness.py",
+          "--report",
+          "$TMPDIR/run_pr05_d27_harness.json"
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 0,
         "stderr": "",
-        "stdout": "pr05 harness: OK (execution/reports/pr05-d27-report.json)\n"
+        "stdout": "pr05 harness: OK ($TMPDIR/run_pr05_d27_harness.json)\n"
       }
     },
     {
       "harness": "scripts/run_pr06_ownership_harness.py",
+      "report_path": "run_pr06_ownership_harness.json",
       "result": {
         "command": [
           "python3",
-          "scripts/run_pr06_ownership_harness.py"
+          "scripts/run_pr06_ownership_harness.py",
+          "--report",
+          "$TMPDIR/run_pr06_ownership_harness.json"
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 0,
         "stderr": "",
-        "stdout": "pr06 ownership harness: OK (execution/reports/pr06-ownership-report.json)\n"
+        "stdout": "pr06 ownership harness: OK ($TMPDIR/run_pr06_ownership_harness.json)\n"
       }
     }
   ],
@@ -244,6 +250,6 @@
       "stderr_substring": "analyze-mir requires mir-v2 input"
     }
   ],
-  "repeat_sha256": "ae6e2ca1ed40521086f05b812547e82216e0822c7f53a9e7b5c74a0df8c07c62",
-  "report_sha256": "ae6e2ca1ed40521086f05b812547e82216e0822c7f53a9e7b5c74a0df8c07c62"
+  "repeat_sha256": "988a88aca689d642ba7a07f24c2133e07493642f1039ddc868eacd620c933625",
+  "report_sha256": "988a88aca689d642ba7a07f24c2133e07493642f1039ddc868eacd620c933625"
 }

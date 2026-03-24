@@ -1276,8 +1276,6 @@ package body Safe_Frontend.Check_Emit is
       Resolved_Expr : constant CM.Statement_Access :=
         (if Resolved /= null then Resolved else Parsed);
       Elsifs : String_Vectors.Vector;
-      Decls  : String_Vectors.Vector;
-      Resolved_Decl : CM.Object_Decl;
    begin
       if Parsed = null then
          return "{""node_type"":""NullStatement"",""span"":"
@@ -1286,11 +1284,6 @@ package body Safe_Frontend.Check_Emit is
       end if;
 
       case Parsed.Kind is
-         when CM.Stmt_Null =>
-            return
-              "{""node_type"":""NullStatement"",""span"":"
-              & JS.Span_Object (Parsed.Span)
-              & "}";
          when CM.Stmt_Object_Decl =>
             raise Program_Error with "object declarations must be emitted via Sequence_Node";
          when CM.Stmt_Destructure_Decl =>
@@ -1511,33 +1504,6 @@ package body Safe_Frontend.Check_Emit is
               & ",""end_loop_name"":null,""span"":"
               & JS.Span_Object (Parsed.Span)
               & "}";
-         when CM.Stmt_Block =>
-            if not Parsed.Declarations.Is_Empty then
-               for Index in Parsed.Declarations.First_Index .. Parsed.Declarations.Last_Index loop
-                  if not Resolved_Expr.Declarations.Is_Empty
-                    and then Index in Resolved_Expr.Declarations.First_Index .. Resolved_Expr.Declarations.Last_Index
-                  then
-                     Resolved_Decl := Resolved_Expr.Declarations.Element (Index);
-                     Decls.Append
-                       (Declaration_Node
-                          (Parsed.Declarations (Index),
-                           Resolved_Decl.Initializer));
-                  else
-                     Decls.Append (Declaration_Node (Parsed.Declarations (Index)));
-                  end if;
-               end loop;
-            end if;
-            return
-              "{""node_type"":""BlockStatement"",""block_name"":null,""declarations"":"
-              & Json_List (Decls)
-              & ",""body"":"
-              & Sequence_Node
-                  (Parsed.Body_Stmts,
-                   Resolved_Expr.Body_Stmts,
-                   Parsed.Span)
-              & ",""end_block_name"":null,""span"":"
-              & JS.Span_Object (Parsed.Span)
-              & "}";
          when CM.Stmt_Send =>
             return
               "{""node_type"":""SendStatement"",""channel_name"":"
@@ -1608,10 +1574,7 @@ package body Safe_Frontend.Check_Emit is
                  & "}";
             end;
          when others =>
-            return
-              "{""node_type"":""NullStatement"",""span"":"
-              & JS.Span_Object (Parsed.Span)
-              & "}";
+            raise Program_Error with "unsupported statement kind during AST emission";
       end case;
    end Statement_Node;
 

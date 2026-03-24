@@ -2271,44 +2271,6 @@ package body Safe_Frontend.Check_Resolve is
                  Current_Static_Constants,
                  Path);
 
-         when CM.Stmt_Block =>
-            Result.Declarations.Clear;
-            for Decl of Stmt.Declarations loop
-               declare
-                  New_Decl : constant CM.Object_Decl :=
-                    Normalize_Object_Decl
-                      (Decl, Local_Types, Functions, Type_Env, Current_Static_Constants, Path);
-               begin
-                  Result.Declarations.Append (New_Decl);
-                  Decl_Type := New_Decl.Type_Info;
-                  for Name of Decl.Names loop
-                     Put_Type (Local_Types, UString_Value (Name), Decl_Type);
-                     Update_Constant_Visibility
-                       (Current_Constants,
-                        UString_Value (Name),
-                        Decl_Type,
-                        New_Decl.Is_Constant);
-                     Update_Static_Constant_Visibility
-                       (Current_Static_Constants,
-                        UString_Value (Name),
-                        New_Decl.Initializer,
-                        New_Decl.Is_Constant,
-                        Current_Static_Constants);
-                  end loop;
-               end;
-            end loop;
-            Result.Body_Stmts :=
-              Normalize_Statement_List
-                (Stmt.Body_Stmts,
-                 Local_Types,
-                 Functions,
-                 Type_Env,
-                 Channel_Env,
-                 Imported_Objects,
-                 Current_Constants,
-                 Current_Static_Constants,
-                 Path);
-
          when CM.Stmt_Call =>
             Result.Call :=
               Normalize_Procedure_Call
@@ -2996,9 +2958,6 @@ package body Safe_Frontend.Check_Resolve is
             when CM.Stmt_While | CM.Stmt_For | CM.Stmt_Loop =>
                Validate_Task_Nontermination
                  (Stmt.Body_Stmts, Path, Task_Name, Loop_Depth + 1);
-            when CM.Stmt_Block =>
-               Validate_Task_Nontermination
-                 (Stmt.Body_Stmts, Path, Task_Name, Loop_Depth);
             when CM.Stmt_Select =>
                for Arm of Stmt.Arms loop
                   case Arm.Kind is

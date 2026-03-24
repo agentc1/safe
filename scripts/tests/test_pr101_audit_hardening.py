@@ -105,6 +105,19 @@ class Pr101AuditHardeningTests(unittest.TestCase):
         self.assertFalse(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr1161("PR11.6"))
         self.assertFalse(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr1161("PR11.5"))
 
+    def test_pr101_audit_next_task_guard_accepts_pr1162_and_beyond(self) -> None:
+        self.assertTrue(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr1162("PR11.6.2"))
+        self.assertTrue(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr1162("PR11.7"))
+        self.assertTrue(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr1162("PR12.1"))
+        self.assertFalse(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr1162("PR11.6.1"))
+        self.assertFalse(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr1162("PR11.6"))
+
+    def test_pr101_audit_next_task_guard_accepts_pr117_and_beyond(self) -> None:
+        self.assertTrue(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr117("PR11.7"))
+        self.assertTrue(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr117("PR12.1"))
+        self.assertFalse(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr117("PR11.6.2"))
+        self.assertFalse(run_pr101_comprehensive_audit.task_is_at_or_beyond_pr117("PR11.6.1"))
+
     def test_pr101_audit_tracks_pr111_acceptance_and_evidence(self) -> None:
         self.assertEqual(
             run_pr101_comprehensive_audit.EXPECTED_PR111_EVIDENCE,
@@ -167,6 +180,15 @@ class Pr101AuditHardeningTests(unittest.TestCase):
         self.assertIn(
             "to PR11.8b",
             run_pr101_comprehensive_audit.EXPECTED_PR115_ACCEPTANCE[2],
+        )
+        self.assertEqual(
+            run_pr101_comprehensive_audit.EXPECTED_PR1162_EVIDENCE,
+            ["execution/reports/pr1162-legacy-ada-syntax-removal-report.json"],
+        )
+        self.assertEqual(len(run_pr101_comprehensive_audit.EXPECTED_PR1162_ACCEPTANCE), 3)
+        self.assertIn(
+            "`declare` blocks and `declare_expression` are removed",
+            run_pr101_comprehensive_audit.EXPECTED_PR1162_ACCEPTANCE[0],
         )
 
     def test_pr101_audit_workflow_contract_tracks_single_pipeline_ci_path(self) -> None:

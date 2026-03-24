@@ -118,10 +118,10 @@
 | 16 | `spec/02-restrictions.md#2.3.5.p105:d4a9cdb4` | Multiple access objects deallocated in reverse declaration order | runtime_wrapper_check | stubbed |
 | 17 | `spec/02-restrictions.md#2.3.5.p106:bae12394` | General access-to-variable types cannot be deallocated | ghost_model_invariant | stubbed |
 | 18 | `spec/02-restrictions.md#2.3.7.p108:083e15a2` | Ownership checking is local to compilation unit | flow_contract_check | stubbed |
-| 19 | `spec/02-restrictions.md#2.3.8.p111:42819528` | Reject .Access on local aliased variable where result could escape scope | flow_contract_check | stubbed |
-| 20 | `spec/02-restrictions.md#2.3.8.p111a:a858bdfc` | Function shall not return .Access of local aliased variable | flow_contract_check | stubbed |
+| 19 | `spec/02-restrictions.md#2.3.8.p111:42819528` | Reject .Access on local object where result could escape scope | flow_contract_check | stubbed |
+| 20 | `spec/02-restrictions.md#2.3.8.p111a:a858bdfc` | Function shall not return .Access of local object | flow_contract_check | stubbed |
 | 21 | `spec/02-restrictions.md#2.3.8.p111b:2921e9d2` | .Access of local shall not be assigned to enclosing scope variable | flow_contract_check | stubbed |
-| 22 | `spec/02-restrictions.md#2.3.8.p111c:819cc398` | .Access of local aliased variable shall not be sent through channel | flow_contract_check | stubbed |
+| 22 | `spec/02-restrictions.md#2.3.8.p111c:819cc398` | .Access of local object shall not be sent through channel | flow_contract_check | stubbed |
 | 23 | `spec/04-tasks-and-channels.md#4.3.p27a:8ed3c1d4` | send never transfers ownership through a channel; enqueue is copy-only | translation_validation | stubbed |
 | 24 | `spec/04-tasks-and-channels.md#4.3.p28a:4cb19779` | receive never transfers ownership through a channel; dequeue is copy-only | translation_validation | stubbed |
 | 25 | `spec/04-tasks-and-channels.md#4.3.p29a:8d3f2225` | try_send is copy-only; success does not transfer ownership | translation_validation | stubbed |

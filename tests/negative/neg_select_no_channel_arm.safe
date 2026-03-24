@@ -10,8 +10,6 @@ package Select_No_Channel_Arm_Test
       loop
          select
             delay 0.10
-               null;
-
 
 
 

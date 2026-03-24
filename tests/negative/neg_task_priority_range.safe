@@ -8,8 +8,6 @@ package Task_Priority_Range_Test
    task Worker with Priority = 10_000
 
       loop
-         null;
-
 
 
 

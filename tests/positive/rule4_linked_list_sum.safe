@@ -31,31 +31,22 @@ package Safe_Linked_List_Sum
 
 
          if Head.all.Next != null
-            declare
-               Second : access constant Node = Head.all.Next.Access;
-            begin
+            var Second : access constant Node = Head.all.Next.Access;
+            Count = Count + 1;
+            Total = Total + Total_Value (Second.all.Value);
+            if Count == 3
+               return Total_Value (Total);
+
+
+            if Second.all.Next != null
+               var Third : access constant Node = Second.all.Next.Access;
                Count = Count + 1;
-               Total = Total + Total_Value (Second.all.Value);
+               Total = Total + Total_Value (Third.all.Value);
                if Count == 3
                   return Total_Value (Total);
 
 
-               if Second.all.Next != null
-                  declare
-                     Third : access constant Node = Second.all.Next.Access;
-                  begin
-                     Count = Count + 1;
-                     Total = Total + Total_Value (Third.all.Value);
-                     if Count == 3
-                        return Total_Value (Total);
-
-                  end;
-
-            end;
-
-
 
       return Total_Value (Total);
-
 
 

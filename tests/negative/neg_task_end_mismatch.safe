@@ -8,7 +8,5 @@ package Task_End_Mismatch_Test
    task Worker
 
       begin
-         null;
-
 
 

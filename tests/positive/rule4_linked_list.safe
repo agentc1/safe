@@ -22,18 +22,12 @@ package Safe_Linked_List
       if Head == null
          return 0;
 
-
-      declare
-         Current : access constant Node = Head.Access;
-      begin
-         while Current != null
-            if Current.all.Next == null
-               return Current.all.Value;
-            else
-               Current = Current.all.Next.Access;
-
-
-      end;
+      var Current : access constant Node = Head.Access;
+      while Current != null
+         if Current.all.Next == null
+            return Current.all.Value;
+         else
+            Current = Current.all.Next.Access;
 
       return 0;
 
@@ -44,22 +38,15 @@ package Safe_Linked_List
       if Head == null
          return False;
 
-
-      declare
-         Current : access constant Node = Head.Access;
-      begin
-         while Current != null
-            if Current.all.Next == null
-               return False;
-            else if Current.all.Next.all.Next == null
-               return True;
-            else
-               Current = Current.all.Next.Access;
-
-
-      end;
+      var Current : access constant Node = Head.Access;
+      while Current != null
+         if Current.all.Next == null
+            return False;
+         else if Current.all.Next.all.Next == null
+            return True;
+         else
+            Current = Current.all.Next.Access;
 
       return False;
-
 
 

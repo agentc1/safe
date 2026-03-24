@@ -12,8 +12,7 @@ package Param_Fail
    type Wide_Int is range -10_000 to 10_000;
 
    function Use_Percent (P : Percentage)
-
-      null;
+      return;
 
 
    --  Pass_Unchecked: passes a Wide_Int to a Percentage parameter
@@ -21,6 +20,4 @@ package Param_Fail
    function Pass_Unchecked (V : Wide_Int)
 
       Use_Percent (Percentage (V));  -- ERROR: V may not be in 0..100
-
-
 

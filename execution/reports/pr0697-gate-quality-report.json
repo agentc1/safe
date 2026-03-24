@@ -266,8 +266,8 @@
       }
     }
   ],
-  "repeat_sha256": "9089aee662b4c518379be6ad1f5128b235d87cdddc737721d6af7754d0335a2f",
-  "report_sha256": "9089aee662b4c518379be6ad1f5128b235d87cdddc737721d6af7754d0335a2f",
+  "repeat_sha256": "c891c04949947f125074e3c03be0f004bfd254371ee09831ef845b24e3f3bb21",
+  "report_sha256": "c891c04949947f125074e3c03be0f004bfd254371ee09831ef845b24e3f3bb21",
   "status": "ok",
   "task": "PR06.9.7",
   "unit_tests": {
@@ -281,6 +281,7 @@
       "scripts.tests.test_harness_common",
       "scripts.tests.test_migrate_pr114_syntax",
       "scripts.tests.test_migrate_pr115_syntax",
+      "scripts.tests.test_migrate_pr1162_legacy_syntax",
       "scripts.tests.test_migrate_pr116_whitespace",
       "scripts.tests.test_pr06912_performance_scale_sanity",
       "scripts.tests.test_pr0694_output_contract_stability",
@@ -296,6 +297,7 @@
       "scripts.tests.test_pr113a_proof_checkpoint1",
       "scripts.tests.test_pr114_signature_control_flow_syntax",
       "scripts.tests.test_pr115_statement_ergonomics",
+      "scripts.tests.test_pr1162_legacy_ada_syntax_removal",
       "scripts.tests.test_pr116_meaningful_whitespace",
       "scripts.tests.test_proof_report",
       "scripts.tests.test_render_execution_status",
@@ -313,6 +315,7 @@
       "scripts.tests.test_harness_common",
       "scripts.tests.test_migrate_pr114_syntax",
       "scripts.tests.test_migrate_pr115_syntax",
+      "scripts.tests.test_migrate_pr1162_legacy_syntax",
       "scripts.tests.test_migrate_pr116_whitespace",
       "scripts.tests.test_pr06912_performance_scale_sanity",
       "scripts.tests.test_pr0694_output_contract_stability",
@@ -328,6 +331,7 @@
       "scripts.tests.test_pr113a_proof_checkpoint1",
       "scripts.tests.test_pr114_signature_control_flow_syntax",
       "scripts.tests.test_pr115_statement_ergonomics",
+      "scripts.tests.test_pr1162_legacy_ada_syntax_removal",
       "scripts.tests.test_pr116_meaningful_whitespace",
       "scripts.tests.test_proof_report",
       "scripts.tests.test_render_execution_status",
@@ -337,10 +341,10 @@
       "scripts.tests.test_validate_execution_state",
       "scripts.tests.test_validate_output_contracts"
     ],
-    "observed_count": 322,
+    "observed_count": 334,
     "returncode": 0,
-    "stderr": "..................................................................................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 322 tests in <elapsed>\n\nOK\n",
-    "stdout": "attestation compression applied: execution/archive\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\ncompaction receipt verified: execution/compaction-receipts/pr1161-attestation-chain-compression.json\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\n[gate-pipeline] total wall time: 0.0s\n"
+    "stderr": "..............................................................................................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 334 tests in <elapsed>\n\nOK\n",
+    "stdout": "attestation compression applied: execution/archive\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\ncompaction receipt verified: execution/compaction-receipts/pr1161-attestation-chain-compression.json\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\ncompaction receipt verified: execution/compaction-receipts/pr1161-attestation-chain-compression.json\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\nattestation compression applied: execution/archive\ncompaction receipt written: execution/compaction-receipts/pr1161-attestation-chain-compression.json\n[gate-pipeline] total wall time: 0.0s\n"
   },
   "valid_output_contracts": [
     {

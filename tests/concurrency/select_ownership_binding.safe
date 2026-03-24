@@ -31,8 +31,6 @@ package Select_Ownership_Binding
                Item.all.Value = Item.all.Value + 1;
          or
             delay 1.0
-               null;
-
 
 
 

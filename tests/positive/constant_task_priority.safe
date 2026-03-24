@@ -9,8 +9,6 @@ package Constant_Task_Priority
    task Worker with Priority = Worker_Priority
 
       loop
-         null;
-
 
 
 

@@ -44,7 +44,7 @@
         "returncode": 1
       },
       "first_diagnostic": {
-        "message": "legacy `procedure` is not allowed in subprogram declarations; use `function`",
+        "message": "removed source spelling `procedure` is not allowed in subprogram declarations",
         "path": "tests/negative/neg_pr114_legacy_procedure.safe",
         "reason": "source_frontend_error"
       },
@@ -62,7 +62,7 @@
         "returncode": 1
       },
       "first_diagnostic": {
-        "message": "legacy `return` is not allowed in subprogram signatures; use `returns`",
+        "message": "removed source spelling `return` is not allowed in subprogram signatures",
         "path": "tests/negative/neg_pr114_legacy_signature_return.safe",
         "reason": "source_frontend_error"
       },
@@ -80,7 +80,7 @@
         "returncode": 1
       },
       "first_diagnostic": {
-        "message": "legacy `elsif` is not allowed in conditional chains; use `else if`",
+        "message": "removed source spelling `elsif` is not allowed in conditional chains",
         "path": "tests/negative/neg_pr114_legacy_elsif.safe",
         "reason": "source_frontend_error"
       },
@@ -98,7 +98,7 @@
         "returncode": 1
       },
       "first_diagnostic": {
-        "message": "legacy `..` is not allowed in source ranges; use `to`",
+        "message": "removed source spelling `..` is not allowed in source ranges",
         "path": "tests/negative/neg_pr114_legacy_range_dots.safe",
         "reason": "source_frontend_error"
       },
@@ -454,8 +454,8 @@
       }
     }
   ],
-  "repeat_sha256": "c8276ddd77c2153c277fa33b92b4ed8f530b85e97969bdb36cbfe96cd7669044",
-  "report_sha256": "c8276ddd77c2153c277fa33b92b4ed8f530b85e97969bdb36cbfe96cd7669044",
+  "repeat_sha256": "0007d4746bc82285f0dd9a35d77105e82b5c79f2db305e5b7056217ff70a2fe6",
+  "report_sha256": "0007d4746bc82285f0dd9a35d77105e82b5c79f2db305e5b7056217ff70a2fe6",
   "status": "ok",
   "task": "PR11.4"
 }

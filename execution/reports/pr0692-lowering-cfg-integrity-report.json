@@ -18,8 +18,8 @@
       "$TMPDIR/while_integer_bound_cfg.safe"
     ]
   },
-  "repeat_sha256": "3cb3465974fdba7fb3d5ddff0d0ee278acd15919a051c5b1df216bfcc01c74ce",
-  "report_sha256": "3cb3465974fdba7fb3d5ddff0d0ee278acd15919a051c5b1df216bfcc01c74ce",
+  "repeat_sha256": "15189d227b25776d906e8a9eb6fc7667c9374782bdd28b4fa84c170a682cc278",
+  "report_sha256": "15189d227b25776d906e8a9eb6fc7667c9374782bdd28b4fa84c170a682cc278",
   "results": {
     "corpus_cases": {
       "tests/positive/ownership_inout.safe": {
@@ -551,7 +551,11 @@
           "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[]}\n"
         },
         "case_specific": {
-          "inner_scope_exit_block": "bb1"
+          "inner_cfg_roles": [
+            "if_then",
+            "if_else",
+            "if_join"
+          ]
         },
         "check": {
           "command": [
@@ -590,31 +594,23 @@
             "patched_dead_blocks": [],
             "reachable_blocks": [
               "bb0",
-              "bb1"
+              "bb1",
+              "bb2",
+              "bb3"
             ],
             "scopes": {
               "scope0": {
                 "entry_block": "bb0",
                 "exit_blocks": [
-                  "bb1"
+                  "bb3"
                 ],
                 "kind": "subprogram",
                 "local_ids": [
-                  "v0"
-                ],
-                "parent_scope_id": null
-              },
-              "scope1": {
-                "entry_block": "bb1",
-                "exit_blocks": [
-                  "bb1"
-                ],
-                "kind": "block",
-                "local_ids": [
+                  "v0",
                   "v1",
                   "v2"
                 ],
-                "parent_scope_id": "scope0"
+                "parent_scope_id": null
               }
             }
           }

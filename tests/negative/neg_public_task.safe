@@ -5,11 +5,9 @@
 
 package Public_Task_Test
 
-   public task Worker is
+   public task Worker
 
       loop
-         null;
-
 
 
 

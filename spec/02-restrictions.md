@@ -112,7 +112,7 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 
 ### 2.1.4 Section 5 — Statements (8652:2023 §5)
 
-28. **Simple and compound statements (§5.1).** Retained: assignment (§5.2), target name symbols (§5.2.1), if statements (§5.3), case statements (§5.4), loop statements (§5.5), block statements (§5.6), exit statements (§5.7), goto statements (§5.8), return statements (§6.5), null statements.
+28. **Simple and compound statements (§5.1).** Retained from Ada statement syntax: assignment (§5.2), target name symbols (§5.2.1), if statements (§5.3), case statements (§5.4), loop statements (§5.5), exit statements (§5.7) without loop labels, delay statements (§9.6), and return statements (§6.5). Statement-level `declare` blocks (§5.6), `goto` statements (§5.8), and `null` statements are excluded from Safe source.
 
 #### 5.5.1–5.5.3 Iterators
 
@@ -256,9 +256,9 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 
 72. **Representation attributes (§13.3).** Retained in dot notation (e.g., `T.Size`, `T.Alignment`).
 
-73. **Enumeration representation clauses (§13.4).** Retained.
+73. **Enumeration representation clauses (§13.4).** Excluded from Safe source. A conforming implementation shall reject any user-authored enumeration representation clause.
 
-74. **Record layout (§13.5).** Record representation clauses (§13.5.1), storage place attributes (§13.5.2), and bit ordering (§13.5.3) are retained.
+74. **Record layout (§13.5).** Record representation clauses (§13.5.1), storage place attributes (§13.5.2), and bit ordering (§13.5.3) are excluded from Safe source. A conforming implementation shall reject any user-authored record representation clause or related storage-layout clause.
 
 75. **Change of representation (§13.6).** Retained where applicable (non-tagged derived types only).
 
@@ -447,13 +447,11 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 
    (c) `exit` statements that transfer control out of the owning scope.
 
-   (d) `goto` statements that transfer control out of the owning scope.
-
 104a. **Named access-to-constant deallocation.** Named access-to-constant types (`type C_Ptr is access constant T;`) are pool-specific and allocate from a pool. Although they are exempt from ownership checking (paragraph 95), their designated objects must be reclaimed. Automatic deallocation at scope exit applies to named access-to-constant variables in the same manner as pool-specific access-to-variable variables. Since `Unchecked_Deallocation` is excluded (paragraph 107(c)), scope-exit deallocation is the only mechanism for reclaiming storage allocated through named access-to-constant types.
 
 105. When multiple pool-specific access objects (whether owning or constant) exit scope simultaneously, the order of deallocation is the reverse of their declaration order.
 
-106. General access-to-variable types (`access all T`) cannot be deallocated, as they may designate stack-allocated (aliased) objects.
+106. General access-to-variable types (`access all T`) cannot be deallocated, as they may designate stack-allocated local objects.
 
 ### 2.3.6 Excluded Access Features
 
@@ -483,15 +481,15 @@ This section enumerates every feature of ISO/IEC 8652:2023 (Ada 2022) that Safe 
 
    (b) Creating an anonymous access-to-variable borrow: `Y : access T = X;` — governed by borrowing rules.
 
-111. **`.Access` on a local aliased object.** When `.Access` is applied to a local aliased variable (a stack-allocated object), the result has the accessibility level of the local scope in which the variable is declared. A conforming implementation shall reject any use of `.Access` on a local aliased variable where the result could escape the variable's scope. Specifically:
+111. **`.Access` on a local object.** When `.Access` is applied to a local variable (a stack-allocated object), the result has the accessibility level of the local scope in which the variable is declared. A conforming implementation shall reject any use of `.Access` on a local variable where the result could escape the variable's scope. Specifically:
 
-   (a) **Return:** A function shall not return the result of `.Access` applied to one of its local aliased variables or parameters. The accessibility level of the local is deeper than the function's return type. A conforming implementation shall reject such a return.
+   (a) **Return:** A function shall not return the result of `.Access` applied to one of its local variables or parameters. The accessibility level of the local is deeper than the function's return type. A conforming implementation shall reject such a return.
 
-   (b) **Assignment to outer-scope variable:** The result of `.Access` on a local aliased variable shall not be assigned to a variable declared in an enclosing scope whose lifetime exceeds the aliased variable's scope. A conforming implementation shall reject any such assignment.
+   (b) **Assignment to outer-scope variable:** The result of `.Access` on a local variable shall not be assigned to a variable declared in an enclosing scope whose lifetime exceeds the local variable's scope. A conforming implementation shall reject any such assignment.
 
-   (c) **Channel send:** The result of `.Access` on a local aliased variable shall not be sent through a channel, since the channel's lifetime exceeds the local scope. A conforming implementation shall reject such a send.
+   (c) **Channel send:** The result of `.Access` on a local variable shall not be sent through a channel, since the channel's lifetime exceeds the local scope. A conforming implementation shall reject such a send.
 
-   (d) **Inner-scope use:** The result of `.Access` on a local aliased variable may be stored in a variable declared in the same scope or an inner scope, subject to the lifetime-containment rule (paragraph 102a). This is the normal borrow/observe pattern.
+   (d) **Inner-scope use:** The result of `.Access` on a local variable may be stored in a variable declared in the same scope or an inner scope, subject to the lifetime-containment rule (paragraph 102a). This is the normal borrow/observe pattern.
 
 112. **General access types (`access all T`).** General access values are subject to the same accessibility rules. A general access value shall not designate an object whose accessibility level is deeper than the general access type's declaration. This prevents a general access variable from outliving the stack object it designates:
 
@@ -500,7 +498,7 @@ type G_Ptr is access all Integer;  -- declared at package level
 
 function Bad return G_Ptr is
 begin
-    X : aliased Integer = 42;
+    X : Integer = 42;
     return X.Access;  -- REJECTED: X has deeper accessibility than G_Ptr
 end Bad;
 ```
@@ -512,7 +510,7 @@ type G_Ptr is access all Integer;
 
 procedure Use_Local is
 begin
-    X : aliased Integer = 42;
+    X : Integer = 42;
     G : G_Ptr = X.Access;   -- legal: G declared in same scope as X
     G.all = 99;              -- legal: G_Ptr is not null by flow analysis
                                -- (or use not-null subtype for dereference)
