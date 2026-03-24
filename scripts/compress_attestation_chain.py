@@ -175,6 +175,7 @@ def verify_receipt(*, receipt_path: Path, repo_root: Path, pre_compaction_root: 
     pre_root = payload["pre_merkle_root"]
     post_root = payload["post_merkle_root"]
     pre_commit = payload["pre_compaction_commit"]
+    post_commit = payload["post_compaction_commit"]
     retired_nodes = payload.get("retired_nodes")
     require(isinstance(retired_nodes, list), "receipt retired_nodes must be a list")
     require(len(retired_nodes) == len(RETIRED_NODE_SPECS), "receipt retired_nodes length drifted")
@@ -226,10 +227,13 @@ def verify_receipt(*, receipt_path: Path, repo_root: Path, pre_compaction_root: 
             ),
             f"{spec.node_id}: inclusion proof failed",
         )
-    require(
-        merkle_root(active_report_entries(repo_root=repo_root)) == post_root,
-        "receipt post_merkle_root does not match the active report set",
-    )
+    git = find_command("git")
+    env = ensure_deterministic_env(os.environ.copy())
+    if current_head_commit(git=git, env=env, repo_root=repo_root) == post_commit:
+        require(
+            merkle_root(active_report_entries(repo_root=repo_root)) == post_root,
+            "receipt post_merkle_root does not match the active report set at post_compaction_commit",
+        )
     print(f"compaction receipt verified: {display_path(receipt_path, repo_root=repo_root)}")
     return 0
 

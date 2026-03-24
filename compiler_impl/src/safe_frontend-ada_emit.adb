@@ -306,6 +306,15 @@ package body Safe_Frontend.Ada_Emit is
       Depth      : Natural;
       Return_Type : String := "";
       In_Loop    : Boolean := False);
+   procedure Render_Required_Statement_Suite
+     (Buffer     : in out SU.Unbounded_String;
+      Unit       : CM.Resolved_Unit;
+      Document   : GM.Mir_Document;
+      Statements : CM.Statement_Access_Vectors.Vector;
+      State      : in out Emit_State;
+      Depth      : Natural;
+      Return_Type : String := "";
+      In_Loop    : Boolean := False);
    function Alias_Declarations
      (Declarations : CM.Resolved_Object_Decl_Vectors.Vector)
       return CM.Resolved_Object_Decl_Vectors.Vector;
@@ -1471,9 +1480,6 @@ package body Safe_Frontend.Ada_Emit is
                      for Arm of Item.Case_Arms loop
                         Add_From_Statements (Arm.Statements);
                      end loop;
-                  when CM.Stmt_Block =>
-                     Add_From_Decls (Item.Declarations);
-                     Add_From_Statements (Item.Body_Stmts);
                   when CM.Stmt_While | CM.Stmt_For | CM.Stmt_Loop =>
                      Add_From_Statements (Item.Body_Stmts);
                   when CM.Stmt_Select =>
@@ -2665,17 +2671,6 @@ package body Safe_Frontend.Ada_Emit is
                when CM.Stmt_While | CM.Stmt_For | CM.Stmt_Loop =>
                   Collect_Wide_Locals_From_Statements
                     (Unit, Document, State, Local_Names, Item.Body_Stmts);
-               when CM.Stmt_Block =>
-                  declare
-                     Block_Names : FT.UString_Vectors.Vector := Local_Names;
-                  begin
-                     Collect_Local_Names (Item.Declarations, Item.Body_Stmts, Block_Names);
-                     for Decl of Item.Declarations loop
-                        Mark_Wide_Declaration (Unit, Document, State, Decl);
-                     end loop;
-                     Collect_Wide_Locals_From_Statements
-                       (Unit, Document, State, Block_Names, Item.Body_Stmts);
-                  end;
                when CM.Stmt_Select =>
                   for Arm of Item.Arms loop
                      case Arm.Kind is
@@ -3575,8 +3570,6 @@ package body Safe_Frontend.Ada_Emit is
                      end if;
                   when CM.Stmt_While | CM.Stmt_For | CM.Stmt_Loop =>
                      Collect (Item.Body_Stmts);
-                  when CM.Stmt_Block =>
-                     Collect (Item.Body_Stmts);
                   when CM.Stmt_Select =>
                      for Arm of Item.Arms loop
                         case Arm.Kind is
@@ -4112,7 +4105,6 @@ package body Safe_Frontend.Ada_Emit is
                   | CM.Stmt_While
                   | CM.Stmt_For
                   | CM.Stmt_Loop
-                  | CM.Stmt_Block
                   | CM.Stmt_Select =>
                   Unsupported := True;
                when others =>
@@ -4240,7 +4232,7 @@ package body Safe_Frontend.Ada_Emit is
                end if;
             end loop;
             return False;
-         when CM.Stmt_Block | CM.Stmt_Loop | CM.Stmt_While | CM.Stmt_For =>
+         when CM.Stmt_Loop | CM.Stmt_While | CM.Stmt_For =>
             return Statements_Contain_Exit (Item.Body_Stmts);
          when others =>
             return False;
@@ -4290,8 +4282,6 @@ package body Safe_Frontend.Ada_Emit is
                end if;
             end loop;
             return False;
-         when CM.Stmt_Block =>
-            return Statements_Fall_Through (Item.Body_Stmts);
          when CM.Stmt_Loop =>
             return Statements_Contain_Exit (Item.Body_Stmts);
          when others =>
@@ -5090,8 +5080,6 @@ package body Safe_Frontend.Ada_Emit is
             end if;
 
             case Item.Kind is
-            when CM.Stmt_Null =>
-               Append_Line (Buffer, "null;", Depth);
             when CM.Stmt_Object_Decl =>
                declare
                   Tail                : constant CM.Statement_Access_Vectors.Vector :=
@@ -5116,17 +5104,15 @@ package body Safe_Frontend.Ada_Emit is
                      Depth + 1);
                   Render_Free_Declarations (Buffer, Block_Declarations, Depth + 1);
                   Append_Line (Buffer, "begin", Depth);
-                  if not Tail.Is_Empty then
-                     Render_Statements
-                       (Buffer,
-                        Unit,
-                        Document,
-                        Tail,
-                        State,
-                        Depth + 1,
-                        Return_Type,
-                        In_Loop);
-                  end if;
+                  Render_Required_Statement_Suite
+                    (Buffer,
+                     Unit,
+                     Document,
+                     Tail,
+                     State,
+                     Depth + 1,
+                     Return_Type,
+                     In_Loop);
                   if Tail.Is_Empty or else Statements_Fall_Through (Tail) then
                      Render_Cleanup (Buffer, Block_Declarations, Depth + 1);
                   end if;
@@ -5186,17 +5172,15 @@ package body Safe_Frontend.Ada_Emit is
                         Depth + 1);
                   end loop;
                   Append_Line (Buffer, "begin", Depth);
-                  if not Tail.Is_Empty then
-                     Render_Statements
-                       (Buffer,
-                        Unit,
-                        Document,
-                        Tail,
-                        State,
-                        Depth + 1,
-                        Return_Type,
-                        In_Loop);
-                  end if;
+                  Render_Required_Statement_Suite
+                    (Buffer,
+                     Unit,
+                     Document,
+                     Tail,
+                     State,
+                     Depth + 1,
+                     Return_Type,
+                     In_Loop);
                   Append_Line (Buffer, "end;", Depth);
                   Pop_Cleanup_Frame (State);
                   Restore_Wide_Names (State, Previous_Wide_Count);
@@ -5241,19 +5225,19 @@ package body Safe_Frontend.Ada_Emit is
                  (Buffer,
                   "if " & Render_Expr (Unit, Document, Item.Condition, State) & " then",
                   Depth);
-               Render_Statements
+               Render_Required_Statement_Suite
                  (Buffer, Unit, Document, Item.Then_Stmts, State, Depth + 1, Return_Type, In_Loop);
                for Part of Item.Elsifs loop
                   Append_Line
                     (Buffer,
                      "elsif " & Render_Expr (Unit, Document, Part.Condition, State) & " then",
                      Depth);
-                  Render_Statements
+                  Render_Required_Statement_Suite
                     (Buffer, Unit, Document, Part.Statements, State, Depth + 1, Return_Type, In_Loop);
                end loop;
                if Item.Has_Else then
                   Append_Line (Buffer, "else", Depth);
-                  Render_Statements
+                  Render_Required_Statement_Suite
                     (Buffer, Unit, Document, Item.Else_Stmts, State, Depth + 1, Return_Type, In_Loop);
                end if;
                Append_Line (Buffer, "end if;", Depth);
@@ -5269,7 +5253,7 @@ package body Safe_Frontend.Ada_Emit is
                       then "when others =>"
                       else "when " & Render_Expr (Unit, Document, Arm.Choice, State) & " =>"),
                      Depth + 1);
-                  Render_Statements
+                  Render_Required_Statement_Suite
                     (Buffer,
                      Unit,
                      Document,
@@ -5292,7 +5276,7 @@ package body Safe_Frontend.Ada_Emit is
                      Append_Line (Buffer, "pragma Loop_Variant (" & Variant_Image & ");", Depth + 1);
                   end if;
                end;
-               Render_Statements
+               Render_Required_Statement_Suite
                  (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type, True);
                Append_Line (Buffer, "end loop;", Depth);
             when CM.Stmt_For =>
@@ -5304,35 +5288,12 @@ package body Safe_Frontend.Ada_Emit is
                   & Render_Discrete_Range (Unit, Document, Item.Loop_Range, State)
                   & " loop",
                   Depth);
-               Render_Statements
+               Render_Required_Statement_Suite
                  (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type, True);
                Append_Line (Buffer, "end loop;", Depth);
-            when CM.Stmt_Block =>
-               declare
-                  Previous_Wide_Count : constant Ada.Containers.Count_Type :=
-                    State.Wide_Local_Names.Length;
-               begin
-                  Collect_Wide_Locals
-                    (Unit, Document, State, Item.Declarations, Item.Body_Stmts);
-                  Push_Cleanup_Frame (State);
-                  Register_Cleanup_Items (State, Item.Declarations);
-                  Append_Line (Buffer, "declare", Depth);
-                  Render_Block_Declarations
-                    (Buffer, Unit, Document, Item.Declarations, State, Depth + 1);
-                  Render_Free_Declarations (Buffer, Item.Declarations, Depth + 1);
-                  Append_Line (Buffer, "begin", Depth);
-                  Render_Statements
-                    (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type, In_Loop);
-                  if Statements_Fall_Through (Item.Body_Stmts) then
-                     Render_Cleanup (Buffer, Item.Declarations, Depth + 1);
-                  end if;
-                  Append_Line (Buffer, "end;", Depth);
-                  Pop_Cleanup_Frame (State);
-                  Restore_Wide_Names (State, Previous_Wide_Count);
-               end;
             when CM.Stmt_Loop =>
                Append_Line (Buffer, "loop", Depth);
-               Render_Statements
+               Render_Required_Statement_Suite
                  (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type, True);
                Append_Line (Buffer, "end loop;", Depth);
             when CM.Stmt_Exit =>
@@ -5578,6 +5539,23 @@ package body Safe_Frontend.Ada_Emit is
          end;
       end loop;
    end Render_Statements;
+
+   procedure Render_Required_Statement_Suite
+     (Buffer     : in out SU.Unbounded_String;
+      Unit       : CM.Resolved_Unit;
+      Document   : GM.Mir_Document;
+      Statements : CM.Statement_Access_Vectors.Vector;
+      State      : in out Emit_State;
+      Depth      : Natural;
+      Return_Type : String := "";
+      In_Loop    : Boolean := False) is
+   begin
+      if Statements.Is_Empty then
+         Append_Line (Buffer, "null;", Depth);
+         return;
+      end if;
+      Render_Statements (Buffer, Unit, Document, Statements, State, Depth, Return_Type, In_Loop);
+   end Render_Required_Statement_Suite;
 
    procedure Render_Channel_Spec
      (Buffer  : in out SU.Unbounded_String;

@@ -12,14 +12,11 @@ package Ownership_Inout
    type Payload_Ptr is access Payload;
 
    function Consume (Ref : in out Payload_Ptr)
-
-      null;
+      return;
 
 
    function Use_Inout
       Owner : Payload_Ptr = new ((Value = 5) as Payload);
 
       Consume (Owner);
-
-
 

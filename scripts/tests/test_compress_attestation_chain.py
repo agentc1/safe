@@ -204,3 +204,44 @@ class CompressAttestationChainTests(unittest.TestCase):
                     receipt_path=receipt_path,
                     repo_root=repo_root,
                 )
+
+    def test_verify_receipt_allows_active_report_set_to_evolve_after_post_compaction_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir) / "repo"
+            repo_root.mkdir()
+            pre_commit = self.init_repo(repo_root)
+            env = ensure_deterministic_env(os.environ.copy())
+
+            compress_attestation_chain.apply_archive(
+                git="git",
+                env=env,
+                repo_root=repo_root,
+                pre_compaction_commit=pre_commit,
+            )
+            self.git(repo_root, "add", "-A")
+            self.git(repo_root, "commit", "-m", "compress attestation chain")
+            post_commit = self.git(repo_root, "rev-parse", "HEAD")
+
+            receipt_path = repo_root / RECEIPT_PATH.relative_to(compress_attestation_chain.REPO_ROOT)
+            compress_attestation_chain.finalize_receipt(
+                git="git",
+                env=env,
+                repo_root=repo_root,
+                receipt_path=receipt_path,
+                pre_compaction_commit=pre_commit,
+                post_compaction_commit=post_commit,
+            )
+            self.git(repo_root, "add", "-A")
+            self.git(repo_root, "commit", "-m", "record receipt")
+            write_sample_report(
+                repo_root / "execution" / "reports" / "pr1162-legacy-ada-syntax-removal-report.json",
+                report_sha256="b" * 64,
+            )
+            self.git(repo_root, "add", "-A")
+            self.git(repo_root, "commit", "-m", "advance active report set")
+
+            verify_result = compress_attestation_chain.verify_receipt(
+                receipt_path=receipt_path,
+                repo_root=repo_root,
+            )
+            self.assertEqual(verify_result, 0)

@@ -265,7 +265,7 @@
           ],
           "cwd": "$REPO_ROOT",
           "returncode": 1,
-          "stderr": "neg_own_anon_reassign_join.safe:25:7: error: anonymous access 'Ref' may only be assigned at its declaration\n  |\n  | 25 |       Ref = Other;  -- ERROR: merge must not reset init-only tracking\n  |    |       ^~~~~~~~~~~~\n  |\n  note: borrow and observe locals are initialization-only.\n  note: rule: Safe \u00a72.3.3 / \u00a72.3.4a (anonymous access is initialization-only)\n",
+          "stderr": "neg_own_anon_reassign_join.safe:24:7: error: anonymous access 'Ref' may only be assigned at its declaration\n  |\n  | 24 |       Ref = Other;  -- ERROR: merge must not reset init-only tracking\n  |    |       ^~~~~~~~~~~~\n  |\n  note: borrow and observe locals are initialization-only.\n  note: rule: Safe \u00a72.3.3 / \u00a72.3.4a (anonymous access is initialization-only)\n",
           "stdout": ""
         },
         "golden": "tests/diagnostics_golden/diag_anonymous_access_reassign_join.txt",
@@ -732,9 +732,9 @@
             {
               "highlight_span": {
                 "end_col": 20,
-                "end_line": 23,
+                "end_line": 22,
                 "start_col": 16,
-                "start_line": 23
+                "start_line": 22
               },
               "message": "use of moved value 'Owner'",
               "notes": [
@@ -745,9 +745,9 @@
               "reason": "double_move",
               "span": {
                 "end_col": 20,
-                "end_line": 23,
+                "end_line": 22,
                 "start_col": 16,
-                "start_line": 23
+                "start_line": 22
               },
               "suggestions": []
             }
@@ -764,7 +764,7 @@
           "cwd": "$REPO_ROOT",
           "returncode": 1,
           "stderr": "",
-          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"double_move\",\"message\":\"use of moved value 'Owner'\",\"path\":\"tests/negative/neg_own_inout_move.safe\",\"span\":{\"start_line\":23,\"start_col\":16,\"end_line\":23,\"end_col\":20},\"highlight_span\":{\"start_line\":23,\"start_col\":16,\"end_line\":23,\"end_col\":20},\"notes\":[\"the access actual for this call was already moved earlier on this path.\",\"rule: Safe \u00a72.3.2 (move semantics)\"],\"suggestions\":[]}]}\n"
+          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"double_move\",\"message\":\"use of moved value 'Owner'\",\"path\":\"tests/negative/neg_own_inout_move.safe\",\"span\":{\"start_line\":22,\"start_col\":16,\"end_line\":22,\"end_col\":20},\"highlight_span\":{\"start_line\":22,\"start_col\":16,\"end_line\":22,\"end_col\":20},\"notes\":[\"the access actual for this call was already moved earlier on this path.\",\"rule: Safe \u00a72.3.2 (move semantics)\"],\"suggestions\":[]}]}\n"
         },
         "check": {
           "command": [
@@ -776,16 +776,16 @@
           "cwd": "$REPO_ROOT",
           "returncode": 1,
           "stderr": "",
-          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"double_move\",\"message\":\"use of moved value 'Owner'\",\"path\":\"tests/negative/neg_own_inout_move.safe\",\"span\":{\"start_line\":23,\"start_col\":16,\"end_line\":23,\"end_col\":20},\"highlight_span\":{\"start_line\":23,\"start_col\":16,\"end_line\":23,\"end_col\":20},\"notes\":[\"the access actual for this call was already moved earlier on this path.\",\"rule: Safe \u00a72.3.2 (move semantics)\"],\"suggestions\":[]}]}\n"
+          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"double_move\",\"message\":\"use of moved value 'Owner'\",\"path\":\"tests/negative/neg_own_inout_move.safe\",\"span\":{\"start_line\":22,\"start_col\":16,\"end_line\":22,\"end_col\":20},\"highlight_span\":{\"start_line\":22,\"start_col\":16,\"end_line\":22,\"end_col\":20},\"notes\":[\"the access actual for this call was already moved earlier on this path.\",\"rule: Safe \u00a72.3.2 (move semantics)\"],\"suggestions\":[]}]}\n"
         },
         "check_diagnostics": {
           "diagnostics": [
             {
               "highlight_span": {
                 "end_col": 20,
-                "end_line": 23,
+                "end_line": 22,
                 "start_col": 16,
-                "start_line": 23
+                "start_line": 22
               },
               "message": "use of moved value 'Owner'",
               "notes": [
@@ -796,9 +796,9 @@
               "reason": "double_move",
               "span": {
                 "end_col": 20,
-                "end_line": 23,
+                "end_line": 22,
                 "start_col": 16,
-                "start_line": 23
+                "start_line": 22
               },
               "suggestions": []
             }
@@ -1951,8 +1951,8 @@
       "oversized_integer_literal.safe"
     ]
   },
-  "repeat_sha256": "59204e1248c2382721ff3bde4f3d2c46d835d2d8e8d725b9ebc148aa32a5bbde",
-  "report_sha256": "59204e1248c2382721ff3bde4f3d2c46d835d2d8e8d725b9ebc148aa32a5bbde",
+  "repeat_sha256": "66521c0125568131d965c994b32e5645b881c0f84cb74f40fbcb4c44c5149753",
+  "report_sha256": "66521c0125568131d965c994b32e5645b881c0f84cb74f40fbcb4c44c5149753",
   "status": "ok",
   "task": "PR06.9.5"
 }

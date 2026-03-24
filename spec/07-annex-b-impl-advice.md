@@ -152,8 +152,6 @@ procedure Try_Receive (Item : out Element_Type; Success : out Boolean);
 
    (c) `exit` statements that transfer control out of the owning scope.
 
-   (d) `goto` statements that transfer control out of the owning scope.
-
 18. When multiple pool-specific access objects exit scope simultaneously, deallocation should occur in reverse declaration order.
 
 19. The implementation should verify completeness of deallocation logic, either through internal testing or by leveraging external leak-checking capabilities of the target environment.

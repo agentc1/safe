@@ -24,19 +24,17 @@
 
    (g) Static tasks and typed channels (Section 4).
 
-   (h) Expression functions and declare expressions.
+   (h) Expression functions.
 
    (i) Renaming declarations.
 
    (j) Separate body stubs (`is separate`).
 
-   (k) `goto` statements.
+   (k) Child and hierarchical packages.
 
-   (l) Child and hierarchical packages.
+   (l) `use type` clauses.
 
-   (m) `use type` clauses.
-
-   (n) Delta aggregates.
+   (m) Delta aggregates.
 
    (o) `pragma Assert`, `pragma Inline`, `pragma Pack`.
 

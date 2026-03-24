@@ -19,10 +19,8 @@ package Anonymous_Reassign_Join_Test
       if Pick == 0
          Ref = Owner;
       else
-         null;
 
 
       Ref = Other;  -- ERROR: merge must not reset init-only tracking
-
 
 

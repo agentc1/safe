@@ -473,14 +473,14 @@
         "cwd": "$REPO_ROOT",
         "returncode": 1,
         "stderr": "",
-        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"discriminant_check_not_established\",\"message\":\"access to variant field 'Value' requires established discriminant 'OK'\",\"path\":\"$TMPDIR/result_partial_guard_join.safe\",\"span\":{\"start_line\":26,\"start_col\":14,\"end_line\":26,\"end_col\":20},\"highlight_span\":{\"start_line\":26,\"start_col\":14,\"end_line\":26,\"end_col\":20},\"notes\":[\"the discriminant 'OK' was not established on all paths before this access.\"],\"suggestions\":[]}]}\n"
+        "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"discriminant_check_not_established\",\"message\":\"access to variant field 'Value' requires established discriminant 'OK'\",\"path\":\"$TMPDIR/result_partial_guard_join.safe\",\"span\":{\"start_line\":25,\"start_col\":14,\"end_line\":25,\"end_col\":20},\"highlight_span\":{\"start_line\":25,\"start_col\":14,\"end_line\":25,\"end_col\":20},\"notes\":[\"the discriminant 'OK' was not established on all paths before this access.\"],\"suggestions\":[]}]}\n"
       },
       "diagnostic": {
         "highlight_span": {
           "end_col": 20,
-          "end_line": 26,
+          "end_line": 25,
           "start_col": 14,
-          "start_line": 26
+          "start_line": 25
         },
         "message": "access to variant field 'Value' requires established discriminant 'OK'",
         "notes": [
@@ -490,9 +490,9 @@
         "reason": "discriminant_check_not_established",
         "span": {
           "end_col": 20,
-          "end_line": 26,
+          "end_line": 25,
           "start_col": 14,
-          "start_line": 26
+          "start_line": 25
         },
         "suggestions": []
       },
@@ -700,8 +700,8 @@
       "source": "tests/negative/neg_result_mutated.safe"
     }
   ],
-  "repeat_sha256": "8615526a2ca761676a4e5ded908926aa6a5f1699ef115c67837bd9bc205e48ae",
-  "report_sha256": "8615526a2ca761676a4e5ded908926aa6a5f1699ef115c67837bd9bc205e48ae",
+  "repeat_sha256": "9a182a98212a37c95c41eef2ec2c38ce527f690c43dbcd5a716499279f026062",
+  "report_sha256": "9a182a98212a37c95c41eef2ec2c38ce527f690c43dbcd5a716499279f026062",
   "source_corpus": {
     "negatives": [
       {

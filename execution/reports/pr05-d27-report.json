@@ -149,9 +149,9 @@
             {
               "highlight_span": {
                 "end_col": 33,
-                "end_line": 23,
+                "end_line": 22,
                 "start_col": 20,
-                "start_line": 23
+                "start_line": 22
               },
               "message": "explicit conversion is not provably within target range",
               "notes": [
@@ -162,9 +162,9 @@
               "reason": "narrowing_check_failure",
               "span": {
                 "end_col": 33,
-                "end_line": 23,
+                "end_line": 22,
                 "start_col": 20,
-                "start_line": 23
+                "start_line": 22
               },
               "suggestions": []
             }
@@ -182,7 +182,7 @@
           "cwd": "$REPO_ROOT",
           "returncode": 1,
           "stderr": "",
-          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"narrowing_check_failure\",\"message\":\"explicit conversion is not provably within target range\",\"path\":\"$REPO_ROOT/tests/negative/neg_rule1_param_fail.safe\",\"span\":{\"start_line\":23,\"start_col\":20,\"end_line\":23,\"end_col\":33},\"highlight_span\":{\"start_line\":23,\"start_col\":20,\"end_line\":23,\"end_col\":33},\"notes\":[\"target type 'Percentage' has range [0 .. 100]\",\"expression range is [-10_000 .. 10_000]\"],\"suggestions\":[]}]}\n"
+          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"narrowing_check_failure\",\"message\":\"explicit conversion is not provably within target range\",\"path\":\"$REPO_ROOT/tests/negative/neg_rule1_param_fail.safe\",\"span\":{\"start_line\":22,\"start_col\":20,\"end_line\":22,\"end_col\":33},\"highlight_span\":{\"start_line\":22,\"start_col\":20,\"end_line\":22,\"end_col\":33},\"notes\":[\"target type 'Percentage' has range [0 .. 100]\",\"expression range is [-10_000 .. 10_000]\"],\"suggestions\":[]}]}\n"
         },
         "source": "tests/negative/neg_rule1_param_fail.safe"
       },
@@ -731,35 +731,35 @@
         "source": "tests/negative/neg_rule3_zero_rem.safe"
       },
       {
-        "actual_reason": "dangling_reference",
+        "actual_reason": "lifetime_violation",
         "diagnostics": {
           "diagnostics": [
             {
               "highlight_span": {
-                "end_col": 35,
-                "end_line": 27,
-                "start_col": 23,
-                "start_line": 27
+                "end_col": 25,
+                "end_line": 14,
+                "start_col": 14,
+                "start_line": 14
               },
-              "message": "dereference of dangling access value",
+              "message": "returned observe value cannot outlive lender 'Local'",
               "notes": [
-                "the access value outlives the owner scope that created it.",
-                "rule: D27 Rule 4 (Not-Null Dereference)"
+                "borrowed and observed values must remain within the lender lifetime.",
+                "rule: Safe \u00a72.3.3 / \u00a72.3.4a (lifetime containment)"
               ],
               "path": "$REPO_ROOT/tests/negative/neg_rule4_freed.safe",
-              "reason": "dangling_reference",
+              "reason": "lifetime_violation",
               "span": {
-                "end_col": 35,
-                "end_line": 27,
-                "start_col": 23,
-                "start_line": 27
+                "end_col": 25,
+                "end_line": 14,
+                "start_col": 14,
+                "start_line": 14
               },
               "suggestions": []
             }
           ],
           "format": "diagnostics-v0"
         },
-        "expected_reason": "dangling_reference",
+        "expected_reason": "lifetime_violation",
         "result": {
           "command": [
             "compiler_impl/bin/safec",
@@ -770,7 +770,7 @@
           "cwd": "$REPO_ROOT",
           "returncode": 1,
           "stderr": "",
-          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"dangling_reference\",\"message\":\"dereference of dangling access value\",\"path\":\"$REPO_ROOT/tests/negative/neg_rule4_freed.safe\",\"span\":{\"start_line\":27,\"start_col\":23,\"end_line\":27,\"end_col\":35},\"highlight_span\":{\"start_line\":27,\"start_col\":23,\"end_line\":27,\"end_col\":35},\"notes\":[\"the access value outlives the owner scope that created it.\",\"rule: D27 Rule 4 (Not-Null Dereference)\"],\"suggestions\":[]}]}\n"
+          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"lifetime_violation\",\"message\":\"returned observe value cannot outlive lender 'Local'\",\"path\":\"$REPO_ROOT/tests/negative/neg_rule4_freed.safe\",\"span\":{\"start_line\":14,\"start_col\":14,\"end_line\":14,\"end_col\":25},\"highlight_span\":{\"start_line\":14,\"start_col\":14,\"end_line\":14,\"end_col\":25},\"notes\":[\"borrowed and observed values must remain within the lender lifetime.\",\"rule: Safe \u00a72.3.3 / \u00a72.3.4a (lifetime containment)\"],\"suggestions\":[]}]}\n"
         },
         "source": "tests/negative/neg_rule4_freed.safe"
       },
@@ -1557,6 +1557,6 @@
     }
   ],
   "mode": "all",
-  "repeat_sha256": "56d0029651cf22bda18938e2570acac93c0955585b80b60bed4eb1853bd5e1ff",
-  "report_sha256": "56d0029651cf22bda18938e2570acac93c0955585b80b60bed4eb1853bd5e1ff"
+  "repeat_sha256": "fa5cd7a29211a1d773854ce273b7828b3b4d20c41a2eac616b41e9d1117c86ef",
+  "report_sha256": "fa5cd7a29211a1d773854ce273b7828b3b4d20c41a2eac616b41e9d1117c86ef"
 }

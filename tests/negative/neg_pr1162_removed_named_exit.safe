@@ -1,0 +1,7 @@
+package Neg_PR1162_Removed_Named_Exit
+
+   function Build returns Integer
+
+      loop
+         exit Outer;
+      return 0;

@@ -46,7 +46,6 @@ class Pr116MeaningfulWhitespaceTests(unittest.TestCase):
                 "neg_pr116_bad_indent_step.safe",
                 "neg_pr116_legacy_end_if.safe",
                 "neg_pr116_legacy_begin.safe",
-                "neg_pr116_declare_missing_begin.safe",
                 "neg_pr116_mixed_named_end.safe",
             },
         )
@@ -109,7 +108,7 @@ class Pr116MeaningfulWhitespaceTests(unittest.TestCase):
         self.assertTrue(report["syntax_policy"]["lexer_token_stream_changed"])
         self.assertEqual(report["syntax_policy"]["indentation_style"], "spaces_only")
         self.assertEqual(report["syntax_policy"]["indentation_step"], 3)
-        self.assertTrue(report["syntax_policy"]["declare_blocks_remain_explicit"])
+        self.assertFalse(report["syntax_policy"]["declare_blocks_remain_explicit"])
         self.assertEqual(
             len(report["positive_fixtures"]),
             len(run_pr116_meaningful_whitespace.positive_cases()),

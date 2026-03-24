@@ -881,7 +881,7 @@
       "source_section": "8.7",
       "clause_ids": ["SAFE@468cf72:spec/02-restrictions.md#2.9.p140:7eeb1bb6"],
       "fields": [
-        { "name": "items", "type": "NonEmptyList<InterleavedItem>", "optional": false, "note": "May contain both statements and interleaved declarations" },
+        { "name": "items", "type": "List<InterleavedItem>", "optional": false, "note": "May contain both statements and interleaved declarations; empty suites are permitted after PR11.6.2 source `null` removal." },
         { "name": "span", "type": "Span", "optional": false }
       ]
     },

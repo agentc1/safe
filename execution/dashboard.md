@@ -3,17 +3,17 @@
 - **Schema version:** `1`
 - **Frozen spec SHA:** `468cf72332724b04b7c193b4d2a3b02f1584125d`
 - **Active task:** `none`
-- **Next task:** `PR11.6.2`
+- **Next task:** `PR11.7`
 - **Updated at:** `2026-03-24T00:00:00Z`
 
 ## Repo Facts
 
 - `tests/positive`: 65
-- `tests/negative`: 121
+- `tests/negative`: 127
 - `tests/golden`: 3
 - `tests/concurrency`: 14
 - `tests/diagnostics_golden`: 22
-- **Total test corpus entries:** 225
+- **Total test corpus entries:** 231
 
 ## Task Ledger
 
@@ -66,7 +66,7 @@
 | PR11.5 | done | PR11.4 | 1 |
 | PR11.6 | done | PR11.5 | 1 |
 | PR11.6.1 | done | PR11.6 | 1 |
-| PR11.6.2 | planned | PR11.6.1 | 0 |
+| PR11.6.2 | done | PR11.6.1 | 1 |
 | PR11.7 | planned | PR11.6.2 | 0 |
 | PR11.8 | planned | PR11.7 | 0 |
 | PR11.8a | planned | PR11.8, PR11.3a | 0 |
@@ -693,7 +693,7 @@
 - **Acceptance:**
   - Meaningful whitespace is the admitted block-structuring surface for covered constructs, and legacy explicit block-closing syntax for those constructs is rejected.
   - The compiler enforces deterministic indentation rules: spaces only, fixed 3-space indentation steps, no accidental mixed-syntax acceptance, and stable structural parsing via indentation tokens.
-  - A mechanical migration path and deterministic corpus evidence exist for the shipped whitespace surface, while `declare` blocks and `declare_expression` remain explicit in this milestone.
+  - A mechanical migration path and deterministic corpus evidence exist for the shipped whitespace surface for the covered block forms, while deferred post-PR11.6 cleanup of retained Ada spellings lands separately.
 - **Evidence:**
   - `execution/reports/pr116-meaningful-whitespace-report.json`
 
@@ -716,19 +716,15 @@
 
 ### PR11.6.2 — Legacy Ada Syntax Removal
 
-- **Status:** `planned`
+- **Status:** `done`
 - **Depends on:** PR11.6.1
 - **Blockers:** none
 - **Acceptance:**
-  - Remove `declare` blocks from the accepted source surface; `var` declarations and implicit block scoping replace explicit `declare`/`begin`/`end` for all statement-local variable introduction.
-  - Remove the `aliased` keyword from the accepted source surface; the ownership model infers aliasing from access type flow without manual annotation.
-  - Remove `goto` from the accepted source surface and the spec's retained-feature list; structured control flow (`if`/`case`/`loop`/`return`) covers all supported patterns.
-  - Remove named `exit` (exit with loop label) from the accepted surface; unnamed `exit` and `exit when` remain for structured loop termination.
-  - Remove `null` statement from the accepted surface; empty indented blocks (immediate dedent) replace explicit no-op placeholders.
-  - Remove legacy representation clause syntax (`for T use record`/`for T use (enum)`) from the accepted surface; aspect syntax (`with Size =>`, `with Alignment =>`) is the sole representation mechanism.
-  - Remove legacy keyword rejection diagnostics for `procedure`, `elsif`, `..`, and `return`-as-type-annotation from the parser; these were already rejected since PR11.4 and the diagnostic scaffolding is no longer needed.
-  - The spec, grammar summary, test corpus, Rosetta samples, documentation, and VS Code grammar are updated to reflect the removals.
-  - A dedicated PR11.6.2 gate with positive and negative coverage demonstrates the narrowed surface, and the full pipeline passes verify --authority ci.
+  - Statement-level `declare` blocks and `declare_expression` are removed from the admitted Safe source surface; straightforward former uses migrate to enclosing-suite `var` declarations and explicit negative coverage locks the removed forms.
+  - Source `null` statements, named `exit`, `goto`, `aliased`, and legacy representation-clause syntax are removed from the admitted Safe surface, while empty suites and existing structured control flow remain the only accepted replacements.
+  - A dedicated PR11.6.2 gate, migration helper, corpus/docs/spec refresh, and full pipeline verify evidence demonstrate the narrowed post-whitespace source surface without weakening emitted Ada implementation detail.
+- **Evidence:**
+  - `execution/reports/pr1162-legacy-ada-syntax-removal-report.json`
 
 ### PR11.7 — Reference-Surface Experiments
 

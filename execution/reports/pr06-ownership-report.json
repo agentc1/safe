@@ -360,9 +360,9 @@
             {
               "highlight_span": {
                 "end_col": 18,
-                "end_line": 25,
+                "end_line": 24,
                 "start_col": 7,
-                "start_line": 25
+                "start_line": 24
               },
               "message": "anonymous access 'Ref' may only be assigned at its declaration",
               "notes": [
@@ -373,9 +373,9 @@
               "reason": "anonymous_access_reassign",
               "span": {
                 "end_col": 18,
-                "end_line": 25,
+                "end_line": 24,
                 "start_col": 7,
-                "start_line": 25
+                "start_line": 24
               },
               "suggestions": []
             }
@@ -393,7 +393,7 @@
           "cwd": "$REPO_ROOT",
           "returncode": 1,
           "stderr": "",
-          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"anonymous_access_reassign\",\"message\":\"anonymous access 'Ref' may only be assigned at its declaration\",\"path\":\"$REPO_ROOT/tests/negative/neg_own_anon_reassign_join.safe\",\"span\":{\"start_line\":25,\"start_col\":7,\"end_line\":25,\"end_col\":18},\"highlight_span\":{\"start_line\":25,\"start_col\":7,\"end_line\":25,\"end_col\":18},\"notes\":[\"borrow and observe locals are initialization-only.\",\"rule: Safe \u00a72.3.3 / \u00a72.3.4a (anonymous access is initialization-only)\"],\"suggestions\":[]}]}\n"
+          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"anonymous_access_reassign\",\"message\":\"anonymous access 'Ref' may only be assigned at its declaration\",\"path\":\"$REPO_ROOT/tests/negative/neg_own_anon_reassign_join.safe\",\"span\":{\"start_line\":24,\"start_col\":7,\"end_line\":24,\"end_col\":18},\"highlight_span\":{\"start_line\":24,\"start_col\":7,\"end_line\":24,\"end_col\":18},\"notes\":[\"borrow and observe locals are initialization-only.\",\"rule: Safe \u00a72.3.3 / \u00a72.3.4a (anonymous access is initialization-only)\"],\"suggestions\":[]}]}\n"
         },
         "source": "tests/negative/neg_own_anon_reassign_join.safe"
       },
@@ -536,9 +536,9 @@
             {
               "highlight_span": {
                 "end_col": 20,
-                "end_line": 23,
+                "end_line": 22,
                 "start_col": 16,
-                "start_line": 23
+                "start_line": 22
               },
               "message": "use of moved value 'Owner'",
               "notes": [
@@ -549,9 +549,9 @@
               "reason": "double_move",
               "span": {
                 "end_col": 20,
-                "end_line": 23,
+                "end_line": 22,
                 "start_col": 16,
-                "start_line": 23
+                "start_line": 22
               },
               "suggestions": []
             }
@@ -569,7 +569,7 @@
           "cwd": "$REPO_ROOT",
           "returncode": 1,
           "stderr": "",
-          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"double_move\",\"message\":\"use of moved value 'Owner'\",\"path\":\"$REPO_ROOT/tests/negative/neg_own_inout_move.safe\",\"span\":{\"start_line\":23,\"start_col\":16,\"end_line\":23,\"end_col\":20},\"highlight_span\":{\"start_line\":23,\"start_col\":16,\"end_line\":23,\"end_col\":20},\"notes\":[\"the access actual for this call was already moved earlier on this path.\",\"rule: Safe \u00a72.3.2 (move semantics)\"],\"suggestions\":[]}]}\n"
+          "stdout": "{\"format\":\"diagnostics-v0\",\"diagnostics\":[{\"reason\":\"double_move\",\"message\":\"use of moved value 'Owner'\",\"path\":\"$REPO_ROOT/tests/negative/neg_own_inout_move.safe\",\"span\":{\"start_line\":22,\"start_col\":16,\"end_line\":22,\"end_col\":20},\"highlight_span\":{\"start_line\":22,\"start_col\":16,\"end_line\":22,\"end_col\":20},\"notes\":[\"the access actual for this call was already moved earlier on this path.\",\"rule: Safe \u00a72.3.2 (move semantics)\"],\"suggestions\":[]}]}\n"
         },
         "source": "tests/negative/neg_own_inout_move.safe"
       }
@@ -699,10 +699,10 @@
       "out/ownership_borrow.typed.json": "12be4ae1b15dfe1b8c794da237c6919031ee702a9d8c901caca7f25c693da747"
     },
     "tests/positive/ownership_inout.safe": {
-      "iface/ownership_inout.safei.json": "41368ed8ebfbdc077ab9f41435af3717ba8d314a26b5a31351898ed5f2e24824",
-      "out/ownership_inout.ast.json": "ec1a9899064b6ef2b3074128166a4901b8b0a236a9467014762cb919ea520586",
-      "out/ownership_inout.mir.json": "beb969c0a68ff31199000e82e7baffb60c0c7b48947975a28c687f45d7a9c388",
-      "out/ownership_inout.typed.json": "0517c1a48e9e2670be1a78c1ce1a2d400e0d776efbc78d869305830dcc8bddc6"
+      "iface/ownership_inout.safei.json": "8f0ede77d6f4412312027fe63a09dcb5b7056c20b3ee277ee57f0e29f61ec9f5",
+      "out/ownership_inout.ast.json": "762266717827ad818f264e57102b587be37c660b1e55c1d9ad0a50f0925d1fbb",
+      "out/ownership_inout.mir.json": "0a1e7d59ba89a4d9ebc82c1ac8a3735576ea1aa882bbfa766a2d0941900d4cf9",
+      "out/ownership_inout.typed.json": "81e9101174da1c584b2305a33ce6a3173aa0c9442ac55b01e96d656cd7600af1"
     },
     "tests/positive/ownership_observe_access.safe": {
       "iface/ownership_observe_access.safei.json": "8ca471b0f85ba8234cce822357087f1b5d98345e8b170928b0d8b62ef3fbcc0a",
@@ -849,7 +849,7 @@
         ],
         "cwd": "$REPO_ROOT",
         "returncode": 1,
-        "stderr": "neg_own_anon_reassign_join.safe:25:7: error: anonymous access 'Ref' may only be assigned at its declaration\n  |\n  | 25 |       Ref = Other;  -- ERROR: merge must not reset init-only tracking\n  |    |       ^~~~~~~~~~~~\n  |\n  note: borrow and observe locals are initialization-only.\n  note: rule: Safe \u00a72.3.3 / \u00a72.3.4a (anonymous access is initialization-only)\n",
+        "stderr": "neg_own_anon_reassign_join.safe:24:7: error: anonymous access 'Ref' may only be assigned at its declaration\n  |\n  | 24 |       Ref = Other;  -- ERROR: merge must not reset init-only tracking\n  |    |       ^~~~~~~~~~~~\n  |\n  note: borrow and observe locals are initialization-only.\n  note: rule: Safe \u00a72.3.3 / \u00a72.3.4a (anonymous access is initialization-only)\n",
         "stdout": ""
       },
       "source": "tests/negative/neg_own_anon_reassign_join.safe"
@@ -993,6 +993,6 @@
     }
   ],
   "mode": "all",
-  "repeat_sha256": "22aab9e8e7890f67b07791b05969e6ac59678ecdc7f2bcddf6bdf78e9a1661d0",
-  "report_sha256": "22aab9e8e7890f67b07791b05969e6ac59678ecdc7f2bcddf6bdf78e9a1661d0"
+  "repeat_sha256": "b5803235199ee5eb728a1dc515820f97b3390740b41031f9818bda0d8257288a",
+  "report_sha256": "b5803235199ee5eb728a1dc515820f97b3390740b41031f9818bda0d8257288a"
 }

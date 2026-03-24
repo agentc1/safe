@@ -10,11 +10,7 @@ package Constant_Shadow_Mutable
 
    function Update_Local
 
-      declare
-         Value : Integer = 0;
-      begin
-         Value = 2;
-      end;
-
+      var Value : Integer = 0;
+      Value = 2;
 
 

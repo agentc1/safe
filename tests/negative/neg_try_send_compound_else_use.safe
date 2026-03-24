@@ -19,10 +19,8 @@ package Neg_Try_Send_Compound_Else_Use
 
       try_send Data_Ch, Source, Success;
       if Success and then Ready
-         null;
       else
          send Data_Ch, Source;
-
 
 
 

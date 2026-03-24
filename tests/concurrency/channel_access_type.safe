@@ -19,21 +19,18 @@ package Channel_Access_Type
       Toggle : Boolean = False;
 
       loop
-         declare
-            Item : Payload_Ptr;
-         begin
-            if Toggle
-               Item = new ((Value = 1) as Payload);
-            else
-               Item = new ((Value = 0) as Payload);
+         var Item : Payload_Ptr;
+         if Toggle
+            Item = new ((Value = 1) as Payload);
+         else
+            Item = new ((Value = 0) as Payload);
 
-            send Data_Ch, Item;
-            if Item == null
-               delay 0.001;
-            else
-               delay 0.002;
+         send Data_Ch, Item;
+         if Item == null
+            delay 0.001;
+         else
+            delay 0.002;
 
-         end;
          Toggle = not Toggle;
 
 
@@ -41,17 +38,12 @@ package Channel_Access_Type
    task Receiver with Priority = 10
 
       loop
-         declare
-            Item : Payload_Ptr;
-         begin
-            receive Data_Ch, Item;
-            if Item != null and then Item.all.Value == 0
-               delay 0.001;
-            else
-               delay 0.002;
-
-         end;
-
+         var Item : Payload_Ptr;
+         receive Data_Ch, Item;
+         if Item != null and then Item.all.Value == 0
+            delay 0.001;
+         else
+            delay 0.002;
 
 
 

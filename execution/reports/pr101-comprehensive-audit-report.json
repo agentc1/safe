@@ -4,12 +4,12 @@
       "audit_doc": "fc4edf3f450f82ed744cb28283cfbce58f07320be1ca48fba90889c343d75832",
       "ci_workflow": "c6e73eb06095763835c758156654e4e9758841852591ee620a9fb072fbd3d775",
       "compiler_readme": "2dee3082c1f789efe0f9c251e57ba9419baa21782f7192e0bf48ace846bd9bf0",
-      "dashboard": "37be21ce8c53c681d1900b2bd700057d74b8de5d0abd65ed03b0427233ce1188",
+      "dashboard": "c256521c385403f949c8a6fdefbfeeb32f5354f17926b776bfacb04cfbe5c60d",
       "matrix": "9553b32825b2b3d25f153e781708987722e30f9d1edc2ae3e396aec24c4916a1",
       "pipeline_verify_workflow": "7f74e42cdaa3ebdbe7be613f0fe2b722e5205977da6cdcd89cefd1db0d52891f",
       "post_pr10_scope": "52d74391fcb697b6cc620bbeb8ed8aaff90f6d5689f99c9f093da972d9f55237",
-      "readme": "97eeb06d248cf52fc65d8d3c5b3dc0105b6db7f4d247a21a680a19e0d4124441",
-      "tracker": "238159bbcccdc26ebdf0e69da13e19bc4593e14599a1cc6c5b3d909177786f7c"
+      "readme": "ce933c9aa2bd4d9e877466969dbe1b2cb4fcbfc6dd996c387e4ba2b1f91a379d",
+      "tracker": "90082ee52c67af71e15e5d594935da7a875e7d33ba7a2b060709c135f593f2a7"
     },
     "audited_surfaces": [
       "spec/TBD consistency",
@@ -25,7 +25,7 @@
       "python_gates": [
         {
           "deterministic": true,
-          "report_sha256": "c9b73842a68c81671eec7a0bd872250c86f82cfe0d94a4c6daa1804a83726eab",
+          "report_sha256": "dc3197f50596fbb7563de4bb0b43c3c4cb1c5eb5d93f9f324f88987caf66d931",
           "result": {
             "command_profile": {
               "args": [],
@@ -38,7 +38,7 @@
         },
         {
           "deterministic": true,
-          "report_sha256": "e3d08fd6b5d61f28813ce05cccb69c5ee416b0527fac918551f767e80e7b8454",
+          "report_sha256": "d86c9823a0d9ee963f95792ca0fc12759ad974730acb93b8bec009983a19d0c1",
           "result": {
             "command_profile": {
               "args": [],
@@ -51,7 +51,7 @@
         },
         {
           "deterministic": true,
-          "report_sha256": "f1f8f08f199ed96fd70b7bc28c0169d9c6ca3696001594a9f5608437cf956208",
+          "report_sha256": "ddcfe4b76660a6450788173b7602e7b7edc8d09cf865d0405e42a123488c2720",
           "result": {
             "command_profile": {
               "args": [],
@@ -384,7 +384,7 @@
       }
     ],
     "tracker": {
-      "next_task_id": "PR11.6.2",
+      "next_task_id": "PR11.7",
       "pr101_evidence": [
         "execution/archive/pr101a_companion_proof_verification/report.json",
         "execution/archive/pr101b_template_proof_verification/report.json",
@@ -464,8 +464,8 @@
       ]
     }
   },
-  "repeat_sha256": "8e6b5773c20157d53cbfd708fa0f026dd535146f1b219859c31015b89a9d5556",
-  "report_sha256": "8e6b5773c20157d53cbfd708fa0f026dd535146f1b219859c31015b89a9d5556",
+  "repeat_sha256": "43d5e3f19b94f90611913728bb4b39ba6cce06107529dea201982a2ef1ef2b66",
+  "report_sha256": "43d5e3f19b94f90611913728bb4b39ba6cce06107529dea201982a2ef1ef2b66",
   "semantic_floor": {
     "baseline_gate_hashes": {
       "emitted_hardening_regressions": "3f84ff42577ca0a50269aa187e2549f33bf901bdc1d25e9554a4e1c64e666657",

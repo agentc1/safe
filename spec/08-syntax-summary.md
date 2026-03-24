@@ -4,12 +4,12 @@
 
 This section provides the complete consolidated BNF grammar for Safe. This is the authoritative grammar; all syntactic constructs of Safe are defined here. The notation follows 8652:2023 §1.1.4: `::=` for productions, `[ ]` for optional, `{ }` for zero or more repetitions, `|` for alternation. Keywords are shown in **bold** where referenced in prose; in productions they appear as quoted literals. Nonterminals are in `snake_case`.
 
-For the PR11.6 surface, the lexer emits structural `INDENT` / `DEDENT` tokens
-from leading spaces-only indentation in fixed 3-space steps. Covered block
-constructs are delimited by those structural tokens rather than explicit
-closing keywords. `declare` blocks and `declare_expression` remain explicit in
-this release and are therefore called out separately where they still use
-`begin` / `end`.
+For the post-PR11.6.2 surface, the lexer emits structural `INDENT` / `DEDENT`
+tokens from leading spaces-only indentation in fixed 3-space steps. Covered
+block constructs are delimited by those structural tokens rather than explicit
+closing keywords. Statement-level `declare`, `declare_expression`, source
+`null`, `goto`, named `exit`, `aliased`, and legacy representation clauses are
+not part of the admitted Safe source grammar.
 
 ---
 
@@ -46,7 +46,6 @@ package_item ::=
   | task_declaration
   | channel_declaration
   | use_type_clause
-  | representation_item
   | pragma
 
 basic_declaration ::=
@@ -76,11 +75,11 @@ subtype_declaration ::=
     [ 'public' ] 'subtype' defining_identifier 'is' subtype_indication ';'
 
 object_declaration ::=
-    [ 'public' ] defining_identifier_list ':' [ 'aliased' ] [ 'constant' ]
+    [ 'public' ] defining_identifier_list ':' [ 'constant' ]
         subtype_indication [ '=' expression ] ';'
-  | [ 'public' ] defining_identifier_list ':' [ 'aliased' ] [ 'constant' ]
+  | [ 'public' ] defining_identifier_list ':' [ 'constant' ]
         array_type_definition [ '=' expression ] ';'
-  | [ 'public' ] defining_identifier_list ':' [ 'aliased' ] [ 'constant' ]
+  | [ 'public' ] defining_identifier_list ':' [ 'constant' ]
         access_definition [ '=' expression ] ';'
 
 number_declaration ::=
@@ -165,8 +164,8 @@ discrete_subtype_definition ::=
     discrete_subtype_indication | range
 
 component_definition ::=
-    [ 'aliased' ] subtype_indication
-  | [ 'aliased' ] access_definition
+    subtype_indication
+  | access_definition
 
 record_type_definition ::=
     [ 'limited' ] record_definition
@@ -189,7 +188,6 @@ component_list ::=
 
 component_item ::=
     component_declaration
-  | representation_item
 
 component_declaration ::=
     defining_identifier_list ':' component_definition [ '=' default_expression ] ';'
@@ -363,7 +361,6 @@ primary ::=
   | '(' expression ')'
   | annotated_expression
   | conditional_expression
-  | declare_expression
 
 annotated_expression ::=
     '(' expression 'as' subtype_mark ')'
@@ -383,10 +380,6 @@ case_expression ::=
 
 case_expression_alternative ::=
     'when' discrete_choice_list 'then' expression
-
-declare_expression ::=
-    'declare' { object_declaration }
-    'begin' expression
 
 choice_expression ::=
     simple_expression
@@ -469,19 +462,19 @@ statement_local_declaration ::=
   | var_statement
 
 local_object_declaration ::=
-    defining_identifier_list ':' [ 'aliased' ] [ 'constant' ]
+    defining_identifier_list ':' [ 'constant' ]
         subtype_indication [ '=' expression ] statement_terminator
-  | defining_identifier_list ':' [ 'aliased' ] [ 'constant' ]
+  | defining_identifier_list ':' [ 'constant' ]
         array_type_definition [ '=' expression ] statement_terminator
-  | defining_identifier_list ':' [ 'aliased' ] [ 'constant' ]
+  | defining_identifier_list ':' [ 'constant' ]
         access_definition [ '=' expression ] statement_terminator
 
 var_statement ::=
-    'var' defining_identifier_list ':' [ 'aliased' ]
+    'var' defining_identifier_list ':'
         subtype_indication [ '=' expression ] statement_terminator
-  | 'var' defining_identifier_list ':' [ 'aliased' ]
+  | 'var' defining_identifier_list ':'
         array_type_definition [ '=' expression ] statement_terminator
-  | 'var' defining_identifier_list ':' [ 'aliased' ]
+  | 'var' defining_identifier_list ':'
         access_definition [ '=' expression ] statement_terminator
 
 statement_terminator ::=
@@ -492,33 +485,25 @@ omitted_statement_terminator ::=
     <no token; permitted only when the next significant token begins on a later source line>
 
 statement ::=
-    [ label ] simple_statement
-  | [ label ] compound_statement
+    simple_statement
+  | compound_statement
 
 indented_statement_suite ::=
     INDENT
         sequence_of_statements
     DEDENT
 
-label ::=
-    '<<' identifier '>>'
-
 simple_statement ::=
-    null_statement
-  | assignment_statement
+    assignment_statement
   | procedure_call_statement
   | return_statement
   | exit_statement
-  | goto_statement
   | delay_statement
   | send_statement
   | receive_statement
   | try_send_statement
   | try_receive_statement
   | pragma
-
-null_statement ::=
-    'null' statement_terminator
 
 assignment_statement ::=
     name '=' expression statement_terminator
@@ -533,7 +518,7 @@ simple_return_statement ::=
     'return' [ expression ] statement_terminator
 
 extended_return_statement ::=
-    'return' defining_identifier ':' [ 'aliased' ] subtype_indication
+    'return' defining_identifier ':' subtype_indication
         [ '=' expression ] 'do'
         handled_sequence_of_statements
     'end' 'return' ';'
@@ -543,10 +528,7 @@ extended_return_statement ::=
     'end' 'return' ';'
 
 exit_statement ::=
-    'exit' [ loop_name ] [ 'when' condition ] statement_terminator
-
-goto_statement ::=
-    'goto' label_name statement_terminator
+    'exit' [ 'when' condition ] statement_terminator
 
 delay_statement ::=
     'delay' expression statement_terminator
@@ -555,7 +537,6 @@ compound_statement ::=
     if_statement
   | case_statement
   | loop_statement
-  | block_statement
   | select_statement
 
 if_statement ::=
@@ -580,9 +561,9 @@ case_statement_alternative ::=
         indented_statement_suite
 
 loop_statement ::=
-    [ loop_name ':' ] iteration_scheme
+    iteration_scheme
         indented_statement_suite
-  | [ loop_name ':' ] 'loop'
+  | 'loop'
         indented_statement_suite
 
 iteration_scheme ::=
@@ -590,22 +571,8 @@ iteration_scheme ::=
   | 'for' defining_identifier 'in' [ 'reverse' ] discrete_subtype_definition
   | 'for' defining_identifier 'of' [ 'reverse' ] name
 
-block_statement ::=
-    [ block_name ':' ]
-    'declare'
-        INDENT
-            { basic_declaration }
-        DEDENT
-    'begin'
-        indented_statement_suite
-    'end' statement_terminator
-
 handled_sequence_of_statements ::=
     sequence_of_statements
-
-loop_name ::= identifier
-block_name ::= identifier
-label_name ::= identifier
 ```
 
 ## 8.8 Subprograms
@@ -635,7 +602,7 @@ formal_part ::=
     '(' parameter_specification { ';' parameter_specification } ')'
 
 parameter_specification ::=
-    defining_identifier_list ':' [ 'aliased' ] mode subtype_mark
+    defining_identifier_list ':' mode subtype_mark
         [ '=' default_expression ]
   | defining_identifier_list ':' access_definition
         [ '=' default_expression ]
@@ -674,37 +641,11 @@ use_type_clause ::=
     'use' 'type' subtype_mark { ',' subtype_mark } ';'
 ```
 
-## 8.11 Representation Items
+## 8.11 Representation Clauses
 
-```
-representation_item ::=
-    attribute_definition_clause
-  | enumeration_representation_clause
-  | record_representation_clause
-  | aspect_specification
-
-attribute_definition_clause ::=
-    'for' name 'use' expression ';'
-
-enumeration_representation_clause ::=
-    'for' subtype_mark 'use' aggregate ';'
-
-record_representation_clause ::=
-    'for' subtype_mark 'use'
-        'record' [ 'at' 'mod' static_expression ';' ]
-            { component_clause }
-        'end' 'record' ';'
-
-component_clause ::=
-    component_name 'at' static_expression 'range'
-        static_simple_expression '..' static_simple_expression ';'
-
-aspect_specification ::=
-    'with' aspect_mark '=' expression
-
-aspect_mark ::=
-    identifier
-```
+Legacy Ada representation clauses such as `for T use (...)` and `for T use
+record ... end record;` are not part of Safe source after PR11.6.2. A
+conforming implementation shall reject them.
 
 ## 8.12 Tasks and Channels
 

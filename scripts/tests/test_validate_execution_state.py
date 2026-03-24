@@ -98,6 +98,12 @@ class ValidateExecutionStateTests(unittest.TestCase):
         self.assertIn("scripts/run_pr116_meaningful_whitespace.py", GLUE_SAFETY_AUDITED_SCRIPTS)
         self.assertIn("scripts/run_pr116_meaningful_whitespace.py", GLUE_SAFETY_REPORT_SCRIPTS)
         self.assertIn("scripts/run_pr116_meaningful_whitespace.py", GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS)
+        self.assertIn("scripts/run_pr1162_legacy_ada_syntax_removal.py", GLUE_SAFETY_AUDITED_SCRIPTS)
+        self.assertIn("scripts/run_pr1162_legacy_ada_syntax_removal.py", GLUE_SAFETY_REPORT_SCRIPTS)
+        self.assertIn(
+            "scripts/run_pr1162_legacy_ada_syntax_removal.py",
+            GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS,
+        )
         self.assertIn("scripts/_lib/pr101_verification.py", GLUE_SAFETY_AUDITED_SCRIPTS)
         self.assertIn("scripts/run_pr101a_companion_proof_verification.py", GLUE_SAFETY_AUDITED_SCRIPTS)
         self.assertIn("scripts/run_pr101a_companion_proof_verification.py", GLUE_SAFETY_REPORT_SCRIPTS)
@@ -1743,6 +1749,115 @@ class ValidateExecutionStateTests(unittest.TestCase):
                 f"{validate_execution_state.COMPACTION_RECEIPT_REL}:retired_nodes:{spec.node_id}:report_sha256",
             ],
         )
+
+    def test_attestation_chain_compression_report_skips_post_root_check_after_head_advances(self) -> None:
+        spec = RETIRED_NODE_SPECS[0]
+        pre_root = "1" * 64
+        post_root = "2" * 64
+        pre_commit = "a" * 40
+        post_commit = "b" * 40
+        current_head = "c" * 40
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            archived_report = spec.archive_report_path_at(repo_root)
+            report_sha = self._write_finalized_report(archived_report, {"status": "ok"})
+            provenance_path = spec.archive_provenance_path_at(repo_root)
+            provenance_path.parent.mkdir(parents=True, exist_ok=True)
+            provenance_path.write_text(
+                self._serialize_report(
+                    {
+                        "schema_version": 1,
+                        "node_id": spec.node_id,
+                        "original_report_path": spec.original_report_rel,
+                        "archived_report_path": spec.archive_report_rel,
+                        "report_sha256": report_sha,
+                        "live_subsumer": "pr101_comprehensive_audit",
+                        "transitive_chain": list(spec.transitive_chain),
+                        "pre_merkle_root": pre_root,
+                        "inclusion_proof": [],
+                        "pre_compaction_commit": pre_commit,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            receipt_path = repo_root / validate_execution_state.COMPACTION_RECEIPT_REL
+            receipt_path.parent.mkdir(parents=True, exist_ok=True)
+            receipt_path.write_text(
+                self._serialize_report(
+                    {
+                        "schema_version": 1,
+                        "task_id": "PR11.6.1",
+                        "retired_node_ids": [spec.node_id],
+                        "pre_merkle_root": pre_root,
+                        "post_merkle_root": post_root,
+                        "pre_compaction_commit": pre_commit,
+                        "post_compaction_commit": post_commit,
+                        "archive_root": "execution/archive",
+                        "retired_nodes": [
+                            {
+                                "node_id": spec.node_id,
+                                "original_report_path": spec.original_report_rel,
+                                "archived_report_path": spec.archive_report_rel,
+                                "report_sha256": report_sha,
+                                "live_subsumer": "pr101_comprehensive_audit",
+                                "transitive_chain": list(spec.transitive_chain),
+                                "pre_merkle_root": pre_root,
+                                "inclusion_proof": [],
+                                "pre_compaction_commit": pre_commit,
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(validate_execution_state, "RETIRED_NODE_SPECS", (spec,)), mock.patch.object(
+                validate_execution_state,
+                "RETIRED_NODE_IDS",
+                (spec.node_id,),
+            ), mock.patch.object(
+                validate_execution_state,
+                "find_command",
+                return_value="git",
+            ), mock.patch.object(
+                validate_execution_state,
+                "run",
+                return_value={"stdout": current_head + "\n"},
+            ), mock.patch.object(
+                validate_execution_state,
+                "verify_inclusion_proof",
+                return_value=True,
+            ), mock.patch.object(
+                validate_execution_state,
+                "active_report_entries",
+                return_value=[("execution/reports/live.json", b"live")],
+            ), mock.patch.object(
+                validate_execution_state,
+                "merkle_root",
+                return_value="0" * 64,
+            ):
+                report = validate_execution_state.attestation_chain_compression_report(repo_root=repo_root)
+
+        self.assertEqual(report["receipt_violations"], [])
+
+    def test_check_attestation_chain_compression_accepts_current_manifest_size(self) -> None:
+        with mock.patch.object(
+            validate_execution_state,
+            "attestation_chain_compression_report",
+            return_value={
+                "manifest_node_count": 38,
+                "retired_manifest_nodes": [],
+                "archive_missing": [],
+                "archive_noncanonical": [],
+                "provenance_missing": [],
+                "provenance_noncanonical": [],
+                "provenance_violations": [],
+                "proof_violations": [],
+                "receipt_violations": [],
+            },
+        ):
+            validate_execution_state.check_attestation_chain_compression()
 
     def test_check_policy_anchoring_detects_mismatched_hash(self) -> None:
         from validate_execution_state import check_policy_anchoring

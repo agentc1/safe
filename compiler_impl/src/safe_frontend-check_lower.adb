@@ -905,31 +905,6 @@ package body Safe_Frontend.Check_Lower is
                   end;
                end loop;
             end;
-         elsif Stmt.Kind = CM.Stmt_Block then
-            declare
-               Scope_Id : constant String := "scope" & Trimmed (Natural (Work.Scopes.Length));
-               Scope    : GM.Scope_Entry := New_Scope (Scope_Id, Parent_Id, "block");
-               Child    : Type_Maps.Map := Current_Visible;
-            begin
-               Stmt.Scope_Id := FT.To_UString (Scope_Id);
-               for Decl of Stmt.Declarations loop
-                  for Name of Decl.Names loop
-                     Scope.Local_Ids.Append
-                       (Append_Local
-                          (Locals,
-                           UString_Value (Name),
-                           "local",
-                           "in",
-                           Decl.Type_Info,
-                           Decl.Span,
-                           Scope_Id,
-                           Is_Constant => Decl.Is_Constant));
-                     Child.Include (UString_Value (Name), Decl.Type_Info);
-                  end loop;
-               end loop;
-               Register_Scope (Work, Scope);
-               Collect_Scopes (Stmt.Body_Stmts, Child, Scope_Id, Work, Locals);
-            end;
          elsif Stmt.Kind = CM.Stmt_For then
             declare
                Scope_Id  : constant String := "scope" & Trimmed (Natural (Work.Scopes.Length));
@@ -1286,9 +1261,6 @@ package body Safe_Frontend.Check_Lower is
             Add_Op (Work, UString_Value (Current_Id), Call_Op);
             return Current_Id;
 
-         when CM.Stmt_Null =>
-            return Current_Id;
-
          when CM.Stmt_Exit =>
             if Stmt.Condition = null then
                Terminator.Kind := GM.Terminator_Jump;
@@ -1326,94 +1298,6 @@ package body Safe_Frontend.Check_Lower is
             Register_Scope_Chain_Exits
               (Work, Current_Scope_Id, UString_Value (Current_Id));
             return Empty_Block_Id;
-
-         when CM.Stmt_Block =>
-            declare
-               Scope_Id    : constant String := UString_Value (Stmt.Scope_Id);
-               Entry_Id    : constant FT.UString :=
-                 New_Block (Work, Stmt.Span, "block_entry", Scope_Id);
-               Local_Items : constant FT.UString_Vectors.Vector := Local_Names (Stmt.Declarations);
-               Body_End    : FT.UString;
-               Scope_Op    : GM.Op_Entry;
-            begin
-               Register_Scope_Entry (Work, Scope_Id, UString_Value (Entry_Id));
-
-               Terminator.Kind := GM.Terminator_Jump;
-               Terminator.Span := Stmt.Span;
-               Terminator.Target := Entry_Id;
-               Set_Terminator (Work, UString_Value (Current_Id), Terminator);
-
-               Child_Types := Visible_Types;
-               for Decl of Stmt.Declarations loop
-                  for Name of Decl.Names loop
-                     Child_Types.Include (UString_Value (Name), Decl.Type_Info);
-                  end loop;
-               end loop;
-
-               if not Local_Items.Is_Empty then
-                  Scope_Op.Kind := GM.Op_Scope_Enter;
-                  Scope_Op.Span := Stmt.Span;
-                  Scope_Op.Scope_Id := FT.To_UString (Scope_Id);
-                  Scope_Op.Locals := Local_Items;
-                  Add_Op (Work, UString_Value (Entry_Id), Scope_Op);
-               end if;
-
-               for Decl of Stmt.Declarations loop
-                  for Name of Decl.Names loop
-                     if Decl.Has_Initializer and then Decl.Initializer /= null then
-                        Assign_Op := (others => <>);
-                        Assign_Op.Kind := GM.Op_Assign;
-                        Assign_Op.Span := Decl.Span;
-                        Assign_Op.Target :=
-                          Lower_Target
-                            (Ident_Expr
-                               (UString_Value (Name),
-                                Decl.Span,
-                                UString_Value (Decl.Type_Info.Name)),
-                             Child_Types,
-                             Type_Env);
-                        Assign_Op.Value := Lower_Expr (Decl.Initializer, Child_Types, Type_Env);
-                        Assign_Op.Type_Name := Decl.Type_Info.Name;
-                        Assign_Op.Ownership_Effect :=
-                          Ownership_Assignment_Effect
-                            (Ident_Expr
-                               (UString_Value (Name),
-                                Decl.Span,
-                                UString_Value (Decl.Type_Info.Name)),
-                             Decl.Initializer,
-                             Child_Types,
-                             Type_Env);
-                        Assign_Op.Declaration_Init := True;
-                        Add_Op (Work, UString_Value (Entry_Id), Assign_Op);
-                     end if;
-                  end loop;
-               end loop;
-
-               Body_End :=
-                 Lower_Statement_List
-                   (Work,
-                    Entry_Id,
-                    Stmt.Body_Stmts,
-                    Child_Types,
-                    Type_Env,
-                    Scope_Id,
-                    Functions,
-                    Loop_Exit_Target);
-
-               if Has_Block (Body_End) then
-                  if not Local_Items.Is_Empty then
-                     Scope_Op := (others => <>);
-                     Scope_Op.Kind := GM.Op_Scope_Exit;
-                     Scope_Op.Span := Stmt.Span;
-                     Scope_Op.Scope_Id := FT.To_UString (Scope_Id);
-                     Scope_Op.Locals := Local_Items;
-                     Add_Op (Work, UString_Value (Body_End), Scope_Op);
-                     Register_Scope_Exit (Work, Scope_Id, UString_Value (Body_End));
-                  end if;
-                  return Body_End;
-               end if;
-               return Empty_Block_Id;
-            end;
 
          when CM.Stmt_If =>
             declare
