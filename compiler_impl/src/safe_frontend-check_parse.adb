@@ -11,6 +11,7 @@ package body Safe_Frontend.Check_Parse is
    use type CM.Statement_Kind;
    use type CM.Type_Spec_Kind;
    use type FL.Token_Kind;
+   use type FT.Source_Span;
    use type FT.UString;
 
    Parse_Failure   : exception;

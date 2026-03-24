@@ -15,7 +15,9 @@
       "tests/positive/constant_task_priority.safe",
       "tests/positive/ownership_early_return.safe",
       "tests/positive/rule4_linked_list.safe",
-      "tests/interfaces/provider_transitive_channel.safe"
+      "tests/interfaces/provider_transitive_channel.safe",
+      "tests/positive/pr1162_empty_subprogram_body_followed_by_sibling.safe",
+      "tests/positive/pr1162_empty_select_delay_arm.safe"
     ]
   },
   "deterministic": true,
@@ -289,7 +291,7 @@
       "source": "tests/positive/ownership_inout.safe",
       "source_surface": {
         "forbidden_fragments": [
-          "null"
+          "null;"
         ],
         "required_fragments": [
           "function Consume (Ref : in out Payload_Ptr)",
@@ -357,7 +359,7 @@
       "source": "tests/positive/constant_task_priority.safe",
       "source_surface": {
         "forbidden_fragments": [
-          "null"
+          "null;"
         ],
         "required_fragments": [
           "task Worker with Priority = Worker_Priority",
@@ -573,10 +575,150 @@
         "cwd": "$REPO_ROOT",
         "returncode": 0
       }
+    },
+    {
+      "ada_snippets": [
+        "procedure Skip",
+        "function Value return Integer",
+        "null;"
+      ],
+      "check": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "check",
+          "tests/positive/pr1162_empty_subprogram_body_followed_by_sibling.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0
+      },
+      "compile": {
+        "command": [
+          "alr",
+          "exec",
+          "--",
+          "gprbuild",
+          "-c",
+          "-P",
+          "$TMPDIR/pr1162_empty_subprogram_body_followed_by_sibling/ada/build.gpr",
+          "pr1162_empty_subprogram_body_followed_by_sibling.adb"
+        ],
+        "cwd": "$REPO_ROOT/compiler_impl",
+        "returncode": 0
+      },
+      "emit": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "emit",
+          "tests/positive/pr1162_empty_subprogram_body_followed_by_sibling.safe",
+          "--out-dir",
+          "$TMPDIR/pr1162_empty_subprogram_body_followed_by_sibling/out",
+          "--interface-dir",
+          "$TMPDIR/pr1162_empty_subprogram_body_followed_by_sibling/iface",
+          "--ada-out-dir",
+          "$TMPDIR/pr1162_empty_subprogram_body_followed_by_sibling/ada"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0
+      },
+      "mir_snippets": [],
+      "safei_snippets": [
+        "function Skip",
+        "function Value"
+      ],
+      "source": "tests/positive/pr1162_empty_subprogram_body_followed_by_sibling.safe",
+      "source_surface": {
+        "forbidden_fragments": [
+          "null;"
+        ],
+        "required_fragments": [
+          "function Skip",
+          "function Value returns Integer"
+        ]
+      },
+      "typed_snippets": [],
+      "validate_mir": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "validate-mir",
+          "$TMPDIR/pr1162_empty_subprogram_body_followed_by_sibling/out/pr1162_empty_subprogram_body_followed_by_sibling.mir.json"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0
+      }
+    },
+    {
+      "ada_snippets": [
+        "if not Select_Done then",
+        "null;"
+      ],
+      "check": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "check",
+          "tests/positive/pr1162_empty_select_delay_arm.safe"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0
+      },
+      "compile": {
+        "command": [
+          "alr",
+          "exec",
+          "--",
+          "gprbuild",
+          "-c",
+          "-P",
+          "$TMPDIR/pr1162_empty_select_delay_arm/ada/build.gpr",
+          "pr1162_empty_select_delay_arm.adb",
+          "-cargs",
+          "-gnatec=$TMPDIR/pr1162_empty_select_delay_arm/ada/gnat.adc"
+        ],
+        "cwd": "$REPO_ROOT/compiler_impl",
+        "returncode": 0
+      },
+      "emit": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "emit",
+          "tests/positive/pr1162_empty_select_delay_arm.safe",
+          "--out-dir",
+          "$TMPDIR/pr1162_empty_select_delay_arm/out",
+          "--interface-dir",
+          "$TMPDIR/pr1162_empty_select_delay_arm/iface",
+          "--ada-out-dir",
+          "$TMPDIR/pr1162_empty_select_delay_arm/ada"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0
+      },
+      "mir_snippets": [],
+      "safei_snippets": [
+        "task Poller"
+      ],
+      "source": "tests/positive/pr1162_empty_select_delay_arm.safe",
+      "source_surface": {
+        "forbidden_fragments": [
+          "null;"
+        ],
+        "required_fragments": [
+          "select",
+          "delay 0.05"
+        ]
+      },
+      "typed_snippets": [],
+      "validate_mir": {
+        "command": [
+          "compiler_impl/bin/safec",
+          "validate-mir",
+          "$TMPDIR/pr1162_empty_select_delay_arm/out/pr1162_empty_select_delay_arm.mir.json"
+        ],
+        "cwd": "$REPO_ROOT",
+        "returncode": 0
+      }
     }
   ],
-  "repeat_sha256": "b6f81dd1e81c60bdfcf79b8454a978238359b7222aff83308744861bd37ae4e7",
-  "report_sha256": "b6f81dd1e81c60bdfcf79b8454a978238359b7222aff83308744861bd37ae4e7",
+  "repeat_sha256": "f9e6081c3340d2f43ce123bb7f01ce53cfe79331cfc3c1da87aa03d26621d508",
+  "report_sha256": "f9e6081c3340d2f43ce123bb7f01ce53cfe79331cfc3c1da87aa03d26621d508",
   "status": "ok",
   "syntax_policy": {
     "empty_suites_replace_null_statements": true,
