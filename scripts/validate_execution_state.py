@@ -1355,8 +1355,8 @@ def attestation_chain_compression_report(
 
 def check_attestation_chain_compression(*, repo_root: Path = REPO_ROOT) -> None:
     report = attestation_chain_compression_report(repo_root=repo_root)
-    if report["manifest_node_count"] != 38:
-        fail(f"compressed manifest must contain 38 nodes, found {report['manifest_node_count']}")
+    if report["manifest_node_count"] != 39:
+        fail(f"compressed manifest must contain 39 nodes, found {report['manifest_node_count']}")
     if report["retired_manifest_nodes"]:
         fail(f"retired nodes still present in manifest: {report['retired_manifest_nodes']}")
     if report["archive_missing"]:

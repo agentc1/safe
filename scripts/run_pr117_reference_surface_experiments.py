@@ -455,10 +455,14 @@ def generate_report(*, env: dict[str, str], scratch_root: Path | None = None) ->
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--scratch-root", type=Path, default=None)
     args = parser.parse_args()
 
     report = finalize_deterministic_report(
-        lambda: generate_report(env=ensure_sdkroot(os.environ.copy())),
+        lambda: generate_report(
+            env=ensure_sdkroot(os.environ.copy()),
+            scratch_root=args.scratch_root,
+        ),
         label="PR11.7 reference-surface experiments",
     )
     write_report(args.report, report)

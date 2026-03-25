@@ -1846,7 +1846,7 @@ class ValidateExecutionStateTests(unittest.TestCase):
             validate_execution_state,
             "attestation_chain_compression_report",
             return_value={
-                "manifest_node_count": 38,
+                "manifest_node_count": 39,
                 "retired_manifest_nodes": [],
                 "archive_missing": [],
                 "archive_noncanonical": [],
