@@ -1,3 +1,4 @@
+with Ada.Characters.Handling;
 with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Hash;
@@ -72,6 +73,7 @@ package body Safe_Frontend.Check_Resolve is
    Resolve_Failure : exception;
    Raised_Diag     : CM.MD.Diagnostic;
    Documented_Default_Task_Priority : constant Long_Long_Integer := 31;
+   Current_Reference_Signal_Experiment : Boolean := False;
 
    function UString_Value (Value : FT.UString) return String is
    begin
@@ -80,8 +82,44 @@ package body Safe_Frontend.Check_Resolve is
 
    function Canonical_Name (Value : String) return String is
    begin
+      if Current_Reference_Signal_Experiment then
+         return Value;
+      end if;
       return FT.Lowercase (Value);
    end Canonical_Name;
+
+   function Builtin_Type_Key (Value : String) return String is
+      Lower : constant String := FT.Lowercase (Value);
+   begin
+      if Lower in
+        "integer" | "natural" | "boolean" | "character" | "string" | "result" | "float"
+          | "long_float" | "duration"
+      then
+         return Lower;
+      end if;
+      return "";
+   end Builtin_Type_Key;
+
+   function Builtin_Function_Key (Value : String) return String is
+      Lower : constant String := FT.Lowercase (Value);
+   begin
+      if Lower in "ok" | "fail" then
+         return Lower;
+      end if;
+      return "";
+   end Builtin_Function_Key;
+
+   procedure Put_Builtin_Type
+     (Map  : in out Type_Maps.Map;
+      Name : String;
+      Info : GM.Type_Descriptor) is
+      Lower : constant String := FT.Lowercase (Name);
+   begin
+      Map.Include (Lower, Info);
+      if Name /= Lower then
+         Map.Include (Name, Info);
+      end if;
+   end Put_Builtin_Type;
 
    procedure Put_Type
      (Map  : in out Type_Maps.Map;
@@ -117,15 +155,25 @@ package body Safe_Frontend.Check_Resolve is
    function Has_Type
      (Map  : Type_Maps.Map;
       Name : String) return Boolean is
+      Key         : constant String := Canonical_Name (Name);
+      Builtin_Key : constant String := Builtin_Type_Key (Name);
    begin
-      return Map.Contains (Canonical_Name (Name));
+      return Map.Contains (Key)
+        or else (Current_Reference_Signal_Experiment
+                 and then Builtin_Key /= ""
+                 and then Map.Contains (Builtin_Key));
    end Has_Type;
 
    function Get_Type
      (Map  : Type_Maps.Map;
       Name : String) return GM.Type_Descriptor is
+      Key         : constant String := Canonical_Name (Name);
+      Builtin_Key : constant String := Builtin_Type_Key (Name);
    begin
-      return Map.Element (Canonical_Name (Name));
+      if Map.Contains (Key) then
+         return Map.Element (Key);
+      end if;
+      return Map.Element (Builtin_Key);
    end Get_Type;
 
    procedure Put_Function
@@ -139,15 +187,25 @@ package body Safe_Frontend.Check_Resolve is
    function Has_Function
      (Map  : Function_Maps.Map;
       Name : String) return Boolean is
+      Key         : constant String := Canonical_Name (Name);
+      Builtin_Key : constant String := Builtin_Function_Key (Name);
    begin
-      return Map.Contains (Canonical_Name (Name));
+      return Map.Contains (Key)
+        or else (Current_Reference_Signal_Experiment
+                 and then Builtin_Key /= ""
+                 and then Map.Contains (Builtin_Key));
    end Has_Function;
 
    function Get_Function
      (Map  : Function_Maps.Map;
      Name : String) return Function_Info is
+      Key         : constant String := Canonical_Name (Name);
+      Builtin_Key : constant String := Builtin_Function_Key (Name);
    begin
-      return Map.Element (Canonical_Name (Name));
+      if Map.Contains (Key) then
+         return Map.Element (Key);
+      end if;
+      return Map.Element (Builtin_Key);
    end Get_Function;
 
    procedure Put_Static_Value
@@ -207,15 +265,15 @@ package body Safe_Frontend.Check_Resolve is
 
    procedure Add_Builtins (Type_Env : in out Type_Maps.Map) is
    begin
-      Put_Type (Type_Env, "Integer", BT.Integer_Type);
-      Put_Type (Type_Env, "Natural", BT.Natural_Type);
-      Put_Type (Type_Env, "Boolean", BT.Boolean_Type);
-      Put_Type (Type_Env, "Character", BT.Character_Type);
-      Put_Type (Type_Env, "String", BT.String_Type);
-      Put_Type (Type_Env, "result", BT.Result_Type);
-      Put_Type (Type_Env, "Float", BT.Float_Type);
-      Put_Type (Type_Env, "Long_Float", BT.Long_Float_Type);
-      Put_Type (Type_Env, "Duration", BT.Duration_Type);
+      Put_Builtin_Type (Type_Env, "Integer", BT.Integer_Type);
+      Put_Builtin_Type (Type_Env, "Natural", BT.Natural_Type);
+      Put_Builtin_Type (Type_Env, "Boolean", BT.Boolean_Type);
+      Put_Builtin_Type (Type_Env, "Character", BT.Character_Type);
+      Put_Builtin_Type (Type_Env, "String", BT.String_Type);
+      Put_Builtin_Type (Type_Env, "result", BT.Result_Type);
+      Put_Builtin_Type (Type_Env, "Float", BT.Float_Type);
+      Put_Builtin_Type (Type_Env, "Long_Float", BT.Long_Float_Type);
+      Put_Builtin_Type (Type_Env, "Duration", BT.Duration_Type);
    end Add_Builtins;
 
    procedure Add_Builtin_Functions (Functions : in out Function_Maps.Map) is
@@ -306,6 +364,90 @@ package body Safe_Frontend.Check_Resolve is
       end loop;
       return Result;
    end Base_Type;
+
+   function Is_Reference_Typed
+     (Info     : GM.Type_Descriptor;
+      Type_Env : Type_Maps.Map) return Boolean is
+   begin
+      return UString_Value (Base_Type (Info, Type_Env).Kind) = "access";
+   end Is_Reference_Typed;
+
+   function Starts_With_Uppercase (Name : String) return Boolean is
+   begin
+      return Name'Length > 0
+        and then Ada.Characters.Handling.Is_Upper (Name (Name'First));
+   end Starts_With_Uppercase;
+
+   function Starts_With_Lowercase (Name : String) return Boolean is
+   begin
+      return Name'Length > 0
+        and then Ada.Characters.Handling.Is_Lower (Name (Name'First));
+   end Starts_With_Lowercase;
+
+   procedure Require_Reference_Signal_Name
+     (Name      : String;
+      Type_Info : GM.Type_Descriptor;
+      Path      : String;
+      Span      : FT.Source_Span;
+      Context   : String;
+      Type_Env  : Type_Maps.Map) is
+      Needs_Uppercase : constant Boolean := Is_Reference_Typed (Type_Info, Type_Env);
+      Good_Case : constant Boolean :=
+        (if Needs_Uppercase
+         then Starts_With_Uppercase (Name)
+         else Starts_With_Lowercase (Name));
+   begin
+      if not Current_Reference_Signal_Experiment or else Good_Case then
+         return;
+      end if;
+
+      Raise_Diag
+        (CM.Source_Frontend_Error
+           (Path    => Path,
+            Span    => Span,
+            Message =>
+              "reference-signal experiment requires "
+              & Context
+              & " `"
+              & Name
+              & "` to start with a "
+              & (if Needs_Uppercase then "uppercase" else "lowercase")
+              & " letter"));
+   end Require_Reference_Signal_Name;
+
+   procedure Reject_Casefold_Collision
+     (Seen    : in out FT.UString_Vectors.Vector;
+      Name    : String;
+      Path    : String;
+      Span    : FT.Source_Span;
+      Context : String) is
+      Lower_Name : constant String := FT.Lowercase (Name);
+   begin
+      if not Current_Reference_Signal_Experiment then
+         return;
+      end if;
+
+      for Existing of Seen loop
+         if FT.Lowercase (UString_Value (Existing)) = Lower_Name
+           and then UString_Value (Existing) /= Name
+         then
+            Raise_Diag
+              (CM.Source_Frontend_Error
+                 (Path    => Path,
+                  Span    => Span,
+                  Message =>
+                    "reference-signal experiment rejects "
+                    & Context
+                    & " `"
+                    & Name
+                    & "` because it collides by case-folding with `"
+                    & UString_Value (Existing)
+                    & "` in the same visible scope"));
+         end if;
+      end loop;
+
+      Seen.Append (FT.To_UString (Name));
+   end Reject_Casefold_Collision;
 
    function Is_Integerish
      (Info     : GM.Type_Descriptor;
@@ -2633,6 +2775,7 @@ package body Safe_Frontend.Check_Resolve is
             Result.Kind := FT.To_UString ("record");
             declare
                Decl_Discriminants : CM.Discriminant_Spec_Vectors.Vector := Decl.Discriminants;
+               Seen_Field_Names   : FT.UString_Vectors.Vector;
             begin
                if Decl_Discriminants.Is_Empty and then Decl.Has_Discriminant then
                   Decl_Discriminants.Append (Decl.Discriminant);
@@ -2686,30 +2829,42 @@ package body Safe_Frontend.Check_Resolve is
                        Result.Discriminants (Result.Discriminants.First_Index).Default_Value.Bool_Value;
                   end if;
                end if;
-            end;
-            for Field_Decl of Decl.Components loop
-               for Name of Field_Decl.Names loop
-                  Item.Name := Name;
-                  declare
-                     Field_Type : constant GM.Type_Descriptor :=
-                       Resolve_Type_Spec (Field_Decl.Field_Type, Type_Env, Const_Env, Path);
-                  begin
-                     Reject_Unsupported_String_Use
-                       (Field_Type,
-                        Type_Env,
-                        Path,
-                        Field_Decl.Field_Type.Span,
-                        "record fields of type String are outside the current PR11.2 text subset");
-                     Item.Type_Name := Field_Type.Name;
-                  end;
-                  Result.Fields.Append (Item);
+               for Field_Decl of Decl.Components loop
+                  for Name of Field_Decl.Names loop
+                     Item.Name := Name;
+                     declare
+                        Field_Type : constant GM.Type_Descriptor :=
+                          Resolve_Type_Spec (Field_Decl.Field_Type, Type_Env, Const_Env, Path);
+                     begin
+                        Reject_Casefold_Collision
+                          (Seen_Field_Names,
+                           UString_Value (Name),
+                           Path,
+                           Field_Decl.Span,
+                           "record field");
+                        Require_Reference_Signal_Name
+                          (UString_Value (Name),
+                           Field_Type,
+                           Path,
+                           Field_Decl.Span,
+                           "record field",
+                           Type_Env);
+                        Reject_Unsupported_String_Use
+                          (Field_Type,
+                           Type_Env,
+                           Path,
+                           Field_Decl.Field_Type.Span,
+                           "record fields of type String are outside the current PR11.2 text subset");
+                        Item.Type_Name := Field_Type.Name;
+                     end;
+                     Result.Fields.Append (Item);
+                  end loop;
                end loop;
-            end loop;
-            if not Decl.Variants.Is_Empty then
-               declare
-                  Control_Type : GM.Type_Descriptor;
-                  Found_Control : Boolean := False;
-               begin
+               if not Decl.Variants.Is_Empty then
+                  declare
+                     Control_Type : GM.Type_Descriptor;
+                     Found_Control : Boolean := False;
+                  begin
                   if Result.Discriminants.Is_Empty then
                      Raise_Diag
                        (CM.Source_Frontend_Error
@@ -2765,6 +2920,19 @@ package body Safe_Frontend.Check_Resolve is
                                  Field_Type : constant GM.Type_Descriptor :=
                                    Resolve_Type_Spec (Field_Decl.Field_Type, Type_Env, Const_Env, Path);
                               begin
+                                 Reject_Casefold_Collision
+                                   (Seen_Field_Names,
+                                    UString_Value (Name),
+                                    Path,
+                                    Field_Decl.Span,
+                                    "record field");
+                                 Require_Reference_Signal_Name
+                                   (UString_Value (Name),
+                                    Field_Type,
+                                    Path,
+                                    Field_Decl.Span,
+                                    "record field",
+                                    Type_Env);
                                  Reject_Unsupported_String_Use
                                    (Field_Type,
                                     Type_Env,
@@ -2790,8 +2958,9 @@ package body Safe_Frontend.Check_Resolve is
                         end loop;
                      end;
                   end loop;
-               end;
-            end if;
+                  end;
+               end if;
+            end;
          when CM.Type_Decl_Access =>
             Result.Kind := FT.To_UString ("access");
             Result.Has_Target := True;
@@ -2979,9 +3148,11 @@ package body Safe_Frontend.Check_Resolve is
 
    function Resolve
      (Unit        : CM.Parsed_Unit;
-      Search_Dirs : FT.UString_Vectors.Vector := FT.UString_Vectors.Empty_Vector)
+      Search_Dirs : FT.UString_Vectors.Vector := FT.UString_Vectors.Empty_Vector;
+      Reference_Signal_Experiment : Boolean := False)
       return CM.Resolve_Result
    is
+      Previous_Reference_Signal_Experiment : constant Boolean := Current_Reference_Signal_Experiment;
       Type_Env         : Type_Maps.Map;
       Functions        : Function_Maps.Map;
       Package_Vars     : Type_Maps.Map;
@@ -2990,6 +3161,7 @@ package body Safe_Frontend.Check_Resolve is
       Imported_Objects : Type_Maps.Map;
       Task_Priorities  : Task_Priority_Vectors.Vector;
       Result           : CM.Resolved_Unit;
+      Package_Binding_Names : FT.UString_Vectors.Vector;
 
       procedure Add_Imported_Interface (Item : SI.Loaded_Interface) is
          Package_Name : constant String := UString_Value (Item.Package_Name);
@@ -3095,6 +3267,7 @@ package body Safe_Frontend.Check_Resolve is
          end loop;
       end Add_Imported_Interface;
    begin
+      Current_Reference_Signal_Experiment := Reference_Signal_Experiment;
       Add_Builtins (Type_Env);
       Add_Builtin_Functions (Functions);
       Result.Path := Unit.Path;
@@ -3212,6 +3385,19 @@ package body Safe_Frontend.Check_Resolve is
                   end if;
                   Result.Objects.Append (Local_Decl);
                   for Name of Normalized.Names loop
+                     Reject_Casefold_Collision
+                       (Package_Binding_Names,
+                        UString_Value (Name),
+                        UString_Value (Unit.Path),
+                        Local_Decl.Span,
+                        "package binding");
+                     Require_Reference_Signal_Name
+                       (UString_Value (Name),
+                        Normalized.Type_Info,
+                        UString_Value (Unit.Path),
+                        Local_Decl.Span,
+                        "package binding",
+                        Type_Env);
                      Put_Type (Package_Vars, UString_Value (Name), Normalized.Type_Info);
                      if Local_Decl.Is_Constant
                        and then Local_Decl.Static_Info.Kind /= CM.Static_Value_None
@@ -3294,6 +3480,7 @@ package body Safe_Frontend.Check_Resolve is
                Visible_Constants : Type_Maps.Map;
                Visible_Static_Constants : Static_Value_Maps.Map := Const_Env;
                Local_Decl   : CM.Resolved_Object_Decl;
+               Experiment_Bindings : FT.UString_Vectors.Vector;
             begin
                Subprogram.Name := Info.Name;
                Subprogram.Kind := Info.Kind;
@@ -3315,6 +3502,19 @@ package body Safe_Frontend.Check_Resolve is
                end loop;
 
                for Param of Info.Params loop
+                  Reject_Casefold_Collision
+                    (Experiment_Bindings,
+                     UString_Value (Param.Name),
+                     UString_Value (Unit.Path),
+                     Param.Span,
+                     "parameter");
+                  Require_Reference_Signal_Name
+                    (UString_Value (Param.Name),
+                     Param.Type_Info,
+                     UString_Value (Unit.Path),
+                     Param.Span,
+                     "parameter",
+                     Type_Env);
                   Put_Type (Visible, UString_Value (Param.Name), Param.Type_Info);
                   Remove_Type (Visible_Constants, UString_Value (Param.Name));
                   Remove_Static_Value (Visible_Static_Constants, UString_Value (Param.Name));
@@ -3350,6 +3550,19 @@ package body Safe_Frontend.Check_Resolve is
                   end;
                   Subprogram.Declarations.Append (Local_Decl);
                   for Name of Decl.Names loop
+                     Reject_Casefold_Collision
+                       (Experiment_Bindings,
+                        UString_Value (Name),
+                        UString_Value (Unit.Path),
+                        Local_Decl.Span,
+                        "local binding");
+                     Require_Reference_Signal_Name
+                       (UString_Value (Name),
+                        Local_Decl.Type_Info,
+                        UString_Value (Unit.Path),
+                        Local_Decl.Span,
+                        "local binding",
+                        Type_Env);
                      Put_Type (Visible, UString_Value (Name), Local_Decl.Type_Info);
                      Update_Constant_Visibility
                         (Visible_Constants,
@@ -3387,6 +3600,7 @@ package body Safe_Frontend.Check_Resolve is
                Task_Item      : CM.Resolved_Task;
                Local_Decl     : CM.Resolved_Object_Decl;
                Task_Index     : Natural := Natural (Result.Tasks.Length) + 1;
+               Experiment_Bindings : FT.UString_Vectors.Vector;
             begin
                if UString_Value (Item.Task_Data.End_Name) /=
                  UString_Value (Item.Task_Data.Name)
@@ -3450,6 +3664,19 @@ package body Safe_Frontend.Check_Resolve is
                   end;
                   Task_Item.Declarations.Append (Local_Decl);
                   for Name of Decl.Names loop
+                     Reject_Casefold_Collision
+                       (Experiment_Bindings,
+                        UString_Value (Name),
+                        UString_Value (Unit.Path),
+                        Local_Decl.Span,
+                        "local binding");
+                     Require_Reference_Signal_Name
+                       (UString_Value (Name),
+                        Local_Decl.Type_Info,
+                        UString_Value (Unit.Path),
+                        Local_Decl.Span,
+                        "local binding",
+                        Type_Env);
                      Put_Type (Visible, UString_Value (Name), Local_Decl.Type_Info);
                      Update_Constant_Visibility
                         (Visible_Constants,
@@ -3497,9 +3724,14 @@ package body Safe_Frontend.Check_Resolve is
          end if;
       end loop;
 
+      Current_Reference_Signal_Experiment := Previous_Reference_Signal_Experiment;
       return (Success => True, Unit => Result);
    exception
       when Resolve_Failure =>
+         Current_Reference_Signal_Experiment := Previous_Reference_Signal_Experiment;
          return (Success => False, Diagnostic => Raised_Diag);
+      when others =>
+         Current_Reference_Signal_Experiment := Previous_Reference_Signal_Experiment;
+         raise;
    end Resolve;
 end Safe_Frontend.Check_Resolve;

@@ -1,0 +1,17 @@
+-- Test: neg_pr117_uppercase_value_binding
+-- Description: Reference-signal experiment requires value bindings to start lowercase.
+-- Expected: REJECT source_frontend_error
+
+package Neg_PR117_Uppercase_Value_Binding
+
+   type Payload is record
+      value : Integer;
+
+   type Payload_Ptr is access Payload;
+
+   function Demo returns Integer
+      Owner : Payload_Ptr = new ((value = 1) as Payload);
+      Total : Integer = 0;
+
+      Total = Owner.Value;
+      return Total;

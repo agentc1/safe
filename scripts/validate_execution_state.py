@@ -407,6 +407,7 @@ GLUE_SAFETY_AUDITED_SCRIPTS = [
     "scripts/run_pr115_statement_ergonomics.py",
     "scripts/run_pr116_meaningful_whitespace.py",
     "scripts/run_pr1162_legacy_ada_syntax_removal.py",
+    "scripts/run_pr117_reference_surface_experiments.py",
     "scripts/run_gate_pipeline.py",
     "scripts/run_local_pre_push.py",
     "scripts/validate_execution_state.py",
@@ -458,6 +459,7 @@ GLUE_SAFETY_REPORT_SCRIPTS = [
     "scripts/run_pr115_statement_ergonomics.py",
     "scripts/run_pr116_meaningful_whitespace.py",
     "scripts/run_pr1162_legacy_ada_syntax_removal.py",
+    "scripts/run_pr117_reference_surface_experiments.py",
 ]
 GLUE_SAFETY_PATH_COMMANDS = ("python3", "alr", "git")
 GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS = {
@@ -476,6 +478,7 @@ GLUE_SAFETY_ALLOWED_SAFE_SOURCE_READERS = {
     "scripts/run_pr115_statement_ergonomics.py": "fixture source-fragment checks and emitted structural assertions for the fixed PR11.5 statement-ergonomics corpus",
     "scripts/run_pr116_meaningful_whitespace.py": "fixture source-fragment checks, migration-example checks, and emitted structural assertions for the fixed PR11.6 meaningful-whitespace corpus",
     "scripts/run_pr1162_legacy_ada_syntax_removal.py": "fixture source-fragment checks, migration-example checks, and emitted structural assertions for the fixed PR11.6.2 legacy-syntax-removal corpus",
+    "scripts/run_pr117_reference_surface_experiments.py": "fixed ownership/reference corpus checks, experiment-boundary diagnostics, migration-example checks, and emitted Ada parity comparisons for the PR11.7 reference-surface decision report",
 }
 GLUE_SAFETY_DIRECT_SAFE_READ_PATTERNS = [
     r'"[^"\n]*\.safe"\s*\)\.read_text\(',

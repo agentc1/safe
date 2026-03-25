@@ -1,0 +1,19 @@
+-- Test: neg_pr117_casefold_collision
+-- Description: Reference-signal experiment rejects same-scope bindings that differ only by case.
+-- Expected: REJECT source_frontend_error
+
+package Neg_PR117_Casefold_Collision
+
+   type Payload is record
+      value : Integer;
+
+   type Payload_Ptr is access Payload;
+
+   function Demo returns Integer
+      Source : Payload_Ptr = null;
+      source : Payload_Ptr = null;
+
+      if Source == null and then source == null
+         return 0;
+
+      return 1;

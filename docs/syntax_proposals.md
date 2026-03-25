@@ -2884,6 +2884,10 @@ declarations without `sends`/`receives` remain valid and unrestricted.
 
 # Capitalisation as Reference Signal
 
+Status after PR11.7: deferred. The experiment proved technically feasible only
+behind a dedicated case-significant resolver mode, and Safe did not admit that
+new default naming rule before 1.0.
+
 ## Motivation
 
 In Safe's current syntax, access-typed variables look identical to value-typed
@@ -2930,6 +2934,9 @@ lowercase letter. The compiler rejects violations.
 
 ## The `move` Keyword
 
+Status after PR11.7: out of scope. PR11.7 did not advance `move`; it remains an
+unscheduled companion idea within this broader proposal family.
+
 Capitalisation answers "is this a pointer?" The `move` keyword answers "is
 this assignment destructive?"
 
@@ -2952,6 +2959,11 @@ No `copy` keyword is needed. The absence of `move` on a lowercase variable
 is the copy signal.
 
 ## Implicit Dereference
+
+Status after PR11.7: deferred as a stronger surface recommendation. Safe has
+partial implicit-dereference support today, but PR11.7 found emitted-Ada
+divergence from explicit `.all` spellings in the fixed corpus, so the
+milestone did not bless it as the parity-clean future reference surface.
 
 With capitalisation marking every reference, the `.all` explicit dereference
 is redundant and dropped:
@@ -3121,6 +3133,9 @@ casing. Both modes enforce the same uppercase-means-reference rule.
 ---
 
 # Capitalisation as Export Signal
+
+Status after PR11.7: not in milestone scope and unscheduled after the current
+PR11 roadmap.
 
 ## Motivation
 

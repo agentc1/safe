@@ -309,7 +309,8 @@ package body Safe_Frontend.Driver is
 
    function Run_Source_Pipeline
      (Path        : String;
-      Search_Dirs : FT.UString_Vectors.Vector := FT.UString_Vectors.Empty_Vector)
+      Search_Dirs : FT.UString_Vectors.Vector := FT.UString_Vectors.Empty_Vector;
+      Reference_Signal_Experiment : Boolean := False)
       return Source_Result
    is
       Lexed : constant Lex_Result := Run_Lexing (Path);
@@ -330,7 +331,10 @@ package body Safe_Frontend.Driver is
 
          declare
             Resolved : constant CS.CM.Resolve_Result :=
-              CS.Resolve (Parsed.Unit, Search_Dirs);
+              CS.Resolve
+                (Parsed.Unit,
+                 Search_Dirs,
+                 Reference_Signal_Experiment => Reference_Signal_Experiment);
          begin
             if not Resolved.Success then
                return
@@ -435,10 +439,15 @@ package body Safe_Frontend.Driver is
 
    function Run_Ast
      (Path        : String;
-      Search_Dirs : FT.UString_Vectors.Vector := FT.UString_Vectors.Empty_Vector)
+      Search_Dirs : FT.UString_Vectors.Vector := FT.UString_Vectors.Empty_Vector;
+      Reference_Signal_Experiment : Boolean := False)
       return Integer
    is
-      Result : Source_Result := Run_Source_Pipeline (Path, Search_Dirs);
+      Result : Source_Result :=
+        Run_Source_Pipeline
+          (Path,
+           Search_Dirs,
+           Reference_Signal_Experiment => Reference_Signal_Experiment);
    begin
       if not Result.Lexed.Success then
          FD.Print (Result.Lexed.Diagnostics);
@@ -468,13 +477,18 @@ package body Safe_Frontend.Driver is
    function Run_Check
      (Path      : String;
       Diag_Json : Boolean := False;
-      Search_Dirs : FT.UString_Vectors.Vector := FT.UString_Vectors.Empty_Vector)
+      Search_Dirs : FT.UString_Vectors.Vector := FT.UString_Vectors.Empty_Vector;
+      Reference_Signal_Experiment : Boolean := False)
       return Integer
    is
       Pipeline    : Source_Result;
       Diagnostics : MD.Diagnostic_Vectors.Vector;
    begin
-      Pipeline := Run_Source_Pipeline (Path, Search_Dirs);
+      Pipeline :=
+        Run_Source_Pipeline
+          (Path,
+           Search_Dirs,
+           Reference_Signal_Experiment => Reference_Signal_Experiment);
       if not Pipeline.Lexed.Success then
          if Pipeline.Lexed.Internal_Failure then
             Ada.Text_IO.Put_Line
@@ -542,10 +556,15 @@ package body Safe_Frontend.Driver is
       Out_Dir       : String;
       Interface_Dir : String;
       Ada_Out_Dir   : String := "";
-      Search_Dirs   : FT.UString_Vectors.Vector := FT.UString_Vectors.Empty_Vector)
+      Search_Dirs   : FT.UString_Vectors.Vector := FT.UString_Vectors.Empty_Vector;
+      Reference_Signal_Experiment : Boolean := False)
       return Integer
    is
-      Pipeline : Source_Result := Run_Source_Pipeline (Path, Search_Dirs);
+      Pipeline : Source_Result :=
+        Run_Source_Pipeline
+          (Path,
+           Search_Dirs,
+           Reference_Signal_Experiment => Reference_Signal_Experiment);
    begin
       if not Pipeline.Lexed.Success then
          FD.Print (Pipeline.Lexed.Diagnostics);

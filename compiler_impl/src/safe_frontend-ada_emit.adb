@@ -158,6 +158,10 @@ package body Safe_Frontend.Ada_Emit is
       Document  : GM.Mir_Document;
       Prefix    : CM.Expr_Access;
       Selector  : String) return Boolean;
+   function Prefix_Has_Access_Type
+     (Unit     : CM.Resolved_Unit;
+      Document : GM.Mir_Document;
+      Prefix   : CM.Expr_Access) return Boolean;
    function Is_Aspect_State_Name (Name : String) return Boolean;
    function Is_Constant_Object_Name
      (Unit : CM.Resolved_Unit;
@@ -940,6 +944,33 @@ package body Safe_Frontend.Ada_Emit is
       end loop;
       return False;
    end Selector_Is_Record_Field;
+
+   function Prefix_Has_Access_Type
+     (Unit     : CM.Resolved_Unit;
+      Document : GM.Mir_Document;
+      Prefix   : CM.Expr_Access) return Boolean
+   is
+      Type_Name : constant String :=
+        (if Prefix = null or else not Has_Text (Prefix.Type_Name)
+         then ""
+         else FT.To_String (Prefix.Type_Name));
+   begin
+      if Type_Name = "" then
+         return False;
+      elsif Starts_With (Type_Name, "access ")
+        or else Starts_With (Type_Name, "not null access ")
+        or else Starts_With (Type_Name, "access constant ")
+        or else Starts_With (Type_Name, "not null access constant ")
+        or else Starts_With (Type_Name, "access all ")
+        or else Starts_With (Type_Name, "not null access all ")
+        or else Starts_With (Type_Name, "access all constant ")
+        or else Starts_With (Type_Name, "not null access all constant ")
+      then
+         return True;
+      end if;
+      return Has_Type (Unit, Document, Type_Name)
+        and then Is_Access_Type (Lookup_Type (Unit, Document, Type_Name));
+   end Prefix_Has_Access_Type;
 
    function Is_Aspect_State_Name (Name : String) return Boolean is
    begin
@@ -1909,6 +1940,11 @@ package body Safe_Frontend.Ada_Emit is
                  and then Is_Access_Type (Lookup_Type (Unit, Document, FT.To_String (Expr.Prefix.Type_Name)))
                then
                   return Prefix_Image;
+               elsif Expr.Prefix /= null
+                 and then Prefix_Has_Access_Type (Unit, Document, Expr.Prefix)
+                 and then Selector_Is_Record_Field (Unit, Document, Expr.Prefix, Selector_Name)
+               then
+                  return Prefix_Image & ".all." & Selector_Name;
                elsif Is_Attribute_Selector (Selector_Name)
                  and then not
                    (Expr.Prefix /= null
@@ -1944,6 +1980,11 @@ package body Safe_Frontend.Ada_Emit is
                then
                   State.Needs_Ada_Strings_Unbounded := True;
                   return "Ada.Strings.Unbounded.To_String (" & Prefix_Image & ".Message)";
+               elsif Expr.Prefix /= null
+                 and then Selector_Name /= "all"
+                 and then Prefix_Has_Access_Type (Unit, Document, Expr.Prefix)
+               then
+                  return Prefix_Image & ".all." & Selector_Name;
                end if;
                return Prefix_Image & "." & Selector_Name;
             end;
@@ -3761,6 +3802,11 @@ package body Safe_Frontend.Ada_Emit is
                    (Lookup_Type (Unit, Document, FT.To_String (Expr.Prefix.Type_Name)))
                then
                   return Prefix_Image;
+               elsif Expr.Prefix /= null
+                 and then Prefix_Has_Access_Type (Unit, Document, Expr.Prefix)
+                 and then Selector_Is_Record_Field (Unit, Document, Expr.Prefix, Selector_Name)
+               then
+                  return Prefix_Image & ".all." & Selector_Name;
                elsif Is_Attribute_Selector (Selector_Name)
                  and then not
                    (Expr.Prefix /= null
@@ -3778,6 +3824,11 @@ package body Safe_Frontend.Ada_Emit is
                then
                   State.Needs_Ada_Strings_Unbounded := True;
                   return "Ada.Strings.Unbounded.To_String (" & Prefix_Image & ".Message)";
+               elsif Expr.Prefix /= null
+                 and then Selector_Name /= "all"
+                 and then Prefix_Has_Access_Type (Unit, Document, Expr.Prefix)
+               then
+                  return Prefix_Image & ".all." & Selector_Name;
                end if;
                return Prefix_Image & "." & Selector_Name;
             end;

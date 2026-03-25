@@ -1,0 +1,18 @@
+-- Test: neg_pr117_lowercase_access_field
+-- Description: Reference-signal experiment requires access-typed record fields to start uppercase.
+-- Expected: REJECT source_frontend_error
+
+package Neg_PR117_Lowercase_Access_Field
+
+   type Node;
+   type Node_Ptr is access Node;
+
+   type Node is record
+      value : Integer;
+      next  : Node_Ptr;
+
+   function Demo (Head : Node_Ptr) returns Integer
+      if Head == null
+         return 0;
+
+      return Head.next.value;
