@@ -12,10 +12,12 @@ package task_global_owner
 
    function bump
 
-      shared = shared + 1;
+      if shared < 100
+         shared = shared + 1;
+      else
+         shared = 0;
 
    task worker
 
       loop
          bump;
-

@@ -21,8 +21,11 @@ the broader spec-level semantics question in `PS-026`.
 PR11.8a revalidates the retained numeric-sensitive emitted proof corpus under
 the single-`integer` model without widening the fixed-point or floating-point
 claim. After that checkpoint, `PS-002` and `PS-026` remain deferred, and
-`PS-018` continues to refer to the broader concurrency expansion left for
-`PR11.8b`.
+PR11.8b closes the retained emitted concurrency checkpoint without widening the
+language surface. After that concurrency checkpoint, `PS-018` no longer
+denotes backlog inside the current retained emitted corpus; the remaining open
+concurrency obligations are source/runtime concerns such as `PS-007`,
+`PS-019`, and `PS-031`.
 
 ## Legend
 
@@ -68,7 +71,7 @@ claim. After that checkpoint, `PS-002` and `PS-026` remain deferred, and
 |----|------|--------|------|----------|
 | `PS-016` | Selective interface search-dir scanning or scoped tolerance for unrelated malformed `.safei.json` files | `PR08.3` review fallout | `tooling` | `nice-to-have` |
 | `PS-017` | Ada-side Bronze regression harness independent of Python evidence re-derivation | `PR08.2` review fallout | `tooling` | `nice-to-have` |
-| `PS-018` | Emitted-output GNATprove coverage beyond the selected PR10 concurrency corpus and the named sequential checkpoints; after `PR11.8a` the remaining debt is the broader concurrency expansion tracked for `PR11.8b` | `docs/emitted_output_verification_matrix.md`; `docs/PR11.x-series-proposed.md` | `tooling` | `long-term` |
+| `PS-018` | Emitted-output GNATprove coverage beyond the selected PR10 concurrency corpus and the named sequential checkpoints; after `PR11.8b`, the retained emitted concurrency corpus is closed and this item remains only as a placeholder for any future proof-bearing admitted surface beyond the current checkpoints | `docs/emitted_output_verification_matrix.md`; `docs/PR11.x-series-proposed.md` | `tooling` | `long-term` |
 | `PS-019` | I/O seam wrapper obligations beyond direct emitted-package proof | `docs/emitted_output_verification_matrix.md` | `tooling` | `long-term` |
 | `PS-020` | Diagnostic catalogue and localisation `TBD-05` | `spec/00-front-matter.md` section `0.8` | `tooling` | `long-term` |
 | `PS-021` | Stabilise and document interchange-format policy for existing `safei-v1` and `mir-v2` artifacts, including compatibility and what is normative versus implementation-defined `TBD-08` | `spec/00-front-matter.md` section `0.8`; `compiler_impl/src/safe_frontend-interfaces.adb`; `compiler_impl/src/safe_frontend-mir_analyze.adb` | `tooling` | `long-term` |

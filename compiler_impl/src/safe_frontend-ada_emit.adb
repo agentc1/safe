@@ -1310,6 +1310,8 @@ package body Safe_Frontend.Ada_Emit is
    begin
       if Type_Name = "boolean" then
          return "false";
+      elsif Type_Name = "integer" then
+         return "Long_Long_Integer'First";
       elsif Type_Name = "float" or else Type_Name = "long_float" then
          return "0.0";
       elsif Starts_With (Type_Name, "access ")

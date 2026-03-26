@@ -15,25 +15,27 @@ package exclusive_variable
    --  No variable is shared between Task_A and Task_B.
 
    channel sync_ch : counter capacity 1;
+   task_b_total : counter = 0;
 
    --  Task_A: owns Counter_A exclusively. Sends result via channel.
-   task task_a
+   task task_a with priority = 10
       counter_a : counter = 0;
 
       loop
-         counter_a = counter_a + 1;
-         if counter_a >= 1000
+         if counter_a < 999
+            counter_a = counter_a + 1;
+         else
+            counter_a = 1_000;
             send sync_ch, counter_a;
             counter_a = 0;
 
    --  Task_B: owns Counter_B exclusively. Receives via channel.
-   task task_b
-      counter_b : counter = 0;
+   task task_b with priority = 10
       received  : counter;
 
       loop
          receive sync_ch, received;
-         counter_b = counter_b + received;
-         if counter_b > 500_000
-            counter_b = 0;
-
+         if task_b_total <= 1_000_000 - received
+            task_b_total = task_b_total + received;
+         else
+            task_b_total = 0;

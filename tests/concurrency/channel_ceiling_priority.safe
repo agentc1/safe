@@ -19,12 +19,17 @@ package channel_ceiling_priority
 
       loop
          push (next);
-         next = next + 1;
+         if next < 1_000
+            next = next + 1;
+         else
+            next = 0;
 
    task slow with priority = 10
       next : message = 100;
 
       loop
          push (next);
-         next = next + 1;
-
+         if next < 1_000
+            next = next + 1;
+         else
+            next = 100;

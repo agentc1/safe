@@ -8,12 +8,14 @@
 
 package task_priority_delay
 
-   task worker with priority = 5
-      ticks : integer = 0;
+   subtype tick_count is integer (0 to 1_000);
 
+   ticks : tick_count = 0;
+
+   task worker with priority = 5
       loop
          delay 0.25;
-         ticks = ticks + 1;
-         if ticks > 1_000
+         if ticks < 1_000
+            ticks = ticks + 1;
+         else
             ticks = 0;
-
