@@ -11,12 +11,16 @@ package select_priority
 
    subtype command is integer (0 to 10);
    subtype status is integer (0 to 255);
+   subtype processed_count is integer (0 to 1_000_000);
 
    channel high_ch : command capacity 2;
    channel low_ch  : status capacity 2;
+   processed : processed_count = 0;
+   last_high : command = 0;
+   last_low  : status = 0;
 
    --  Feeder_High: sends commands on the high-priority channel.
-   task feeder_high
+   task feeder_high with priority = 10
       cmd : command = 1;
 
       loop
@@ -27,7 +31,7 @@ package select_priority
             cmd = 1;
 
    --  Feeder_Low: sends status on the low-priority channel.
-   task feeder_low
+   task feeder_low with priority = 10
       s : status = 0;
 
       loop
@@ -39,19 +43,21 @@ package select_priority
 
    --  Dispatcher: uses select to receive from multiple channels.
    --  High_Ch arm appears first, so it has priority when both are ready.
-   task dispatcher
-      processed : integer = 0;
-
+   task dispatcher with priority = 10
       loop
          select
             when cmd : command from high_ch
                --  High-priority command received.
-               processed = processed + 1;
+               last_high = cmd;
+               if processed < 1_000_000
+                  processed = processed + 1;
+               else
+                  processed = 0;
          or
             when s : status from low_ch
                --  Low-priority status received.
-               processed = processed + 1;
-
-         if processed > 1_000_000
-            processed = 0;
-
+               last_low = s;
+               if processed < 1_000_000
+                  processed = processed + 1;
+               else
+                  processed = 0;

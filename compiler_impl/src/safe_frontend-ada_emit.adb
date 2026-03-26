@@ -1319,7 +1319,7 @@ package body Safe_Frontend.Ada_Emit is
       then
          return "null";
       end if;
-      return Type_Name & "'First";
+      return Ada_Safe_Name (Type_Name) & "'First";
    end Default_Value_Expr;
 
    function Default_Value_Expr (Info : GM.Type_Descriptor) return String is

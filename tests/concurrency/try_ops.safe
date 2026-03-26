@@ -10,12 +10,14 @@
 package try_ops
 
    subtype item is integer (0 to 100);
+   subtype total_count is integer (0 to 10_000);
 
    channel data_ch : item capacity 2;
+   consumer_total : total_count = 0;
 
-   task producer
+   task producer with priority = 10
       next : item = 0;
-      sent : boolean = false;
+      sent : boolean;
 
       loop
          try_send data_ch, next, sent;
@@ -28,18 +30,16 @@ package try_ops
          else
             delay 0.01;
 
-   task consumer
+   task consumer with priority = 10
       value : item = 0;
-      got   : boolean = false;
-      total : integer = 0;
+      got   : boolean;
 
       loop
          try_receive data_ch, value, got;
          if got
-            total = total + integer (value);
+            if consumer_total <= 10_000 - integer (value)
+               consumer_total = consumer_total + integer (value);
+            else
+               consumer_total = 0;
          else
             delay 0.01;
-
-         if total > 10_000
-            total = 0;
-

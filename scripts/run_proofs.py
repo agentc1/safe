@@ -81,6 +81,20 @@ PR11_8A_CHECKPOINT_FIXTURES = [
     "tests/positive/pr118_type_range_equivalent.safe",
 ]
 
+PR11_8B_CHECKPOINT_FIXTURES = [
+    "tests/concurrency/channel_ceiling_priority.safe",
+    "tests/concurrency/exclusive_variable.safe",
+    "tests/concurrency/fifo_ordering.safe",
+    "tests/concurrency/multi_task_channel.safe",
+    "tests/concurrency/select_delay_local_scope.safe",
+    "tests/concurrency/select_priority.safe",
+    "tests/concurrency/task_global_owner.safe",
+    "tests/concurrency/task_priority_delay.safe",
+    "tests/concurrency/try_ops.safe",
+    "tests/positive/pr113_tuple_channel.safe",
+    "tests/positive/channel_pipeline.safe",
+]
+
 EMITTED_PROOF_REGRESSION_FIXTURES = [
     "tests/concurrency/select_with_delay.safe",
     "tests/concurrency/select_with_delay_multiarm.safe",
@@ -105,7 +119,11 @@ EMITTED_PROOF_REGRESSION_FIXTURES = [
     "tests/positive/rule4_optional.safe",
 ]
 
-EMITTED_PROOF_FIXTURES = PR11_8A_CHECKPOINT_FIXTURES + EMITTED_PROOF_REGRESSION_FIXTURES
+EMITTED_PROOF_FIXTURES = (
+    PR11_8A_CHECKPOINT_FIXTURES
+    + PR11_8B_CHECKPOINT_FIXTURES
+    + EMITTED_PROOF_REGRESSION_FIXTURES
+)
 
 
 def repo_rel(path: Path) -> str:
@@ -178,6 +196,7 @@ def validate_manifest(
 
 def validate_manifests() -> None:
     validate_manifest("PR11.8a checkpoint manifest", PR11_8A_CHECKPOINT_FIXTURES)
+    validate_manifest("PR11.8b checkpoint manifest", PR11_8B_CHECKPOINT_FIXTURES)
     validate_manifest("emitted proof regression manifest", EMITTED_PROOF_REGRESSION_FIXTURES)
     validate_manifest("emitted proof manifest", EMITTED_PROOF_FIXTURES)
 
@@ -402,6 +421,34 @@ def print_summary(
         print()
 
 
+def run_fixture_group(
+    *,
+    safec: Path,
+    fixtures: list[str],
+    temp_root: Path,
+    alr: str,
+    gnatprove: str,
+) -> tuple[int, list[tuple[str, str]]]:
+    passed = 0
+    failures: list[tuple[str, str]] = []
+
+    for fixture_rel in fixtures:
+        source = REPO_ROOT / fixture_rel
+        ok, detail = run_emitted_fixture(
+            safec=safec,
+            source=source,
+            temp_root=temp_root,
+            alr=alr,
+            gnatprove=gnatprove,
+        )
+        if ok:
+            passed += 1
+        else:
+            failures.append((fixture_rel, detail))
+
+    return passed, failures
+
+
 def main() -> int:
     try:
         validate_manifests()
@@ -412,8 +459,10 @@ def main() -> int:
 
     companion_passed = 0
     companion_failures: list[tuple[str, str]] = []
-    checkpoint_passed = 0
-    checkpoint_failures: list[tuple[str, str]] = []
+    checkpoint_a_passed = 0
+    checkpoint_a_failures: list[tuple[str, str]] = []
+    checkpoint_b_passed = 0
+    checkpoint_b_failures: list[tuple[str, str]] = []
     regression_passed = 0
     regression_failures: list[tuple[str, str]] = []
 
@@ -433,36 +482,37 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="safe-proofs-") as temp_root_str:
         temp_root = Path(temp_root_str)
-        for fixture_rel in PR11_8A_CHECKPOINT_FIXTURES:
-            source = REPO_ROOT / fixture_rel
-            ok, detail = run_emitted_fixture(
-                safec=safec,
-                source=source,
-                temp_root=temp_root,
-                alr=alr,
-                gnatprove=gnatprove,
-            )
-            if ok:
-                checkpoint_passed += 1
-            else:
-                checkpoint_failures.append((fixture_rel, detail))
+        checkpoint_a_passed, checkpoint_a_failures = run_fixture_group(
+            safec=safec,
+            fixtures=PR11_8A_CHECKPOINT_FIXTURES,
+            temp_root=temp_root,
+            alr=alr,
+            gnatprove=gnatprove,
+        )
+        checkpoint_b_passed, checkpoint_b_failures = run_fixture_group(
+            safec=safec,
+            fixtures=PR11_8B_CHECKPOINT_FIXTURES,
+            temp_root=temp_root,
+            alr=alr,
+            gnatprove=gnatprove,
+        )
+        regression_passed, regression_failures = run_fixture_group(
+            safec=safec,
+            fixtures=EMITTED_PROOF_REGRESSION_FIXTURES,
+            temp_root=temp_root,
+            alr=alr,
+            gnatprove=gnatprove,
+        )
 
-        for fixture_rel in EMITTED_PROOF_REGRESSION_FIXTURES:
-            source = REPO_ROOT / fixture_rel
-            ok, detail = run_emitted_fixture(
-                safec=safec,
-                source=source,
-                temp_root=temp_root,
-                alr=alr,
-                gnatprove=gnatprove,
-            )
-            if ok:
-                regression_passed += 1
-            else:
-                regression_failures.append((fixture_rel, detail))
-
-    total_passed = companion_passed + checkpoint_passed + regression_passed
-    total_failures = companion_failures + checkpoint_failures + regression_failures
+    total_passed = (
+        companion_passed + checkpoint_a_passed + checkpoint_b_passed + regression_passed
+    )
+    total_failures = (
+        companion_failures
+        + checkpoint_a_failures
+        + checkpoint_b_failures
+        + regression_failures
+    )
 
     print_summary(
         passed=companion_passed,
@@ -471,9 +521,15 @@ def main() -> int:
         trailing_blank_line=True,
     )
     print_summary(
-        passed=checkpoint_passed,
-        failures=checkpoint_failures,
+        passed=checkpoint_a_passed,
+        failures=checkpoint_a_failures,
         title="PR11.8a checkpoint",
+        trailing_blank_line=True,
+    )
+    print_summary(
+        passed=checkpoint_b_passed,
+        failures=checkpoint_b_failures,
+        title="PR11.8b checkpoint",
         trailing_blank_line=True,
     )
     print_summary(
