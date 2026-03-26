@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 COMPILER_ROOT = REPO_ROOT / "compiler_impl"
 SAFEC_PATH = COMPILER_ROOT / "bin" / "safec"
 ALR_FALLBACK = Path.home() / "bin" / "alr"
+DIAGNOSTIC_EXIT_CODE = 1
 
 # These fixtures live in category directories that do not match the
 # compiler's current acceptance boundary, so keep the expectations explicit.
@@ -245,15 +246,12 @@ def check_fixture(
     safec: Path,
     source: Path,
     *,
-    expected_returncode: int | None = None,
+    expected_returncode: int,
     extra_args: list[str] | None = None,
 ) -> tuple[bool, str]:
     argv = [str(safec), "check", repo_rel(source), *(extra_args or [])]
     completed = run_command(argv, cwd=REPO_ROOT)
-    if expected_returncode is None:
-        ok = completed.returncode != 0
-    else:
-        ok = completed.returncode == expected_returncode
+    ok = completed.returncode == expected_returncode
     return ok, first_message(completed)
 
 
@@ -313,8 +311,8 @@ def run_interface_case(
 
 def run_diagnostic_golden(safec: Path, source: Path, golden: Path) -> tuple[bool, str]:
     completed = run_command([str(safec), "check", repo_rel(source)], cwd=REPO_ROOT)
-    if completed.returncode == 0:
-        return False, "expected nonzero exit"
+    if completed.returncode != DIAGNOSTIC_EXIT_CODE:
+        return False, f"expected exit {DIAGNOSTIC_EXIT_CODE}, got {completed.returncode}"
     expected = extract_expected_block(golden)
     if completed.stderr.rstrip("\n") != expected.rstrip("\n"):
         return False, f"stderr mismatch against {repo_rel(golden)}"
@@ -351,7 +349,7 @@ def main() -> int:
             failures.append((repo_rel(fixture), detail))
 
     for fixture in negative_fixtures:
-        expected_returncode = 0 if fixture in NEGATIVE_SUCCESS_FIXTURES else None
+        expected_returncode = 0 if fixture in NEGATIVE_SUCCESS_FIXTURES else DIAGNOSTIC_EXIT_CODE
         ok, detail = check_fixture(safec, fixture, expected_returncode=expected_returncode)
         if ok:
             passed += 1
@@ -359,7 +357,7 @@ def main() -> int:
             failures.append((repo_rel(fixture), detail))
 
     for fixture in concurrency_fixtures:
-        expected_returncode = None if fixture in CONCURRENCY_REJECT_FIXTURES else 0
+        expected_returncode = DIAGNOSTIC_EXIT_CODE if fixture in CONCURRENCY_REJECT_FIXTURES else 0
         ok, detail = check_fixture(safec, fixture, expected_returncode=expected_returncode)
         if ok:
             passed += 1
