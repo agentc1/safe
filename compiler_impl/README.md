@@ -39,9 +39,9 @@ The current repo-local compiler commands are:
 
 The repo also keeps a small wrapper CLI at `../scripts/safe_cli.py`:
 
-- `python3 scripts/safe_cli.py build <file.safe>`
-- `python3 scripts/safe_cli.py check ...`
-- `python3 scripts/safe_cli.py emit ...`
+- `python3 ../scripts/safe_cli.py build <file.safe>`
+- `python3 ../scripts/safe_cli.py check ...`
+- `python3 ../scripts/safe_cli.py emit ...`
 
 ## Compiler Outputs
 
