@@ -307,6 +307,31 @@ BUILD_REJECT_CASES = [
     ),
 ]
 
+RUN_SUCCESS_CASES = [
+    (
+        REPO_ROOT / "tests" / "build" / "pr118c2_package_build.safe",
+        "42\n",
+        False,
+    ),
+    (
+        REPO_ROOT / "tests" / "build" / "pr118c2_entry_build.safe",
+        "42\n",
+        False,
+    ),
+    (
+        REPO_ROOT / "tests" / "build" / "pr118c2_package_pre_task.safe",
+        "41\n",
+        True,
+    ),
+]
+
+RUN_REJECT_CASES = [
+    (
+        REPO_ROOT / "tests" / "build" / "pr118c2_root_with_clause.safe",
+        "safe build: root files with `with` clauses are not supported yet",
+    ),
+]
+
 OUTPUT_CONTRACT_CASES = [
     REPO_ROOT / "tests" / "positive" / "pr118c2_package_print.safe",
     REPO_ROOT / "tests" / "positive" / "pr118c2_entry_print.safe",
@@ -574,6 +599,70 @@ def run_safe_build_reject_case(source: Path, expected_message: str) -> tuple[boo
     return True, ""
 
 
+def run_safe_run_case(
+    source: Path,
+    expected_stdout: str,
+    *,
+    allow_timeout: bool,
+) -> tuple[bool, str]:
+    argv = [sys.executable, str(SAFE_CLI), "run", repo_rel(source)]
+    if not allow_timeout:
+        completed = run_command(argv, cwd=REPO_ROOT)
+        if completed.returncode != 0:
+            return False, f"safe run failed: {first_message(completed)}"
+        if completed.stdout != expected_stdout:
+            return False, f"unexpected stdout {completed.stdout!r}"
+        if "safe build: OK (" in completed.stdout:
+            return False, f"unexpected build banner in stdout {completed.stdout!r}"
+        return True, ""
+
+    build = run_command(
+        [sys.executable, str(SAFE_CLI), "build", repo_rel(source)],
+        cwd=REPO_ROOT,
+    )
+    if build.returncode != 0:
+        return False, f"safe build failed: {first_message(build)}"
+
+    executable = safe_build_executable(source)
+    if not executable.exists():
+        return False, f"missing executable {executable}"
+
+    try:
+        run = run_command(
+            [str(executable)],
+            cwd=executable.parent,
+            timeout=0.3,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
+        if not stdout.startswith(expected_stdout):
+            return False, f"unexpected stdout before timeout {stdout!r}"
+        return True, ""
+    if run.returncode != 0:
+        return False, f"executable failed: {first_message(run)}"
+    stdout = run.stdout
+    if not stdout.startswith(expected_stdout):
+        return False, f"unexpected stdout before timeout {stdout!r}"
+    if "safe build: OK (" in stdout:
+        return False, f"unexpected build banner in stdout {stdout!r}"
+    return True, ""
+
+
+def run_safe_run_reject_case(source: Path, expected_message: str) -> tuple[bool, str]:
+    completed = run_command(
+        [sys.executable, str(SAFE_CLI), "run", repo_rel(source)],
+        cwd=REPO_ROOT,
+    )
+    if completed.returncode == 0:
+        return False, "safe run unexpectedly succeeded"
+    output = completed.stderr or completed.stdout
+    if expected_message not in output:
+        return False, f"missing expected message {expected_message!r}"
+    return True, ""
+
+
 def run_output_contract_case(
     safec: Path,
     source: Path,
@@ -745,6 +834,22 @@ def main() -> int:
     for source, expected_message in BUILD_REJECT_CASES:
         ok, detail = run_safe_build_reject_case(source, expected_message)
         label = f"safe build {repo_rel(source)}"
+        if ok:
+            passed += 1
+        else:
+            failures.append((label, detail))
+
+    for source, expected_stdout, allow_timeout in RUN_SUCCESS_CASES:
+        ok, detail = run_safe_run_case(source, expected_stdout, allow_timeout=allow_timeout)
+        label = f"safe run {repo_rel(source)}"
+        if ok:
+            passed += 1
+        else:
+            failures.append((label, detail))
+
+    for source, expected_message in RUN_REJECT_CASES:
+        ok, detail = run_safe_run_reject_case(source, expected_message)
+        label = f"safe run {repo_rel(source)}"
         if ok:
             passed += 1
         else:
