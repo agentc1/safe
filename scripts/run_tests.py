@@ -334,6 +334,85 @@ RUN_REJECT_CASES = [
     ),
 ]
 
+DEPLOY_REJECT_ARGV_CASES = [
+    (
+        [
+            "deploy",
+            "--simulate",
+            "tests/build/pr118c2_entry_build.safe",
+        ],
+        "--board",
+    ),
+    (
+        [
+            "deploy",
+            "--board",
+            "not-a-board",
+            "tests/build/pr118c2_entry_build.safe",
+        ],
+        "invalid choice",
+    ),
+    (
+        [
+            "deploy",
+            "--target",
+            "bogus",
+            "--board",
+            "stm32f4-discovery",
+            "--simulate",
+            "tests/build/pr118c2_entry_build.safe",
+        ],
+        "requires target 'stm32f4', got 'bogus'",
+    ),
+    (
+        [
+            "deploy",
+            "--board",
+            "stm32f4-discovery",
+            "--simulate",
+            "tests/build/pr118c2_root_with_clause.safe",
+        ],
+        "safe deploy: root files with `with` clauses are not supported yet",
+    ),
+    (
+        [
+            "deploy",
+            "--board",
+            "stm32f4-discovery",
+            "--simulate",
+            "--expect-value",
+            "42",
+            "tests/build/pr118c2_entry_build.safe",
+        ],
+        "--watch-symbol and --expect-value must be provided together",
+    ),
+    (
+        [
+            "deploy",
+            "--board",
+            "stm32f4-discovery",
+            "--simulate",
+            "--watch-symbol",
+            "entry_integer_result__result",
+            "tests/build/pr118c2_entry_build.safe",
+        ],
+        "--watch-symbol and --expect-value must be provided together",
+    ),
+    (
+        [
+            "deploy",
+            "--board",
+            "stm32f4-discovery",
+            "--watch-symbol",
+            "entry_integer_result__result",
+            "--expect-value",
+            "42",
+            "tests/build/pr118c2_entry_build.safe",
+        ],
+        "--watch-symbol is currently supported only with --simulate",
+    ),
+]
+
 OUTPUT_CONTRACT_CASES = [
     REPO_ROOT / "tests" / "positive" / "pr118c2_package_print.safe",
     REPO_ROOT / "tests" / "positive" / "pr118c2_entry_print.safe",
@@ -722,6 +801,27 @@ def run_safe_run_reject_case(source: Path, expected_message: str) -> tuple[bool,
     return True, ""
 
 
+def run_safe_cli_help_case(argv: list[str], expected_snippets: list[str]) -> tuple[bool, str]:
+    completed = run_command([sys.executable, str(SAFE_CLI), *argv], cwd=REPO_ROOT)
+    if completed.returncode != 0:
+        return False, f"help command failed: {first_message(completed)}"
+    text = completed.stdout + completed.stderr
+    for snippet in expected_snippets:
+        if snippet not in text:
+            return False, f"missing help snippet {snippet!r}"
+    return True, ""
+
+
+def run_safe_deploy_reject_case(argv: list[str], expected_message: str) -> tuple[bool, str]:
+    completed = run_command([sys.executable, str(SAFE_CLI), *argv], cwd=REPO_ROOT)
+    if completed.returncode == 0:
+        return False, "safe deploy unexpectedly succeeded"
+    output = completed.stderr or completed.stdout
+    if expected_message not in output:
+        return False, f"missing expected message {expected_message!r}"
+    return True, ""
+
+
 def run_output_contract_case(
     safec: Path,
     source: Path,
@@ -924,6 +1024,25 @@ def main() -> int:
     for source, expected_message in RUN_REJECT_CASES:
         ok, detail = run_safe_run_reject_case(source, expected_message)
         label = f"safe run {repo_rel(source)}"
+        if ok:
+            passed += 1
+        else:
+            failures.append((label, detail))
+
+    for argv, expected in (
+        (["--help"], ["safe deploy", "safe run"]),
+        (["deploy", "--help"], ["--board", "--simulate", "--watch-symbol", "--expect-value"]),
+    ):
+        ok, detail = run_safe_cli_help_case(argv, expected)
+        label = f"safe cli help {' '.join(argv)}"
+        if ok:
+            passed += 1
+        else:
+            failures.append((label, detail))
+
+    for argv, expected_message in DEPLOY_REJECT_ARGV_CASES:
+        ok, detail = run_safe_deploy_reject_case(argv, expected_message)
+        label = f"safe {' '.join(argv)}"
         if ok:
             passed += 1
         else:

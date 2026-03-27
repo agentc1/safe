@@ -10,6 +10,9 @@ This lane is intentionally separate from `scripts/run_tests.py`,
 `scripts/run_samples.py`, and `scripts/run_proofs.py`. It is local tooling, not
 blocking CI.
 
+If you want to deploy an arbitrary single-file Safe program instead of running
+the fixed smoke corpus, see [`embedded_deploy.md`](embedded_deploy.md).
+
 ## Current Scope
 
 - Linux host only
