@@ -19,6 +19,7 @@ ALR_FALLBACK = Path.home() / "bin" / "alr"
 DIAGNOSTIC_EXIT_CODE = 1
 SAFE_CLI = REPO_ROOT / "scripts" / "safe_cli.py"
 SAFE_REPL = REPO_ROOT / "scripts" / "safe_repl.py"
+EMBEDDED_SMOKE = REPO_ROOT / "scripts" / "run_embedded_smoke.py"
 VALIDATE_OUTPUT_CONTRACTS = REPO_ROOT / "scripts" / "validate_output_contracts.py"
 
 # These fixtures live in category directories that do not match the
@@ -357,6 +358,15 @@ REPL_CASES = [
         "",
         "task declarations are not supported in repl mode",
     ),
+]
+
+EMBEDDED_SMOKE_CASES = [
+    "binary_shift_result",
+    "delay_scope_result",
+    "entry_integer_result",
+    "package_integer_result",
+    "producer_consumer_result",
+    "scoped_receive_result",
 ]
 
 
@@ -787,6 +797,21 @@ def run_repl_case(
     return True, ""
 
 
+def run_embedded_case_listing() -> tuple[bool, str]:
+    completed = run_command(
+        [sys.executable, str(EMBEDDED_SMOKE), "--list-cases"],
+        cwd=REPO_ROOT,
+    )
+    if completed.returncode != 0:
+        return False, f"embedded case listing failed: {first_message(completed)}"
+    expected = "".join(f"{name}\n" for name in EMBEDDED_SMOKE_CASES)
+    if completed.stdout != expected:
+        return False, f"unexpected embedded case list {completed.stdout!r}"
+    if completed.stderr:
+        return False, f"unexpected embedded case stderr {completed.stderr!r}"
+    return True, ""
+
+
 def main() -> int:
     try:
         safec = build_compiler()
@@ -921,6 +946,12 @@ def main() -> int:
             passed += 1
         else:
             failures.append((label, detail))
+
+    ok, detail = run_embedded_case_listing()
+    if ok:
+        passed += 1
+    else:
+        failures.append(("embedded smoke case listing", detail))
 
     print_summary(passed=passed, failures=failures)
     return 0 if not failures else 1

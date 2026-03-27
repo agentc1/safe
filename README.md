@@ -83,6 +83,9 @@ python3 scripts/run_proofs.py
 # Check, build, and run samples
 python3 scripts/run_samples.py
 
+# Run the local Renode embedded smoke lane
+python3 scripts/run_embedded_smoke.py --list-cases
+
 # Build a single-file Safe program
 python3 scripts/safe_cli.py build samples/rosetta/text/hello_print.safe
 
@@ -110,6 +113,7 @@ See `spec/` for the language specification and `docs/` for the current design di
 | Safe-to-Ada translation rules | [`compiler/translation_rules.md`](compiler/translation_rules.md) |
 | Frontend workspace + output formats | [`compiler_impl/README.md`](compiler_impl/README.md) |
 | End-to-end CLI walkthrough | [`docs/safec_end_to_end_cli_tutorial.md`](docs/safec_end_to_end_cli_tutorial.md) |
+| Local embedded smoke lane | [`docs/embedded_simulation.md`](docs/embedded_simulation.md) |
 | VS Code extension | [`editors/vscode/README.md`](editors/vscode/README.md) |
 | SPARK companion overview | [`companion/release/COMPANION_README.md`](companion/release/COMPANION_README.md) |
 
