@@ -263,6 +263,17 @@ package body Safe_Frontend.Interfaces is
          Result.Has_High := True;
          Result.High := Get (Get (Value, "high"));
       end if;
+      if Has_Field (Value, "bit_width") and then Get (Value, "bit_width").Kind = JSON_Int_Type then
+         declare
+            Width_Value : constant Long_Long_Integer :=
+              Long_Long_Integer'(Get (Get (Value, "bit_width")));
+         begin
+            if Width_Value in 8 | 16 | 32 | 64 then
+               Result.Has_Bit_Width := True;
+               Result.Bit_Width := Positive (Width_Value);
+            end if;
+         end;
+      end if;
       if Has_Field (Value, "base") and then Get (Value, "base").Kind = JSON_String_Type then
          Result.Has_Base := True;
          Result.Base := FT.To_UString (Get (Value, "base"));
@@ -415,6 +426,20 @@ package body Safe_Frontend.Interfaces is
       if FT.To_String (Result.Name) = "" or else FT.To_String (Result.Kind) = "" then
          raise Constraint_Error with
            File_Path & ": " & Context & " must include non-empty type name and kind";
+      end if;
+
+      if FT.Lowercase (FT.To_String (Result.Kind)) = "binary" then
+         if not Result.Has_Bit_Width then
+            raise Constraint_Error with
+              File_Path & ": " & Context & ".bit_width must be one of 8, 16, 32, or 64";
+         end if;
+      elsif Value.Kind = JSON_Object_Type
+        and then Has_Field (Value, "bit_width")
+        and then (Get (Value, "bit_width").Kind /= JSON_Int_Type
+                  or else not (Long_Long_Integer'(Get (Get (Value, "bit_width"))) in 8 | 16 | 32 | 64))
+      then
+         raise Constraint_Error with
+           File_Path & ": " & Context & ".bit_width must be one of 8, 16, 32, or 64";
       end if;
 
       return Result;
