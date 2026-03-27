@@ -361,18 +361,18 @@ REPL_CASES = [
 
 
 def run_ensure_sdkroot_case() -> tuple[bool, str]:
-    calls: list[list[str]] = []
+    calls: list[tuple[list[str], dict[str, str]]] = []
 
     def fake_xcrun_runner(
         argv: list[str],
-        *,
-        text: bool,
-        capture_output: bool,
-        check: bool,
+        **kwargs: object,
     ) -> subprocess.CompletedProcess[str]:
-        if not text or not capture_output or check:
+        if kwargs.get("text") is not True or kwargs.get("capture_output") is not True or kwargs.get("check") is not False:
             raise AssertionError("unexpected xcrun runner flags")
-        calls.append(argv)
+        probe_env = kwargs.get("env")
+        if not isinstance(probe_env, dict):
+            raise AssertionError("missing xcrun env")
+        calls.append((argv, probe_env))
         return subprocess.CompletedProcess(argv, 0, stdout="/fake/sdk\n", stderr="")
 
     env = {
@@ -381,8 +381,15 @@ def run_ensure_sdkroot_case() -> tuple[bool, str]:
         "MACOSX_DEPLOYMENT_TARGET": "16.0",
     }
     updated = ensure_sdkroot(env, platform_name="darwin", xcrun_runner=fake_xcrun_runner)
-    if calls != [["xcrun", "--show-sdk-path"]]:
+    if len(calls) != 1:
         return False, f"unexpected xcrun calls {calls!r}"
+    argv, probe_env = calls[0]
+    if argv != ["xcrun", "--sdk", "macosx", "--show-sdk-path"]:
+        return False, f"unexpected xcrun argv {argv!r}"
+    if probe_env.get("PATH") != env["PATH"]:
+        return False, f"unexpected xcrun PATH {probe_env.get('PATH')!r}"
+    if "MACOSX_DEPLOYMENT_TARGET" in probe_env:
+        return False, "xcrun env should not include MACOSX_DEPLOYMENT_TARGET"
     if updated.get("SDKROOT") != "/fake/sdk":
         return False, f"unexpected SDKROOT {updated.get('SDKROOT')!r}"
     if "MACOSX_DEPLOYMENT_TARGET" in updated:

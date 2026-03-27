@@ -295,7 +295,8 @@ def ensure_sdkroot(
 
     try:
         completed = xcrun_runner(
-            ["xcrun", "--show-sdk-path"],
+            ["xcrun", "--sdk", "macosx", "--show-sdk-path"],
+            env=updated,
             text=True,
             capture_output=True,
             check=False,
