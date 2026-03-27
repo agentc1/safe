@@ -286,7 +286,30 @@ def ensure_sdkroot(
     platform_name: str = sys.platform,
     xcrun_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, str]:
-    return env
+    updated = env.copy()
+    if platform_name != "darwin":
+        return updated
+
+    # Avoid inherited deployment-target overrides fighting the active SDK.
+    updated.pop("MACOSX_DEPLOYMENT_TARGET", None)
+
+    try:
+        completed = xcrun_runner(
+            ["xcrun", "--show-sdk-path"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return updated
+
+    if completed.returncode != 0:
+        return updated
+
+    sdkroot = completed.stdout.strip()
+    if sdkroot:
+        updated["SDKROOT"] = sdkroot
+    return updated
 
 
 def read_diag_json(stdout: str, label: str) -> dict[str, Any]:
