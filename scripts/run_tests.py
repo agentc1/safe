@@ -10,6 +10,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from _lib.harness_common import ensure_sdkroot
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 COMPILER_ROOT = REPO_ROOT / "compiler_impl"
@@ -357,6 +358,40 @@ REPL_CASES = [
         "task declarations are not supported in repl mode",
     ),
 ]
+
+
+def run_ensure_sdkroot_case() -> tuple[bool, str]:
+    calls: list[list[str]] = []
+
+    def fake_xcrun_runner(
+        argv: list[str],
+        *,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        if not text or not capture_output or check:
+            raise AssertionError("unexpected xcrun runner flags")
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, stdout="/fake/sdk\n", stderr="")
+
+    env = {
+        "PATH": "/usr/bin",
+        "SDKROOT": "/stale/sdk",
+        "MACOSX_DEPLOYMENT_TARGET": "16.0",
+    }
+    updated = ensure_sdkroot(env, platform_name="darwin", xcrun_runner=fake_xcrun_runner)
+    if calls != [["xcrun", "--show-sdk-path"]]:
+        return False, f"unexpected xcrun calls {calls!r}"
+    if updated.get("SDKROOT") != "/fake/sdk":
+        return False, f"unexpected SDKROOT {updated.get('SDKROOT')!r}"
+    if "MACOSX_DEPLOYMENT_TARGET" in updated:
+        return False, "MACOSX_DEPLOYMENT_TARGET should be removed on darwin"
+    if updated.get("PATH") != env["PATH"]:
+        return False, f"PATH changed unexpectedly to {updated.get('PATH')!r}"
+    if env.get("SDKROOT") != "/stale/sdk" or env.get("MACOSX_DEPLOYMENT_TARGET") != "16.0":
+        return False, "ensure_sdkroot mutated the input environment"
+    return True, ""
 
 
 def repo_rel(path: Path) -> str:
@@ -861,6 +896,12 @@ def main() -> int:
             passed += 1
         else:
             failures.append((label, detail))
+
+    ok, detail = run_ensure_sdkroot_case()
+    if ok:
+        passed += 1
+    else:
+        failures.append(("ensure_sdkroot darwin normalization", detail))
 
     for label, input_text, expected_stdout, expected_stderr_substring in REPL_CASES:
         ok, detail = run_repl_case(
