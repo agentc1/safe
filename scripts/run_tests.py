@@ -320,6 +320,11 @@ BUILD_SUCCESS_CASES = [
         False,
     ),
     (
+        REPO_ROOT / "tests" / "build" / "pr118d_bounded_string_index_build.safe",
+        "h\n",
+        False,
+    ),
+    (
         REPO_ROOT / "tests" / "build" / "pr118d_growable_array_build.safe",
         "32\n",
         False,

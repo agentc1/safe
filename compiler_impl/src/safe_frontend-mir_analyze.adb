@@ -260,8 +260,12 @@ package body Safe_Frontend.Mir_Analyze is
      (Info : GM.Type_Descriptor) return Boolean;
    function Is_Float_Type
      (Info : GM.Type_Descriptor) return Boolean;
+   function Is_String_Type
+     (Info : GM.Type_Descriptor) return Boolean;
    function Is_Tuple_Type
      (Info : GM.Type_Descriptor) return Boolean;
+   function String_Index_Bounds
+     (Info : GM.Type_Descriptor) return Interval;
    function Type_Access_Role
      (Info : GM.Type_Descriptor) return Access_Role_Kind;
    function Access_Target_Type
@@ -1001,11 +1005,29 @@ package body Safe_Frontend.Mir_Analyze is
       return Lower (UString_Value (Info.Kind)) = "float";
    end Is_Float_Type;
 
+   function Is_String_Type
+     (Info : GM.Type_Descriptor) return Boolean is
+   begin
+      return Lower (UString_Value (Info.Kind)) = "string";
+   end Is_String_Type;
+
    function Is_Tuple_Type
      (Info : GM.Type_Descriptor) return Boolean is
    begin
       return Lower (UString_Value (Info.Kind)) = "tuple";
    end Is_Tuple_Type;
+
+   function String_Index_Bounds
+     (Info : GM.Type_Descriptor) return Interval is
+   begin
+      if Info.Has_Length_Bound then
+         return
+           (Low           => 1,
+            High          => Wide_Integer (Info.Length_Bound),
+            Excludes_Zero => True);
+      end if;
+      return (Low => 1, High => INT64_HIGH, Excludes_Zero => True);
+   end String_Index_Bounds;
 
    function Type_Access_Role
      (Info : GM.Type_Descriptor) return Access_Role_Kind
@@ -2530,8 +2552,9 @@ package body Safe_Frontend.Mir_Analyze is
       Bounds      : Interval;
       Value       : Interval;
       Prefix_Name : FT.UString := FT.To_UString ("");
+      Prefix_Kind : constant String := Lower (UString_Value (Prefix_Type.Kind));
    begin
-      if Lower (UString_Value (Prefix_Type.Kind)) /= "array" then
+      if Prefix_Kind /= "array" and then not Is_String_Type (Prefix_Type) then
          declare
             Result : MD.Diagnostic := Null_Diagnostic;
          begin
@@ -2540,6 +2563,59 @@ package body Safe_Frontend.Mir_Analyze is
             Result.Span := Expr.Span;
             Raise_Diag (Result);
          end;
+      end if;
+      if Is_String_Type (Prefix_Type) then
+         if not Prefix_Type.Has_Length_Bound then
+            declare
+               Result : MD.Diagnostic := Null_Diagnostic;
+            begin
+               Result.Reason := FT.To_UString ("index_out_of_bounds");
+               Result.Message := FT.To_UString ("index expression not provably within string bounds");
+               Result.Span := Expr.Span;
+               Result.Has_Highlight_Span := True;
+               Result.Highlight_Span := Expr.Span;
+               Result.Notes.Append
+                 (FT.To_UString
+                    ("string indexing and slicing are only proved for bounded strings in the current MIR analysis."));
+               Raise_Diag (Result);
+            end;
+         end if;
+         Bounds := String_Index_Bounds (Prefix_Type);
+         for Index in Expr.Indices.First_Index .. Expr.Indices.Last_Index loop
+            Value := Eval_Int_Expr (Strip_Conversion (Expr.Indices (Index)), Current, Var_Types, Type_Env, Functions);
+            if not Interval_Contains (Bounds, Value) then
+               declare
+                  Result : MD.Diagnostic := Null_Diagnostic;
+               begin
+                  Result.Reason := FT.To_UString ("index_out_of_bounds");
+                  Result.Message := FT.To_UString ("index expression not provably within string bounds");
+                  Result.Span := Expr.Span;
+                  Result.Has_Highlight_Span := True;
+                  Result.Highlight_Span := Expr.Span;
+                  Result.Notes.Append
+                    (FT.To_UString
+                       ("bounded string index range is [1 .. "
+                        & Format_Int (Bounds.High)
+                        & "]."));
+                  Result.Notes.Append
+                    (FT.To_UString
+                       ("index expression '"
+                        & Source_Text_For_Expr (Expr.Indices (Index))
+                        & "' has range"
+                        & ASCII.LF
+                        & Interval_Display
+                            (Value,
+                             Expr_Type
+                               (Strip_Conversion (Expr.Indices (Index)),
+                                Var_Types,
+                                Type_Env,
+                                Functions))
+                        & "."));
+                  Raise_Diag (Result);
+               end;
+            end if;
+         end loop;
+         return (Low => INT64_LOW, High => INT64_HIGH, Excludes_Zero => False);
       end if;
       if Prefix_Type.Growable then
          if Prefix_Type.Has_Component_Type then
