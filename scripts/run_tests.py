@@ -369,6 +369,11 @@ BUILD_SUCCESS_CASES = [
         "0\n",
         False,
     ),
+    (
+        REPO_ROOT / "tests" / "build" / "pr118d_runtime_self_assign_build.safe",
+        "Ada\n5\n",
+        False,
+    ),
 ]
 
 BUILD_REJECT_CASES = [

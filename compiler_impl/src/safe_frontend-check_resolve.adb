@@ -358,19 +358,6 @@ package body Safe_Frontend.Check_Resolve is
    function Make_Growable_Array_Type
      (Component_Type : GM.Type_Descriptor) return GM.Type_Descriptor;
 
-   procedure Reject_Unsupported_Pr118d_Composite_Storage_Use
-     (Info     : GM.Type_Descriptor;
-      Type_Env : Type_Maps.Map;
-      Path     : String;
-      Span     : FT.Source_Span);
-
-   procedure Reject_Unsupported_Pr118d_Growable_Signature_Use
-     (Info     : GM.Type_Descriptor;
-      Type_Env : Type_Maps.Map;
-      Path     : String;
-      Span     : FT.Source_Span;
-      Context  : String);
-
    function Is_Discrete_Case_Type
      (Info     : GM.Type_Descriptor;
       Type_Env : Type_Maps.Map) return Boolean;
@@ -2757,49 +2744,6 @@ package body Safe_Frontend.Check_Resolve is
               Message => Message));
       end if;
    end Reject_Unsupported_Indefinite_Channel_Use;
-
-   procedure Reject_Unsupported_Pr118d_Composite_Storage_Use
-     (Info     : GM.Type_Descriptor;
-      Type_Env : Type_Maps.Map;
-      Path     : String;
-      Span     : FT.Source_Span)
-   is
-   begin
-      if Is_String_Type (Info, Type_Env) and then not Is_Bounded_String_Type (Info, Type_Env) then
-         Raise_Diag
-           (CM.Unsupported_Source_Construct
-              (Path    => Path,
-               Span    => Span,
-               Message =>
-                 "plain `string` composite storage is deferred until the PR11.8d runtime/lifetime follow-up; use `string (N)` here"));
-      elsif Is_Growable_Array_Type (Info, Type_Env) then
-         Raise_Diag
-           (CM.Unsupported_Source_Construct
-              (Path    => Path,
-               Span    => Span,
-               Message =>
-                 "growable-array composite storage is deferred until the PR11.8d runtime/lifetime follow-up"));
-      end if;
-   end Reject_Unsupported_Pr118d_Composite_Storage_Use;
-
-   procedure Reject_Unsupported_Pr118d_Growable_Signature_Use
-     (Info     : GM.Type_Descriptor;
-      Type_Env : Type_Maps.Map;
-      Path     : String;
-      Span     : FT.Source_Span;
-      Context  : String) is
-   begin
-      if Is_Growable_Array_Type (Info, Type_Env) then
-         Raise_Diag
-           (CM.Unsupported_Source_Construct
-              (Path    => Path,
-               Span    => Span,
-               Message =>
-                 "growable-array "
-                 & Context
-                 & " are deferred until the PR11.8d runtime/lifetime follow-up"));
-      end if;
-   end Reject_Unsupported_Pr118d_Growable_Signature_Use;
 
    function Normalize_Procedure_Call
      (Expr      : CM.Expr_Access;

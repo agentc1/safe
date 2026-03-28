@@ -122,9 +122,10 @@ package body Safe_Frontend.Ada_Emit is
      & "   end Clone;" & ASCII.LF
      & ASCII.LF
      & "   procedure Copy (Target : in out Safe_String; Source : Safe_String) is" & ASCII.LF
+     & "      Snapshot : constant Safe_String := Clone (Source);" & ASCII.LF
      & "   begin" & ASCII.LF
      & "      Free (Target);" & ASCII.LF
-     & "      Target := Clone (Source);" & ASCII.LF
+     & "      Target := Snapshot;" & ASCII.LF
      & "   end Copy;" & ASCII.LF
      & ASCII.LF
      & "   procedure Free (Value : in out Safe_String) is" & ASCII.LF
@@ -258,9 +259,10 @@ package body Safe_Frontend.Ada_Emit is
      & "   end Clone;" & ASCII.LF
      & ASCII.LF
      & "   procedure Copy (Target : in out Safe_Array; Source : Safe_Array) is" & ASCII.LF
+     & "      Snapshot : constant Safe_Array := Clone (Source);" & ASCII.LF
      & "   begin" & ASCII.LF
      & "      Free (Target);" & ASCII.LF
-     & "      Target := Clone (Source);" & ASCII.LF
+     & "      Target := Snapshot;" & ASCII.LF
      & "   end Copy;" & ASCII.LF
      & ASCII.LF
      & "   procedure Free (Value : in out Safe_Array) is" & ASCII.LF
