@@ -370,6 +370,9 @@ package Safe_Frontend.Check_Model is
       Case_Arms     : Case_Arm_Vectors.Vector;
       Loop_Var      : FT.UString := FT.To_UString ("");
       Loop_Range    : Discrete_Range;
+      Loop_Iterable : Expr_Access := null;
+      Loop_Snapshot_Name : FT.UString := FT.To_UString ("");
+      Loop_Index_Name    : FT.UString := FT.To_UString ("");
       Body_Stmts    : Statement_Access_Vectors.Vector;
       Declarations  : Object_Decl_Vectors.Vector;
       Arms          : Select_Arm_Vectors.Vector;

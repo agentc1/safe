@@ -280,11 +280,13 @@ package body Safe_Frontend.Mir_Validate is
                end loop;
             end if;
          when GM.Expr_Array_Literal =>
-            for Index in Value.Elements.First_Index .. Value.Elements.Last_Index loop
-               Validate_Expr
-                 (Value.Elements (Index),
-                  Where & ".elements[" & Image (Index - 1) & "]");
-            end loop;
+            if not Value.Elements.Is_Empty then
+               for Index in Value.Elements.First_Index .. Value.Elements.Last_Index loop
+                  Validate_Expr
+                    (Value.Elements (Index),
+                     Where & ".elements[" & Image (Index - 1) & "]");
+               end loop;
+            end if;
          when GM.Expr_Tuple =>
             Require (Natural (Value.Elements.Length) >= 2, Where & ": tuple expressions must have at least two elements");
             for Index in Value.Elements.First_Index .. Value.Elements.Last_Index loop

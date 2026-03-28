@@ -415,8 +415,8 @@ package body Safe_Frontend.Check_Resolve is
       Right_Base : constant GM.Type_Descriptor := Base_Type (Right, Type_Env);
       Left_Kind  : constant String := FT.Lowercase (UString_Value (Left_Base.Kind));
       Right_Kind : constant String := FT.Lowercase (UString_Value (Right_Base.Kind));
-      begin
-         return Equivalent_Type (Left, Right, Type_Env)
+   begin
+      return Equivalent_Type (Left, Right, Type_Env)
         or else (Left_Kind = "access" and then Right_Kind = "null")
         or else (Left_Kind = "null" and then Right_Kind = "access")
         or else
@@ -448,6 +448,20 @@ package body Safe_Frontend.Check_Resolve is
         or else (Left_Kind = "float" and then Right_Kind = "float");
    end Compatible_Type;
 
+   function Compatible_Source_To_Target_Type
+     (Source   : GM.Type_Descriptor;
+      Target   : GM.Type_Descriptor;
+      Type_Env : Type_Maps.Map) return Boolean;
+
+   function Compatible_Source_Expr_To_Target_Type
+     (Source_Expr : CM.Expr_Access;
+      Source      : GM.Type_Descriptor;
+      Target      : GM.Type_Descriptor;
+      Var_Types   : Type_Maps.Map;
+      Functions   : Function_Maps.Map;
+      Type_Env    : Type_Maps.Map;
+      Const_Env   : Static_Value_Maps.Map) return Boolean;
+
    function Is_Boolean_Type
      (Info     : GM.Type_Descriptor;
       Type_Env : Type_Maps.Map) return Boolean is
@@ -468,6 +482,17 @@ package body Safe_Frontend.Check_Resolve is
    begin
       return FT.Lowercase (UString_Value (Base_Type (Info, Type_Env).Kind)) = "string";
    end Is_String_Type;
+
+   function Is_Array_Type
+     (Info     : GM.Type_Descriptor;
+      Type_Env : Type_Maps.Map) return Boolean is
+   begin
+      return FT.Lowercase (UString_Value (Base_Type (Info, Type_Env).Kind)) = "array";
+   end Is_Array_Type;
+   function Is_Name_Expr (Expr : CM.Expr_Access) return Boolean is
+   begin
+      return Expr /= null and then Expr.Kind in CM.Expr_Ident | CM.Expr_Select;
+   end Is_Name_Expr;
 
    function Is_Bounded_String_Type
      (Info     : GM.Type_Descriptor;
@@ -1677,12 +1702,21 @@ package body Safe_Frontend.Check_Resolve is
             Prefix_Type := Expr_Type (Expr.Prefix, Var_Types, Functions, Type_Env);
             return Field_Type (Prefix_Type, UString_Value (Expr.Selector), Type_Env);
          when CM.Expr_Resolved_Index =>
+            if UString_Value (Expr.Type_Name)'Length > 0
+              and then Has_Type (Type_Env, UString_Value (Expr.Type_Name))
+            then
+               return Get_Type (Type_Env, UString_Value (Expr.Type_Name));
+            end if;
             Prefix_Type := Expr_Type (Expr.Prefix, Var_Types, Functions, Type_Env);
             if Is_String_Type (Prefix_Type, Type_Env) then
                return Default_String;
             end if;
             if Prefix_Type.Has_Component_Type then
-               if Natural (Expr.Args.Length) = 2 then
+               if Natural (Expr.Args.Length) = 2
+                 and then
+                   (Base_Type (Prefix_Type, Type_Env).Growable
+                    or else Natural (Base_Type (Prefix_Type, Type_Env).Index_Types.Length) = 1)
+               then
                   return Make_Growable_Array_Type
                     (Resolve_Type
                        (UString_Value (Prefix_Type.Component_Type),
@@ -1968,72 +2002,75 @@ package body Safe_Frontend.Check_Resolve is
       Functions : Function_Maps.Map;
       Type_Env  : Type_Maps.Map) return CM.Expr_Access
    is
-      Result      : CM.Expr_Access := new CM.Expr_Node'(Expr.all);
-      Callee_Name : FT.UString := FT.To_UString ("");
-      Prefix_Type : GM.Type_Descriptor;
    begin
       if Expr = null or else Expr.Kind /= CM.Expr_Apply then
          return Expr;
       end if;
 
+      declare
+         Result      : constant CM.Expr_Access := new CM.Expr_Node'(Expr.all);
+         Callee_Name : FT.UString := FT.To_UString ("");
+         Prefix_Type : GM.Type_Descriptor;
+      begin
          if Expr.Callee /= null and then Expr.Callee.Kind = CM.Expr_Ident then
             Callee_Name := Expr.Callee.Name;
             if Has_Type (Var_Types, UString_Value (Callee_Name))
-           and then
-             (UString_Value
-                (Get_Type (Var_Types, UString_Value (Callee_Name)).Kind) = "array"
-              or else Is_String_Type
-                (Get_Type (Var_Types, UString_Value (Callee_Name)), Type_Env))
-         then
-            Result.Kind := CM.Expr_Resolved_Index;
-            Result.Prefix := Expr.Callee;
-            Result.Args := Expr.Args;
-         elsif Has_Function (Functions, UString_Value (Callee_Name)) then
-            Result.Kind := CM.Expr_Call;
-            Result.Callee := Expr.Callee;
-            Result.Args := Expr.Args;
-         elsif Has_Type (Var_Types, UString_Value (Callee_Name))
-           and then UString_Value
-             (Get_Type (Var_Types, UString_Value (Callee_Name)).Kind)
-               in "integer" | "subtype" | "record" | "float" | "binary"
-           and then Natural (Expr.Args.Length) = 1
-         then
-            Result.Kind := CM.Expr_Conversion;
-            Result.Target := Expr.Callee;
-            Result.Inner := Expr.Args (Expr.Args.First_Index);
-         elsif UString_Value (Callee_Name) in "integer" | "float" | "long_float"
-           and then Natural (Expr.Args.Length) = 1
-         then
-            Result.Kind := CM.Expr_Conversion;
-            Result.Target := Expr.Callee;
-            Result.Inner := Expr.Args (Expr.Args.First_Index);
-         elsif Has_Type (Type_Env, UString_Value (Callee_Name))
-           and then Is_Binary_Type (Get_Type (Type_Env, UString_Value (Callee_Name)), Type_Env)
-           and then Natural (Expr.Args.Length) = 1
-         then
-            Result.Kind := CM.Expr_Conversion;
-            Result.Target := Expr.Callee;
-            Result.Inner := Expr.Args (Expr.Args.First_Index);
+              and then
+                (UString_Value
+                   (Get_Type (Var_Types, UString_Value (Callee_Name)).Kind) = "array"
+                 or else Is_String_Type
+                   (Get_Type (Var_Types, UString_Value (Callee_Name)), Type_Env))
+            then
+               Result.Kind := CM.Expr_Resolved_Index;
+               Result.Prefix := Expr.Callee;
+               Result.Args := Expr.Args;
+            elsif Has_Function (Functions, UString_Value (Callee_Name)) then
+               Result.Kind := CM.Expr_Call;
+               Result.Callee := Expr.Callee;
+               Result.Args := Expr.Args;
+            elsif Has_Type (Var_Types, UString_Value (Callee_Name))
+              and then UString_Value
+                (Get_Type (Var_Types, UString_Value (Callee_Name)).Kind)
+                  in "integer" | "subtype" | "record" | "float" | "binary"
+              and then Natural (Expr.Args.Length) = 1
+            then
+               Result.Kind := CM.Expr_Conversion;
+               Result.Target := Expr.Callee;
+               Result.Inner := Expr.Args (Expr.Args.First_Index);
+            elsif UString_Value (Callee_Name) in "integer" | "float" | "long_float"
+              and then Natural (Expr.Args.Length) = 1
+            then
+               Result.Kind := CM.Expr_Conversion;
+               Result.Target := Expr.Callee;
+               Result.Inner := Expr.Args (Expr.Args.First_Index);
+            elsif Has_Type (Type_Env, UString_Value (Callee_Name))
+              and then Is_Binary_Type (Get_Type (Type_Env, UString_Value (Callee_Name)), Type_Env)
+              and then Natural (Expr.Args.Length) = 1
+            then
+               Result.Kind := CM.Expr_Conversion;
+               Result.Target := Expr.Callee;
+               Result.Inner := Expr.Args (Expr.Args.First_Index);
+            else
+               Result.Kind := CM.Expr_Call;
+               Result.Callee := Expr.Callee;
+               Result.Args := Expr.Args;
+            end if;
          else
-            Result.Kind := CM.Expr_Call;
-            Result.Callee := Expr.Callee;
-            Result.Args := Expr.Args;
+            Prefix_Type := Expr_Type (Expr.Callee, Var_Types, Functions, Type_Env);
+            if UString_Value (Prefix_Type.Kind) = "array"
+              or else Is_String_Type (Prefix_Type, Type_Env)
+            then
+               Result.Kind := CM.Expr_Resolved_Index;
+               Result.Prefix := Expr.Callee;
+               Result.Args := Expr.Args;
+            else
+               Result.Kind := CM.Expr_Call;
+               Result.Callee := Expr.Callee;
+               Result.Args := Expr.Args;
+            end if;
          end if;
-      else
-         Prefix_Type := Expr_Type (Expr.Callee, Var_Types, Functions, Type_Env);
-         if UString_Value (Prefix_Type.Kind) = "array"
-           or else Is_String_Type (Prefix_Type, Type_Env)
-         then
-            Result.Kind := CM.Expr_Resolved_Index;
-            Result.Prefix := Expr.Callee;
-            Result.Args := Expr.Args;
-         else
-            Result.Kind := CM.Expr_Call;
-            Result.Callee := Expr.Callee;
-            Result.Args := Expr.Args;
-         end if;
-      end if;
-      return Result;
+         return Result;
+      end;
    end Resolve_Apply;
 
    function Normalize_Expr
@@ -2584,6 +2621,273 @@ package body Safe_Frontend.Check_Resolve is
       end case;
    end Try_Static_Integerish_Value;
 
+   function Fixed_Array_Cardinality
+     (Info      : GM.Type_Descriptor;
+      Type_Env  : Type_Maps.Map;
+      Cardinality : out Natural) return Boolean
+   is
+      Base       : constant GM.Type_Descriptor := Base_Type (Info, Type_Env);
+      Index_Info : GM.Type_Descriptor;
+      Width      : CM.Wide_Integer := 0;
+   begin
+      Cardinality := 0;
+      if FT.Lowercase (UString_Value (Base.Kind)) /= "array"
+        or else Base.Growable
+        or else Natural (Base.Index_Types.Length) /= 1
+      then
+         return False;
+      end if;
+
+      Index_Info :=
+        Resolve_Type
+          (UString_Value (Base.Index_Types (Base.Index_Types.First_Index)),
+           Type_Env,
+           "",
+           FT.Null_Span);
+      if not Index_Info.Has_Low or else not Index_Info.Has_High then
+         Index_Info := Base_Type (Index_Info, Type_Env);
+         if not Index_Info.Has_Low or else not Index_Info.Has_High then
+            return False;
+         end if;
+      end if;
+
+      Width :=
+        CM.Wide_Integer (Index_Info.High)
+        - CM.Wide_Integer (Index_Info.Low)
+        + 1;
+      if Width < 0 or else Width > CM.Wide_Integer (Natural'Last) then
+         return False;
+      end if;
+
+      Cardinality := Natural (Width);
+      return True;
+   end Fixed_Array_Cardinality;
+
+   function Static_Growable_Length
+     (Expr      : CM.Expr_Access;
+      Var_Types : Type_Maps.Map;
+      Functions : Function_Maps.Map;
+      Type_Env  : Type_Maps.Map;
+      Const_Env : Static_Value_Maps.Map;
+      Length    : out Natural) return Boolean
+   is
+      Low_Value  : CM.Wide_Integer := 0;
+      High_Value : CM.Wide_Integer := 0;
+      Width      : CM.Wide_Integer := 0;
+   begin
+      Length := 0;
+      if Expr = null then
+         return False;
+      elsif Expr.Kind = CM.Expr_Array_Literal then
+         Length := Natural (Expr.Elements.Length);
+         return True;
+      elsif Expr.Kind = CM.Expr_Resolved_Index
+        and then Expr.Prefix /= null
+        and then Expr.Prefix.Kind in CM.Expr_Ident | CM.Expr_Select
+        and then Natural (Expr.Args.Length) = 2
+        and then Try_Static_Integerish_Value
+          (Expr.Args (Expr.Args.First_Index),
+           Var_Types,
+           Functions,
+           Type_Env,
+           Const_Env,
+           Low_Value)
+        and then Try_Static_Integerish_Value
+          (Expr.Args (Expr.Args.First_Index + 1),
+           Var_Types,
+           Functions,
+           Type_Env,
+           Const_Env,
+           High_Value)
+      then
+         if High_Value < Low_Value then
+            return False;
+         end if;
+         Width := High_Value - Low_Value + 1;
+         if Width < 0 or else Width > CM.Wide_Integer (Natural'Last) then
+            return False;
+         end if;
+         Length := Natural (Width);
+         return True;
+      elsif Expr.Kind = CM.Expr_Apply
+        and then Expr.Callee /= null
+        and then Expr.Callee.Kind in CM.Expr_Ident | CM.Expr_Select
+        and then Natural (Expr.Args.Length) = 2
+        and then Try_Static_Integerish_Value
+          (Expr.Args (Expr.Args.First_Index),
+           Var_Types,
+           Functions,
+           Type_Env,
+           Const_Env,
+           Low_Value)
+        and then Try_Static_Integerish_Value
+          (Expr.Args (Expr.Args.First_Index + 1),
+           Var_Types,
+           Functions,
+           Type_Env,
+           Const_Env,
+           High_Value)
+      then
+         if High_Value < Low_Value then
+            return False;
+         end if;
+         Width := High_Value - Low_Value + 1;
+         if Width < 0 or else Width > CM.Wide_Integer (Natural'Last) then
+            return False;
+         end if;
+         Length := Natural (Width);
+         return True;
+      end if;
+      return False;
+   end Static_Growable_Length;
+
+   function Static_Growable_To_Fixed_Narrowing_OK
+     (Source_Expr : CM.Expr_Access;
+      Target      : GM.Type_Descriptor;
+      Var_Types   : Type_Maps.Map;
+      Functions   : Function_Maps.Map;
+      Type_Env    : Type_Maps.Map;
+      Const_Env   : Static_Value_Maps.Map) return Boolean
+   is
+      Target_Base       : constant GM.Type_Descriptor := Base_Type (Target, Type_Env);
+      Target_Length     : Natural := 0;
+      Source_Length     : Natural := 0;
+      Target_Component  : GM.Type_Descriptor;
+      Source_Component  : GM.Type_Descriptor;
+   begin
+      if Source_Expr = null
+        or else FT.Lowercase (UString_Value (Target_Base.Kind)) /= "array"
+        or else Target_Base.Growable
+        or else not Target_Base.Has_Component_Type
+        or else not Fixed_Array_Cardinality (Target_Base, Type_Env, Target_Length)
+      then
+         return False;
+      end if;
+
+      Target_Component :=
+        Resolve_Type
+          (UString_Value (Target_Base.Component_Type),
+           Type_Env,
+           "",
+           FT.Null_Span);
+
+      if Source_Expr.Kind = CM.Expr_Array_Literal then
+         if Source_Expr.Elements.Is_Empty then
+            return False;
+         end if;
+         Source_Length := Natural (Source_Expr.Elements.Length);
+         Source_Component :=
+           Expr_Type
+             (Source_Expr.Elements (Source_Expr.Elements.First_Index),
+              Var_Types,
+              Functions,
+              Type_Env);
+         return Source_Length = Target_Length
+           and then Compatible_Type (Source_Component, Target_Component, Type_Env);
+      elsif Source_Expr.Kind in CM.Expr_Resolved_Index | CM.Expr_Apply
+        and then
+          ((Source_Expr.Kind = CM.Expr_Resolved_Index
+            and then Source_Expr.Prefix /= null
+            and then Source_Expr.Prefix.Kind in CM.Expr_Ident | CM.Expr_Select)
+           or else
+           (Source_Expr.Kind = CM.Expr_Apply
+            and then Source_Expr.Callee /= null
+            and then Source_Expr.Callee.Kind in CM.Expr_Ident | CM.Expr_Select))
+        and then Static_Growable_Length
+          (Source_Expr,
+           Var_Types,
+           Functions,
+           Type_Env,
+           Const_Env,
+           Source_Length)
+      then
+         declare
+            Prefix_Expr : constant CM.Expr_Access :=
+              (if Source_Expr.Kind = CM.Expr_Resolved_Index
+               then Source_Expr.Prefix
+               else Source_Expr.Callee);
+            Prefix_Base : constant GM.Type_Descriptor :=
+              Base_Type
+                (Expr_Type
+                   (Prefix_Expr,
+                    Var_Types,
+                    Functions,
+                    Type_Env),
+                 Type_Env);
+         begin
+            if FT.Lowercase (UString_Value (Prefix_Base.Kind)) /= "array"
+              or else not Prefix_Base.Growable
+              or else not Prefix_Base.Has_Component_Type
+            then
+               return False;
+            end if;
+
+            Source_Component :=
+              Resolve_Type
+                (UString_Value (Prefix_Base.Component_Type),
+                 Type_Env,
+                 "",
+                 FT.Null_Span);
+            return Source_Length = Target_Length
+              and then Compatible_Type (Source_Component, Target_Component, Type_Env);
+         end;
+      end if;
+
+      return False;
+   end Static_Growable_To_Fixed_Narrowing_OK;
+
+   function Compatible_Source_To_Target_Type
+     (Source   : GM.Type_Descriptor;
+      Target   : GM.Type_Descriptor;
+      Type_Env : Type_Maps.Map) return Boolean
+   is
+      Source_Base : constant GM.Type_Descriptor := Base_Type (Source, Type_Env);
+      Target_Base : constant GM.Type_Descriptor := Base_Type (Target, Type_Env);
+   begin
+      if FT.Lowercase (UString_Value (Source_Base.Kind)) = "array"
+        and then FT.Lowercase (UString_Value (Target_Base.Kind)) = "array"
+        and then Source_Base.Has_Component_Type
+        and then Target_Base.Has_Component_Type
+        and then Compatible_Type
+          (Resolve_Type (UString_Value (Source_Base.Component_Type), Type_Env, "", FT.Null_Span),
+           Resolve_Type (UString_Value (Target_Base.Component_Type), Type_Env, "", FT.Null_Span),
+           Type_Env)
+      then
+         return Source_Base.Growable = Target_Base.Growable
+           or else (Target_Base.Growable and then not Source_Base.Growable);
+      elsif Compatible_Type (Source, Target, Type_Env) then
+         return True;
+      end if;
+      return False;
+   end Compatible_Source_To_Target_Type;
+
+   function Compatible_Source_Expr_To_Target_Type
+     (Source_Expr : CM.Expr_Access;
+      Source      : GM.Type_Descriptor;
+      Target      : GM.Type_Descriptor;
+      Var_Types   : Type_Maps.Map;
+      Functions   : Function_Maps.Map;
+      Type_Env    : Type_Maps.Map;
+      Const_Env   : Static_Value_Maps.Map) return Boolean
+   is
+   begin
+      if Static_Growable_To_Fixed_Narrowing_OK
+        (Source_Expr,
+         Target,
+         Var_Types,
+         Functions,
+         Type_Env,
+         Const_Env)
+      then
+         return True;
+      end if;
+
+      if Compatible_Source_To_Target_Type (Source, Target, Type_Env) then
+         return True;
+      end if;
+      return False;
+   end Compatible_Source_Expr_To_Target_Type;
+
    procedure Validate_Static_Binary_Boundaries
      (Expr      : CM.Expr_Access;
       Var_Types : Type_Maps.Map;
@@ -2942,6 +3246,7 @@ package body Safe_Frontend.Check_Resolve is
       Path      : String) return CM.Object_Decl
    is
       Result : CM.Object_Decl := Decl;
+      Static_Slice_Narrowing_OK : Boolean := False;
    begin
       if Looks_Like_Unsupported_Statement_Label (Decl, Var_Types, Functions, Type_Env) then
          Raise_Diag
@@ -2955,6 +3260,39 @@ package body Safe_Frontend.Check_Resolve is
       Result.Has_Implicit_Default_Init := Decl.Has_Implicit_Default_Init;
       Result.Is_Constant := Decl.Is_Constant;
       if Decl.Has_Initializer and then Decl.Initializer /= null then
+         if Decl.Initializer.Kind = CM.Expr_Apply
+           and then Decl.Initializer.Callee /= null
+           and then Decl.Initializer.Callee.Kind in CM.Expr_Ident | CM.Expr_Select
+         then
+            declare
+               Target_Base   : constant GM.Type_Descriptor :=
+                 Base_Type (Result.Type_Info, Type_Env);
+               Callee_Name   : constant String := Flatten_Name (Decl.Initializer.Callee);
+               Prefix_Base   : constant GM.Type_Descriptor :=
+                 (if Has_Type (Var_Types, Callee_Name)
+                  then Base_Type (Get_Type (Var_Types, Callee_Name), Type_Env)
+                  else (others => <>));
+               Target_Length : Natural := 0;
+               Source_Length : Natural := 0;
+            begin
+               if FT.Lowercase (UString_Value (Target_Base.Kind)) = "array"
+                 and then not Target_Base.Growable
+                 and then FT.Lowercase (UString_Value (Prefix_Base.Kind)) = "array"
+                 and then Prefix_Base.Growable
+                 and then Fixed_Array_Cardinality (Target_Base, Type_Env, Target_Length)
+                 and then Static_Growable_Length
+                   (Decl.Initializer,
+                    Var_Types,
+                    Functions,
+                    Type_Env,
+                    Const_Env,
+                    Source_Length)
+                 and then Source_Length = Target_Length
+               then
+                  Static_Slice_Narrowing_OK := True;
+               end if;
+            end;
+         end if;
          Result.Initializer :=
            Normalize_Expr_Checked
              (Decl.Initializer, Var_Types, Functions, Type_Env, Path);
@@ -2963,10 +3301,64 @@ package body Safe_Frontend.Check_Resolve is
          end if;
          Validate_Static_Binary_Boundaries
            (Result.Initializer, Var_Types, Functions, Type_Env, Const_Env, Path);
-         if not Compatible_Type
-           (Expr_Type (Result.Initializer, Var_Types, Functions, Type_Env),
+         if Result.Initializer.Kind = CM.Expr_Resolved_Index
+           and then Result.Initializer.Prefix /= null
+         then
+            declare
+               Target_Base   : constant GM.Type_Descriptor :=
+                 Base_Type (Result.Type_Info, Type_Env);
+               Prefix_Base   : constant GM.Type_Descriptor :=
+                 Base_Type
+                   (Expr_Type
+                      (Result.Initializer.Prefix,
+                       Var_Types,
+                       Functions,
+                       Type_Env),
+                    Type_Env);
+               Target_Length : Natural := 0;
+               Source_Length : Natural := 0;
+            begin
+               if FT.Lowercase (UString_Value (Target_Base.Kind)) = "array"
+                 and then not Target_Base.Growable
+                 and then FT.Lowercase (UString_Value (Prefix_Base.Kind)) = "array"
+                 and then Prefix_Base.Growable
+                 and then Fixed_Array_Cardinality (Target_Base, Type_Env, Target_Length)
+                 and then Static_Growable_Length
+                   (Result.Initializer,
+                    Var_Types,
+                    Functions,
+                    Type_Env,
+                    Const_Env,
+                    Source_Length)
+                 and then Source_Length = Target_Length
+               then
+                  Result.Initializer.Type_Name := Result.Type_Info.Name;
+                  Static_Slice_Narrowing_OK := True;
+               end if;
+            end;
+         end if;
+         if Static_Growable_To_Fixed_Narrowing_OK
+           (Result.Initializer,
             Result.Type_Info,
-            Type_Env)
+            Var_Types,
+            Functions,
+            Type_Env,
+            Const_Env)
+         then
+            Result.Initializer.Type_Name := Result.Type_Info.Name;
+            Static_Slice_Narrowing_OK := True;
+         elsif Static_Slice_Narrowing_OK then
+            Result.Initializer.Type_Name := Result.Type_Info.Name;
+         end if;
+         if not Static_Slice_Narrowing_OK
+           and then not Compatible_Source_Expr_To_Target_Type
+           (Result.Initializer,
+            Expr_Type (Result.Initializer, Var_Types, Functions, Type_Env),
+            Result.Type_Info,
+            Var_Types,
+            Functions,
+            Type_Env,
+            Const_Env)
          then
             Raise_Diag
               (CM.Source_Frontend_Error
@@ -3196,10 +3588,14 @@ package body Safe_Frontend.Check_Resolve is
             Result.Destructure.Initializer :=
               Normalize_Expr_Checked
                 (Stmt.Destructure.Initializer, Var_Types, Functions, Type_Env, Path);
-            if not Compatible_Type
-              (Expr_Type (Result.Destructure.Initializer, Var_Types, Functions, Type_Env),
+            if not Compatible_Source_Expr_To_Target_Type
+              (Result.Destructure.Initializer,
+               Expr_Type (Result.Destructure.Initializer, Var_Types, Functions, Type_Env),
                Result.Destructure.Type_Info,
-               Type_Env)
+               Var_Types,
+               Functions,
+               Type_Env,
+               Local_Static_Constants)
             then
                Raise_Diag
                  (CM.Source_Frontend_Error
@@ -3221,7 +3617,7 @@ package body Safe_Frontend.Check_Resolve is
                end if;
             end;
 
-         when CM.Stmt_Assign =>
+        when CM.Stmt_Assign =>
             Result.Target := Normalize_Expr_Checked (Stmt.Target, Var_Types, Functions, Type_Env, Path);
             if not Is_Assignable_Target (Result.Target) then
                Raise_Diag
@@ -3237,6 +3633,71 @@ package body Safe_Frontend.Check_Resolve is
                Path,
                "assignment to imported package-qualified objects is outside the current PR08.3 interface subset");
             Result.Value := Normalize_Expr_Checked (Stmt.Value, Var_Types, Functions, Type_Env, Path);
+            declare
+               Target_Info : constant GM.Type_Descriptor :=
+                 Expr_Type (Result.Target, Var_Types, Functions, Type_Env);
+            begin
+               if Result.Value.Kind = CM.Expr_Resolved_Index
+                 and then Result.Value.Prefix /= null
+               then
+                  declare
+                     Target_Base   : constant GM.Type_Descriptor :=
+                       Base_Type (Target_Info, Type_Env);
+                     Prefix_Base   : constant GM.Type_Descriptor :=
+                       Base_Type
+                         (Expr_Type
+                            (Result.Value.Prefix,
+                             Var_Types,
+                             Functions,
+                             Type_Env),
+                          Type_Env);
+                     Target_Length : Natural := 0;
+                     Source_Length : Natural := 0;
+                  begin
+                     if FT.Lowercase (UString_Value (Target_Base.Kind)) = "array"
+                       and then not Target_Base.Growable
+                       and then FT.Lowercase (UString_Value (Prefix_Base.Kind)) = "array"
+                       and then Prefix_Base.Growable
+                       and then Fixed_Array_Cardinality (Target_Base, Type_Env, Target_Length)
+                       and then Static_Growable_Length
+                         (Result.Value,
+                          Var_Types,
+                          Functions,
+                          Type_Env,
+                          Local_Static_Constants,
+                          Source_Length)
+                       and then Source_Length = Target_Length
+                     then
+                        Result.Value.Type_Name := Target_Info.Name;
+                     end if;
+                  end;
+               end if;
+               if Static_Growable_To_Fixed_Narrowing_OK
+                 (Result.Value,
+                  Target_Info,
+                  Var_Types,
+                  Functions,
+                  Type_Env,
+                  Local_Static_Constants)
+               then
+                  Result.Value.Type_Name := Target_Info.Name;
+               end if;
+            end;
+            if not Compatible_Source_Expr_To_Target_Type
+              (Result.Value,
+               Expr_Type (Result.Value, Var_Types, Functions, Type_Env),
+               Expr_Type (Result.Target, Var_Types, Functions, Type_Env),
+               Var_Types,
+               Functions,
+               Type_Env,
+               Local_Static_Constants)
+            then
+               Raise_Diag
+                 (CM.Source_Frontend_Error
+                    (Path    => Path,
+                     Span    => Result.Value.Span,
+                     Message => "assignment value type does not match target type"));
+            end if;
 
          when CM.Stmt_Return =>
             if Stmt.Value /= null then
@@ -3326,23 +3787,93 @@ package body Safe_Frontend.Check_Resolve is
                  Normalize_Expr_Checked (Stmt.Condition, Var_Types, Functions, Type_Env, Path);
             end if;
 
-         when CM.Stmt_For =>
-            Result.Loop_Range := Stmt.Loop_Range;
-            if Stmt.Loop_Range.Kind = CM.Range_Explicit then
-               Result.Loop_Range.Low_Expr :=
-                 Normalize_Expr_Checked
-                   (Stmt.Loop_Range.Low_Expr, Var_Types, Functions, Type_Env, Path);
-               Result.Loop_Range.High_Expr :=
-                 Normalize_Expr_Checked
-                   (Stmt.Loop_Range.High_Expr, Var_Types, Functions, Type_Env, Path);
-               Loop_Type.Name := FT.To_UString ("integer");
-               Loop_Type.Kind := FT.To_UString ("integer");
+        when CM.Stmt_For =>
+            if Stmt.Loop_Iterable /= null then
+               declare
+                  Iterable_Type : GM.Type_Descriptor;
+                  Base_Type_Info : GM.Type_Descriptor;
+               begin
+                  Result.Loop_Iterable :=
+                    Normalize_Expr_Checked
+                      (Stmt.Loop_Iterable, Var_Types, Functions, Type_Env, Path);
+                  if not Is_Name_Expr (Result.Loop_Iterable) then
+                     Raise_Diag
+                       (CM.Source_Frontend_Error
+                          (Path    => Path,
+                           Span    => Result.Loop_Iterable.Span,
+                           Message => "`for ... of` requires an array object name"));
+                  end if;
+
+                  Iterable_Type :=
+                    Expr_Type (Result.Loop_Iterable, Var_Types, Functions, Type_Env);
+                  Base_Type_Info := Base_Type (Iterable_Type, Type_Env);
+                  if Is_String_Type (Base_Type_Info, Type_Env) then
+                     Raise_Diag
+                       (CM.Unsupported_Source_Construct
+                          (Path    => Path,
+                           Span    => Result.Loop_Iterable.Span,
+                           Message => "string iteration is deferred to a later PR11.8d chunk"));
+                  elsif not Is_Array_Type (Base_Type_Info, Type_Env) then
+                     Raise_Diag
+                       (CM.Source_Frontend_Error
+                          (Path    => Path,
+                           Span    => Result.Loop_Iterable.Span,
+                           Message => "`for ... of` expects an array object"));
+                  elsif not Base_Type_Info.Has_Component_Type then
+                     Raise_Diag
+                       (CM.Source_Frontend_Error
+                          (Path    => Path,
+                           Span    => Result.Loop_Iterable.Span,
+                           Message => "array iteration requires an element type"));
+                  elsif not Base_Type_Info.Growable
+                    and then Natural (Base_Type_Info.Index_Types.Length) /= 1
+                  then
+                     Raise_Diag
+                       (CM.Unsupported_Source_Construct
+                          (Path    => Path,
+                           Span    => Result.Loop_Iterable.Span,
+                           Message => "`for ... of` currently supports only one-dimensional arrays"));
+                  elsif not Base_Type_Info.Growable
+                    and then not Is_Integerish
+                      (Resolve_Type
+                         (UString_Value (Base_Type_Info.Index_Types (Base_Type_Info.Index_Types.First_Index)),
+                          Type_Env,
+                          Path,
+                          Result.Loop_Iterable.Span),
+                       Type_Env)
+                  then
+                     Raise_Diag
+                       (CM.Unsupported_Source_Construct
+                          (Path    => Path,
+                           Span    => Result.Loop_Iterable.Span,
+                           Message => "`for ... of` currently supports only integer-indexed fixed arrays"));
+                  end if;
+
+                  Loop_Type :=
+                    Resolve_Type
+                      (UString_Value (Base_Type_Info.Component_Type),
+                       Type_Env,
+                       Path,
+                       Result.Loop_Iterable.Span);
+               end;
             else
-               Result.Loop_Range.Name_Expr :=
-                 Normalize_Expr_Checked
-                   (Stmt.Loop_Range.Name_Expr, Var_Types, Functions, Type_Env, Path);
-               Loop_Type :=
-                 Resolve_Type (Flatten_Name (Stmt.Loop_Range.Name_Expr), Type_Env, Path, Stmt.Span);
+               Result.Loop_Range := Stmt.Loop_Range;
+               if Stmt.Loop_Range.Kind = CM.Range_Explicit then
+                  Result.Loop_Range.Low_Expr :=
+                    Normalize_Expr_Checked
+                      (Stmt.Loop_Range.Low_Expr, Var_Types, Functions, Type_Env, Path);
+                  Result.Loop_Range.High_Expr :=
+                    Normalize_Expr_Checked
+                      (Stmt.Loop_Range.High_Expr, Var_Types, Functions, Type_Env, Path);
+                  Loop_Type.Name := FT.To_UString ("integer");
+                  Loop_Type.Kind := FT.To_UString ("integer");
+               else
+                  Result.Loop_Range.Name_Expr :=
+                    Normalize_Expr_Checked
+                      (Stmt.Loop_Range.Name_Expr, Var_Types, Functions, Type_Env, Path);
+                  Loop_Type :=
+                    Resolve_Type (Flatten_Name (Stmt.Loop_Range.Name_Expr), Type_Env, Path, Stmt.Span);
+               end if;
             end if;
             Put_Type (Local_Types, UString_Value (Stmt.Loop_Var), Loop_Type);
             Remove_Type (Current_Constants, UString_Value (Stmt.Loop_Var));

@@ -1694,6 +1694,23 @@ package body Safe_Frontend.Check_Emit is
               & JS.Span_Object (Parsed.Span)
               & "}";
          when CM.Stmt_For =>
+            if Parsed.Loop_Iterable /= null then
+               return
+                 "{""node_type"":""LoopStatement"",""loop_name"":null,""iteration_scheme"":{""node_type"":""IterationScheme"",""kind"":""ForOf"",""condition"":null,""loop_variable"":"
+                 & JS.Quote (Parsed.Loop_Var)
+                 & ",""is_reverse"":false,""discrete_range"":null,""iterable_name"":"
+                 & Name_Node (Resolved_Expr.Loop_Iterable)
+                 & ",""span"":"
+                 & JS.Span_Object (Parsed.Span)
+                 & "},""body"":"
+                 & Sequence_Node
+                     (Parsed.Body_Stmts,
+                      Resolved_Expr.Body_Stmts,
+                      Parsed.Span)
+                 & ",""end_loop_name"":null,""span"":"
+                 & JS.Span_Object (Parsed.Span)
+                 & "}";
+            end if;
             return
               "{""node_type"":""LoopStatement"",""loop_name"":null,""iteration_scheme"":{""node_type"":""IterationScheme"",""kind"":""ForIn"",""condition"":null,""loop_variable"":"
               & JS.Quote (Parsed.Loop_Var)

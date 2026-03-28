@@ -639,8 +639,8 @@ loop_statement ::=
 
 iteration_scheme ::=
     'while' condition
-  | 'for' defining_identifier 'in' [ 'reverse' ] discrete_subtype_definition
-  | 'for' defining_identifier 'of' [ 'reverse' ] name
+  | 'for' defining_identifier 'in' discrete_subtype_definition
+  | 'for' defining_identifier 'of' name
 
 handled_sequence_of_statements ::=
     sequence_of_statements

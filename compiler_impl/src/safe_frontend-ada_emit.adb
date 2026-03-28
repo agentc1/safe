@@ -429,6 +429,7 @@ package body Safe_Frontend.Ada_Emit is
       Action    : Cleanup_Action := Cleanup_Deallocate;
       Name      : FT.UString := FT.To_UString ("");
       Type_Name : FT.UString := FT.To_UString ("");
+      Free_Proc : FT.UString := FT.To_UString ("");
       Is_Constant : Boolean := False;
    end record;
 
@@ -536,6 +537,7 @@ package body Safe_Frontend.Ada_Emit is
      (State     : in out Emit_State;
       Name      : String;
       Type_Name : String;
+      Free_Proc : String := "";
       Is_Constant : Boolean := False;
       Action    : Cleanup_Action := Cleanup_Deallocate);
    procedure Register_Cleanup_Items
@@ -549,6 +551,10 @@ package body Safe_Frontend.Ada_Emit is
       Item   : Cleanup_Item;
       Depth  : Natural);
    procedure Render_Active_Cleanup
+     (Buffer : in out SU.Unbounded_String;
+      State  : Emit_State;
+      Depth  : Natural);
+   procedure Render_Current_Cleanup_Frame
      (Buffer : in out SU.Unbounded_String;
       State  : Emit_State;
       Depth  : Natural);
@@ -676,6 +682,29 @@ package body Safe_Frontend.Ada_Emit is
      (Unit     : CM.Resolved_Unit;
       Document : GM.Mir_Document;
       Expr     : CM.Expr_Access) return GM.Type_Descriptor;
+   function Try_Static_Integer_Value
+     (Expr  : CM.Expr_Access;
+      Value : out Long_Long_Integer) return Boolean;
+   function Fixed_Array_Cardinality
+     (Unit        : CM.Resolved_Unit;
+      Document    : GM.Mir_Document;
+      Target_Info : GM.Type_Descriptor;
+      Cardinality : out Natural) return Boolean;
+   function Static_Growable_Length
+     (Expr   : CM.Expr_Access;
+      Length : out Natural) return Boolean;
+   function Render_Fixed_Array_As_Growable
+     (Unit        : CM.Resolved_Unit;
+      Document    : GM.Mir_Document;
+      Expr        : CM.Expr_Access;
+      Target_Info : GM.Type_Descriptor;
+      State       : in out Emit_State) return String;
+   function Render_Growable_As_Fixed
+     (Unit        : CM.Resolved_Unit;
+      Document    : GM.Mir_Document;
+      Expr        : CM.Expr_Access;
+      Target_Info : GM.Type_Descriptor;
+      State       : in out Emit_State) return String;
    function Render_Growable_Array_Expr
      (Unit        : CM.Resolved_Unit;
       Document    : GM.Mir_Document;
@@ -1257,6 +1286,7 @@ package body Safe_Frontend.Ada_Emit is
      (State     : in out Emit_State;
       Name      : String;
       Type_Name : String;
+      Free_Proc : String := "";
       Is_Constant : Boolean := False;
       Action    : Cleanup_Action := Cleanup_Deallocate) is
    begin
@@ -1271,6 +1301,7 @@ package body Safe_Frontend.Ada_Emit is
            ((Action    => Action,
              Name      => FT.To_UString (Name),
              Type_Name => FT.To_UString (Type_Name),
+             Free_Proc => FT.To_UString (Free_Proc),
              Is_Constant => Is_Constant));
          State.Cleanup_Stack.Replace_Element (State.Cleanup_Stack.Last_Index, Frame);
       end;
@@ -1287,7 +1318,7 @@ package body Safe_Frontend.Ada_Emit is
                  (State,
                   FT.To_String (Name),
                   FT.To_String (Decl.Type_Info.Name),
-                  Decl.Is_Constant);
+                  Is_Constant => Decl.Is_Constant);
             end loop;
          end if;
       end loop;
@@ -1304,7 +1335,7 @@ package body Safe_Frontend.Ada_Emit is
                  (State,
                   FT.To_String (Name),
                   FT.To_String (Decl.Type_Info.Name),
-                  Decl.Is_Constant);
+                  Is_Constant => Decl.Is_Constant);
             end loop;
          end if;
       end loop;
@@ -1314,6 +1345,10 @@ package body Safe_Frontend.Ada_Emit is
      (Buffer : in out SU.Unbounded_String;
       Item   : Cleanup_Item;
       Depth  : Natural) is
+      Free_Call : constant String :=
+        (if Has_Text (Item.Free_Proc)
+         then FT.To_String (Item.Free_Proc)
+         else "Free_" & FT.To_String (Item.Type_Name));
    begin
       case Item.Action is
          when Cleanup_Deallocate =>
@@ -1321,7 +1356,7 @@ package body Safe_Frontend.Ada_Emit is
                Append_Line (Buffer, "declare", Depth);
                Append_Line
                  (Buffer,
-                  "Cleanup_Target : "
+                 "Cleanup_Target : "
                   & FT.To_String (Item.Type_Name)
                   & " := "
                   & FT.To_String (Item.Name)
@@ -1330,13 +1365,13 @@ package body Safe_Frontend.Ada_Emit is
                Append_Line (Buffer, "begin", Depth);
                Append_Line
                  (Buffer,
-                  "Free_" & FT.To_String (Item.Type_Name) & " (Cleanup_Target);",
+                  Free_Call & " (Cleanup_Target);",
                   Depth + 1);
                Append_Line (Buffer, "end;", Depth);
             else
                Append_Line
                  (Buffer,
-                  "Free_" & FT.To_String (Item.Type_Name) & " (" & FT.To_String (Item.Name) & ");",
+                  Free_Call & " (" & FT.To_String (Item.Name) & ");",
                   Depth);
             end if;
          when Cleanup_Reset_Null =>
@@ -1365,6 +1400,24 @@ package body Safe_Frontend.Ada_Emit is
          end;
       end loop;
    end Render_Active_Cleanup;
+
+   procedure Render_Current_Cleanup_Frame
+     (Buffer : in out SU.Unbounded_String;
+      State  : Emit_State;
+      Depth  : Natural) is
+   begin
+      if State.Cleanup_Stack.Is_Empty then
+         return;
+      end if;
+
+      declare
+         Frame : constant Cleanup_Frame := State.Cleanup_Stack.Last_Element;
+      begin
+         for Item_Index in reverse Frame.Items.First_Index .. Frame.Items.Last_Index loop
+            Render_Cleanup_Item (Buffer, Frame.Items (Item_Index), Depth);
+         end loop;
+      end;
+   end Render_Current_Cleanup_Frame;
 
    function Has_Active_Cleanup_Items (State : Emit_State) return Boolean is
    begin
@@ -2235,7 +2288,8 @@ package body Safe_Frontend.Ada_Emit is
       end if;
 
       declare
-         Bound_Text : constant String := Name (Prefix'Length + 1 .. Name'Last);
+         Bound_Text : constant String :=
+           Name (Name'First + Prefix'Length .. Name'Last);
       begin
          if Bound_Text'Length = 0 then
             return (others => <>);
@@ -2371,7 +2425,7 @@ package body Safe_Frontend.Ada_Emit is
          Result.Has_Target := True;
          Result.Target :=
            FT.To_UString
-             (Name (Not_Null_Access_Constant_Prefix'Length + 1 .. Name'Last));
+             (Name (Name'First + Not_Null_Access_Constant_Prefix'Length .. Name'Last));
          Result.Not_Null := True;
          Result.Is_Constant := True;
          return Result;
@@ -2380,7 +2434,7 @@ package body Safe_Frontend.Ada_Emit is
          Result.Name := FT.To_UString (Name);
          Result.Has_Target := True;
          Result.Target :=
-           FT.To_UString (Name (Access_Constant_Prefix'Length + 1 .. Name'Last));
+           FT.To_UString (Name (Name'First + Access_Constant_Prefix'Length .. Name'Last));
          Result.Is_Constant := True;
          return Result;
       elsif Starts_With (Lower_Name, "not null access ") then
@@ -2388,14 +2442,14 @@ package body Safe_Frontend.Ada_Emit is
          Result.Name := FT.To_UString (Name);
          Result.Has_Target := True;
          Result.Target :=
-           FT.To_UString (Name (Not_Null_Access_Prefix'Length + 1 .. Name'Last));
+           FT.To_UString (Name (Name'First + Not_Null_Access_Prefix'Length .. Name'Last));
          Result.Not_Null := True;
          return Result;
       elsif Starts_With (Lower_Name, "access ") then
          Result.Kind := FT.To_UString ("access");
          Result.Name := FT.To_UString (Name);
          Result.Has_Target := True;
-         Result.Target := FT.To_UString (Name (Access_Prefix'Length + 1 .. Name'Last));
+         Result.Target := FT.To_UString (Name (Name'First + Access_Prefix'Length .. Name'Last));
          return Result;
       elsif Lower_Name = "safe_string_rt.safe_string" then
          return BT.String_Type;
@@ -2407,7 +2461,7 @@ package body Safe_Frontend.Ada_Emit is
       elsif Starts_With (Name, "__growable_array_") then
          declare
             Prefix : constant String := "__growable_array_";
-            Suffix : constant String := Name (Prefix'Length + 1 .. Name'Last);
+            Suffix : constant String := Name (Name'First + Prefix'Length .. Name'Last);
          begin
             Result.Name := FT.To_UString (Name);
             Result.Kind := FT.To_UString ("array");
@@ -2542,6 +2596,276 @@ package body Safe_Frontend.Ada_Emit is
       end if;
    end Expr_Type_Info;
 
+   function Try_Static_Integer_Value
+     (Expr  : CM.Expr_Access;
+      Value : out Long_Long_Integer) return Boolean
+   is
+      Inner_Value : Long_Long_Integer := 0;
+   begin
+      Value := 0;
+      if Expr = null then
+         return False;
+      end if;
+
+      case Expr.Kind is
+         when CM.Expr_Int =>
+            Value := Long_Long_Integer (Expr.Int_Value);
+            return True;
+         when CM.Expr_Unary =>
+            if Expr.Inner = null
+              or else not Try_Static_Integer_Value (Expr.Inner, Inner_Value)
+            then
+               return False;
+            elsif FT.To_String (Expr.Operator) = "-" then
+               Value := -Inner_Value;
+               return True;
+            elsif FT.To_String (Expr.Operator) = "+" then
+               Value := Inner_Value;
+               return True;
+            end if;
+         when others =>
+            null;
+      end case;
+
+      return False;
+   end Try_Static_Integer_Value;
+
+   function Fixed_Array_Cardinality
+     (Unit        : CM.Resolved_Unit;
+      Document    : GM.Mir_Document;
+      Target_Info : GM.Type_Descriptor;
+      Cardinality : out Natural) return Boolean
+   is
+      Base       : constant GM.Type_Descriptor := Base_Type (Unit, Document, Target_Info);
+      Index_Info : GM.Type_Descriptor := (others => <>);
+      Width      : Long_Long_Integer := 0;
+   begin
+      Cardinality := 0;
+      if FT.Lowercase (FT.To_String (Base.Kind)) /= "array"
+        or else Base.Growable
+        or else Natural (Base.Index_Types.Length) /= 1
+      then
+         return False;
+      end if;
+
+      Index_Info :=
+        Resolve_Type_Name
+          (Unit,
+           Document,
+           FT.To_String (Base.Index_Types (Base.Index_Types.First_Index)));
+      if not Index_Info.Has_Low or else not Index_Info.Has_High then
+         Index_Info := Base_Type (Unit, Document, Index_Info);
+         if not Index_Info.Has_Low or else not Index_Info.Has_High then
+            return False;
+         end if;
+      end if;
+
+      Width := Index_Info.High - Index_Info.Low + 1;
+      if Width < 0 or else Width > Long_Long_Integer (Natural'Last) then
+         return False;
+      end if;
+
+      Cardinality := Natural (Width);
+      return True;
+   end Fixed_Array_Cardinality;
+
+   function Static_Growable_Length
+     (Expr   : CM.Expr_Access;
+      Length : out Natural) return Boolean
+   is
+      Low_Value  : Long_Long_Integer := 0;
+      High_Value : Long_Long_Integer := 0;
+      Width      : Long_Long_Integer := 0;
+   begin
+      Length := 0;
+      if Expr = null then
+         return False;
+      elsif Expr.Kind = CM.Expr_Array_Literal then
+         Length := Natural (Expr.Elements.Length);
+         return True;
+      elsif Expr.Kind = CM.Expr_Resolved_Index
+        and then Expr.Prefix /= null
+        and then Expr.Prefix.Kind in CM.Expr_Ident | CM.Expr_Select
+        and then Natural (Expr.Args.Length) = 2
+        and then Try_Static_Integer_Value
+          (Expr.Args (Expr.Args.First_Index),
+           Low_Value)
+        and then Try_Static_Integer_Value
+          (Expr.Args (Expr.Args.First_Index + 1),
+           High_Value)
+      then
+         if High_Value < Low_Value then
+            return False;
+         end if;
+         Width := High_Value - Low_Value + 1;
+         if Width < 0 or else Width > Long_Long_Integer (Natural'Last) then
+            return False;
+         end if;
+         Length := Natural (Width);
+         return True;
+      end if;
+
+      return False;
+   end Static_Growable_Length;
+
+   function Render_Fixed_Array_As_Growable
+     (Unit        : CM.Resolved_Unit;
+      Document    : GM.Mir_Document;
+      Expr        : CM.Expr_Access;
+      Target_Info : GM.Type_Descriptor;
+      State       : in out Emit_State) return String
+   is
+      Runtime_Name : constant String := Array_Runtime_Instance_Name (Target_Info);
+      Literal_Image : SU.Unbounded_String;
+      Component_Info : constant GM.Type_Descriptor :=
+        Resolve_Type_Name (Unit, Document, FT.To_String (Target_Info.Component_Type));
+   begin
+      State.Needs_Safe_Array_RT := True;
+
+      if Expr /= null and then Expr.Kind in CM.Expr_Array_Literal | CM.Expr_Tuple then
+         Literal_Image := SU.To_Unbounded_String ("(");
+         for Index in Expr.Elements.First_Index .. Expr.Elements.Last_Index loop
+            if Index /= Expr.Elements.First_Index then
+               Literal_Image := Literal_Image & SU.To_Unbounded_String (", ");
+            end if;
+            Literal_Image :=
+              Literal_Image
+              & SU.To_Unbounded_String
+                  (Render_Expr_For_Target_Type
+                     (Unit,
+                      Document,
+                      Expr.Elements (Index),
+                      Component_Info,
+                      State));
+         end loop;
+         Literal_Image := Literal_Image & SU.To_Unbounded_String (")");
+         return
+           Runtime_Name
+           & ".From_Array ("
+           & Runtime_Name
+           & ".Element_Array'"
+           & SU.To_String (Literal_Image)
+           & ")";
+      end if;
+
+      return
+        Runtime_Name
+        & ".From_Array ("
+        & Runtime_Name
+        & ".Element_Array ("
+        & Render_Expr (Unit, Document, Expr, State)
+        & "))";
+   end Render_Fixed_Array_As_Growable;
+
+   function Render_Growable_As_Fixed
+     (Unit        : CM.Resolved_Unit;
+      Document    : GM.Mir_Document;
+      Expr        : CM.Expr_Access;
+      Target_Info : GM.Type_Descriptor;
+      State       : in out Emit_State) return String
+   is
+      Cardinality    : Natural := 0;
+      Element_Count  : Natural := 0;
+      Component_Info : constant GM.Type_Descriptor :=
+        Resolve_Type_Name (Unit, Document, FT.To_String (Target_Info.Component_Type));
+      Slice_Source_Info : GM.Type_Descriptor := (others => <>);
+      Result         : SU.Unbounded_String := SU.To_Unbounded_String ("(");
+      Low_Value      : Long_Long_Integer := 0;
+      High_Value     : Long_Long_Integer := 0;
+   begin
+      if not Fixed_Array_Cardinality (Unit, Document, Target_Info, Cardinality)
+        or else not Static_Growable_Length (Expr, Element_Count)
+        or else Cardinality /= Element_Count
+      then
+         Raise_Unsupported
+           (State,
+            (if Expr = null then FT.Null_Span else Expr.Span),
+            "growable-to-fixed conversion requires a statically exact array length");
+      end if;
+
+      if Expr.Kind = CM.Expr_Array_Literal then
+         for Index in Expr.Elements.First_Index .. Expr.Elements.Last_Index loop
+            if Index /= Expr.Elements.First_Index then
+               Result := Result & SU.To_Unbounded_String (", ");
+            end if;
+            Result :=
+              Result
+              & SU.To_Unbounded_String
+                  (Render_Expr_For_Target_Type
+                     (Unit,
+                      Document,
+                      Expr.Elements (Index),
+                      Component_Info,
+                      State));
+         end loop;
+      elsif Expr.Kind = CM.Expr_Resolved_Index
+        and then Expr.Prefix /= null
+        and then Expr.Prefix.Kind in CM.Expr_Ident | CM.Expr_Select
+        and then Natural (Expr.Args.Length) = 2
+        and then Try_Static_Integer_Value
+          (Expr.Args (Expr.Args.First_Index),
+           Low_Value)
+        and then Try_Static_Integer_Value
+          (Expr.Args (Expr.Args.First_Index + 1),
+           High_Value)
+      then
+         Slice_Source_Info :=
+           Base_Type
+             (Unit,
+              Document,
+              Expr_Type_Info (Unit, Document, Expr.Prefix));
+         if not Is_Growable_Array_Type (Unit, Document, Slice_Source_Info) then
+            Raise_Unsupported
+              (State,
+               Expr.Span,
+               "static slice conversion requires a growable-array source");
+         end if;
+
+         for Offset in 0 .. Cardinality - 1 loop
+            declare
+               Index_Value : constant Long_Long_Integer := Low_Value + Long_Long_Integer (Offset);
+               Index_Expr  : constant CM.Expr_Access :=
+                 new CM.Expr_Node'
+                   (Kind      => CM.Expr_Int,
+                    Span      => Expr.Span,
+                    Type_Name => FT.To_UString ("integer"),
+                    Int_Value => CM.Wide_Integer (Index_Value),
+                    others    => <>);
+               Element_Expr : constant CM.Expr_Access :=
+                 new CM.Expr_Node'
+                   (Kind      => CM.Expr_Resolved_Index,
+                    Span      => Expr.Span,
+                    Type_Name => Slice_Source_Info.Component_Type,
+                    Prefix    => Expr.Prefix,
+                    Args      => CM.Expr_Access_Vectors.Empty_Vector,
+                    others    => <>);
+            begin
+               Element_Expr.Args.Append (Index_Expr);
+               if Offset /= 0 then
+                  Result := Result & SU.To_Unbounded_String (", ");
+               end if;
+               Result :=
+                 Result
+                 & SU.To_Unbounded_String
+                     (Render_Expr_For_Target_Type
+                        (Unit,
+                         Document,
+                         Element_Expr,
+                         Component_Info,
+                         State));
+            end;
+         end loop;
+      else
+         Raise_Unsupported
+           (State,
+            Expr.Span,
+            "growable-to-fixed conversion is only supported for bracket literals and static slices");
+      end if;
+
+      Result := Result & SU.To_Unbounded_String (")");
+      return SU.To_String (Result);
+   end Render_Growable_As_Fixed;
+
    function Render_Growable_Array_Expr
      (Unit        : CM.Resolved_Unit;
       Document    : GM.Mir_Document;
@@ -2550,6 +2874,8 @@ package body Safe_Frontend.Ada_Emit is
       State       : in out Emit_State) return String
    is
       Array_Info : GM.Type_Descriptor := Base_Type (Unit, Document, Target_Info);
+      Source_Info : constant GM.Type_Descriptor :=
+        Base_Type (Unit, Document, Expr_Type_Info (Unit, Document, Expr));
       Result     : SU.Unbounded_String;
    begin
       if Expr = null then
@@ -2640,6 +2966,12 @@ package body Safe_Frontend.Ada_Emit is
            & Render_Growable_Array_Expr
                (Unit, Document, Expr.Right, Array_Info, State)
            & ")";
+      elsif FT.Lowercase (FT.To_String (Source_Info.Kind)) = "array"
+        and then not Source_Info.Growable
+      then
+         return
+           Render_Fixed_Array_As_Growable
+             (Unit, Document, Expr, Array_Info, State);
       end if;
 
       return Render_Expr (Unit, Document, Expr, State);
@@ -3035,7 +3367,7 @@ package body Safe_Frontend.Ada_Emit is
       Target_Info : GM.Type_Descriptor;
       State       : in out Emit_State) return String
    is
-      Expr_Type_Info : GM.Type_Descriptor := (others => <>);
+      Source_Type_Info : GM.Type_Descriptor := (others => <>);
       Target_Is_String : constant Boolean :=
         FT.Lowercase (FT.To_String (Target_Info.Kind)) = "string";
       Has_Expr_Type  : Boolean := False;
@@ -3049,11 +3381,11 @@ package body Safe_Frontend.Ada_Emit is
             Found_Synthetic : Boolean := False;
          begin
             if Type_Info_From_Name
-              (Unit, Document, FT.To_String (Expr.Type_Name), Expr_Type_Info)
+              (Unit, Document, FT.To_String (Expr.Type_Name), Source_Type_Info)
             then
                Has_Expr_Type := True;
             else
-               Expr_Type_Info :=
+               Source_Type_Info :=
                  Synthetic_Bounded_String_Type
                    (FT.To_String (Expr.Type_Name), Found_Synthetic);
                Has_Expr_Type := Found_Synthetic;
@@ -3074,10 +3406,30 @@ package body Safe_Frontend.Ada_Emit is
       elsif Is_Growable_Array_Type (Unit, Document, Target_Info) then
          return Render_Growable_Array_Expr
            (Unit, Document, Expr, Target_Info, State);
+      elsif FT.Lowercase (FT.To_String (Base_Type (Unit, Document, Target_Info).Kind)) = "array"
+        and then not Base_Type (Unit, Document, Target_Info).Growable
+        and then
+          (Expr.Kind = CM.Expr_Array_Literal
+           or else
+             (Expr.Kind = CM.Expr_Resolved_Index
+              and then Expr.Prefix /= null
+              and then Is_Growable_Array_Type
+                (Unit,
+                 Document,
+                 Safe_Frontend.Ada_Emit.Expr_Type_Info
+                   (Unit, Document, Expr.Prefix)))
+           or else
+             Is_Growable_Array_Type
+               (Unit,
+                Document,
+                Safe_Frontend.Ada_Emit.Expr_Type_Info (Unit, Document, Expr)))
+      then
+         return Render_Growable_As_Fixed
+           (Unit, Document, Expr, Target_Info, State);
       elsif Target_Is_String
         and then not Is_Bounded_String_Type (Target_Info)
         and then Has_Expr_Type
-        and then Is_Bounded_String_Type (Expr_Type_Info)
+        and then Is_Bounded_String_Type (Source_Type_Info)
       then
          return Render_String_Expr (Unit, Document, Expr, State);
       end if;
@@ -4682,27 +5034,27 @@ package body Safe_Frontend.Ada_Emit is
                            Has_Target := Has_Text (Target_Info.Name);
                         end if;
 
-                     if not First_Association then
-                        Result := Result & SU.To_Unbounded_String (", ");
-                     end if;
-                     Result :=
-                       Result
-                       & SU.To_Unbounded_String
-                           (Tuple_Field_Name (Positive (Index))
-                            & " => "
-                            & (if Has_Target
-                               then Render_Expr_For_Target_Type
-                                 (Unit,
-                                  Document,
-                                  Expr.Elements (Index),
-                                  Target_Info,
-                                  State)
-                               else Render_Expr
-                                 (Unit,
-                                  Document,
-                                  Expr.Elements (Index),
-                                  State)));
-                     First_Association := False;
+                        if not First_Association then
+                           Result := Result & SU.To_Unbounded_String (", ");
+                        end if;
+                        Result :=
+                          Result
+                          & SU.To_Unbounded_String
+                              (Tuple_Field_Name (Positive (Index))
+                               & " => "
+                               & (if Has_Target
+                                  then Render_Expr_For_Target_Type
+                                    (Unit,
+                                     Document,
+                                     Expr.Elements (Index),
+                                     Target_Info,
+                                     State)
+                                  else Render_Expr
+                                    (Unit,
+                                     Document,
+                                     Expr.Elements (Index),
+                                     State)));
+                        First_Association := False;
                      end;
                   end loop;
                end if;
@@ -7772,12 +8124,13 @@ package body Safe_Frontend.Ada_Emit is
             if Is_Owner_Access (Decl.Type_Info) then
                for Name of Decl.Names loop
                   Render_Cleanup_Item
-                    (Buffer,
-                     (Action    => Cleanup_Deallocate,
-                      Name      => Name,
-                      Type_Name => Decl.Type_Info.Name,
-                      Is_Constant => Decl.Is_Constant),
-                     Depth);
+                     (Buffer,
+                      (Action    => Cleanup_Deallocate,
+                       Name      => Name,
+                       Type_Name => Decl.Type_Info.Name,
+                       Free_Proc => FT.To_UString (""),
+                       Is_Constant => Decl.Is_Constant),
+                      Depth);
                end loop;
             end if;
          end;
@@ -7799,12 +8152,13 @@ package body Safe_Frontend.Ada_Emit is
             if Is_Owner_Access (Decl.Type_Info) then
                for Name of Decl.Names loop
                   Render_Cleanup_Item
-                    (Buffer,
-                     (Action    => Cleanup_Deallocate,
-                      Name      => Name,
-                      Type_Name => Decl.Type_Info.Name,
-                      Is_Constant => Decl.Is_Constant),
-                     Depth);
+                     (Buffer,
+                      (Action    => Cleanup_Deallocate,
+                       Name      => Name,
+                       Type_Name => Decl.Type_Info.Name,
+                       Free_Proc => FT.To_UString (""),
+                       Is_Constant => Decl.Is_Constant),
+                      Depth);
                end loop;
             end if;
          end;
@@ -8086,17 +8440,174 @@ package body Safe_Frontend.Ada_Emit is
                  (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type, True);
                Append_Line (Buffer, "end loop;", Depth);
             when CM.Stmt_For =>
-               Append_Line
-                 (Buffer,
-                  "for "
-                  & FT.To_String (Item.Loop_Var)
-                  & " in "
-                  & Render_Discrete_Range (Unit, Document, Item.Loop_Range, State)
-                  & " loop",
-                  Depth);
-               Render_Required_Statement_Suite
-                 (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type, True);
-               Append_Line (Buffer, "end loop;", Depth);
+               if Item.Loop_Iterable /= null then
+                  declare
+                     Iterable_Info : constant GM.Type_Descriptor :=
+                       Base_Type (Unit, Document, Expr_Type_Info (Unit, Document, Item.Loop_Iterable));
+                     Element_Info  : constant GM.Type_Descriptor :=
+                       Resolve_Type_Name
+                         (Unit,
+                          Document,
+                          FT.To_String (Iterable_Info.Component_Type));
+                     Snapshot_Name : constant String :=
+                       "Safe_For_Of_Snapshot_"
+                       & Ada.Strings.Fixed.Trim (Positive'Image (Positive (Index)), Ada.Strings.Both);
+                     Index_Name    : constant String :=
+                       "Safe_For_Of_Index_"
+                       & Ada.Strings.Fixed.Trim (Positive'Image (Positive (Index)), Ada.Strings.Both);
+                     Snapshot_Init : constant String :=
+                       (if Iterable_Info.Growable
+                        then
+                          Array_Runtime_Instance_Name (Iterable_Info)
+                          & ".Clone ("
+                          & Render_Expr (Unit, Document, Item.Loop_Iterable, State)
+                          & ")"
+                        else Render_Expr (Unit, Document, Item.Loop_Iterable, State));
+                     Snapshot_Type_Image : constant String :=
+                       Render_Type_Name (Iterable_Info);
+                     Element_Type_Image  : constant String :=
+                       Render_Type_Name (Element_Info);
+                  begin
+                     if Has_Heap_Value_Type (Unit, Document, Element_Info)
+                       and then not Is_Plain_String_Type (Unit, Document, Element_Info)
+                       and then not Is_Growable_Array_Type (Unit, Document, Element_Info)
+                     then
+                        Raise_Unsupported
+                          (State,
+                           Item.Span,
+                           "`for ... of` over arrays with composite heap-backed elements is not yet supported in Ada emission");
+                     end if;
+
+                     if Iterable_Info.Growable then
+                        State.Needs_Safe_Array_RT := True;
+                     end if;
+
+                     Push_Cleanup_Frame (State);
+                     if Iterable_Info.Growable then
+                        Add_Cleanup_Item
+                          (State,
+                           Snapshot_Name,
+                           Snapshot_Type_Image,
+                           Array_Runtime_Instance_Name (Iterable_Info) & ".Free",
+                           Is_Constant => True);
+                     end if;
+
+                     Append_Line (Buffer, "declare", Depth);
+                     Append_Line
+                       (Buffer,
+                        Snapshot_Name & " : constant " & Snapshot_Type_Image & " := " & Snapshot_Init & ";",
+                        Depth + 1);
+                     Append_Line (Buffer, "begin", Depth);
+
+                     if Iterable_Info.Growable then
+                        Append_Line
+                          (Buffer,
+                           "for " & Index_Name & " in 1 .. Long_Long_Integer ("
+                           & Array_Runtime_Instance_Name (Iterable_Info)
+                           & ".Length ("
+                           & Snapshot_Name
+                           & ")) loop",
+                           Depth + 1);
+                     else
+                        Append_Line
+                          (Buffer,
+                           "for " & Index_Name & " in " & Snapshot_Name & "'Range loop",
+                           Depth + 1);
+                     end if;
+
+                     declare
+                        Loop_Item_Init : SU.Unbounded_String := SU.Null_Unbounded_String;
+                        Fixed_Element_Image : constant String :=
+                          Snapshot_Name & " (" & Index_Name & ")";
+                     begin
+                        if Iterable_Info.Growable then
+                           Loop_Item_Init :=
+                             SU.To_Unbounded_String
+                               (Array_Runtime_Instance_Name (Iterable_Info)
+                                & ".Element ("
+                                & Snapshot_Name
+                                & ", Positive ("
+                                & Index_Name
+                                & "))");
+                        elsif Is_Plain_String_Type (Unit, Document, Element_Info) then
+                           State.Needs_Safe_String_RT := True;
+                           Loop_Item_Init :=
+                             SU.To_Unbounded_String
+                               ("Safe_String_RT.Clone ("
+                                & Fixed_Element_Image
+                                & ")");
+                        elsif Is_Growable_Array_Type (Unit, Document, Element_Info) then
+                           State.Needs_Safe_Array_RT := True;
+                           Loop_Item_Init :=
+                             SU.To_Unbounded_String
+                               (Array_Runtime_Instance_Name (Element_Info)
+                                & ".Clone ("
+                                & Fixed_Element_Image
+                                & ")");
+                        else
+                           Loop_Item_Init := SU.To_Unbounded_String (Fixed_Element_Image);
+                        end if;
+
+                        Push_Cleanup_Frame (State);
+                        if Is_Plain_String_Type (Unit, Document, Element_Info) then
+                           Add_Cleanup_Item
+                             (State,
+                              FT.To_String (Item.Loop_Var),
+                              Element_Type_Image,
+                              "Safe_String_RT.Free");
+                        elsif Is_Growable_Array_Type (Unit, Document, Element_Info) then
+                           Add_Cleanup_Item
+                             (State,
+                              FT.To_String (Item.Loop_Var),
+                              Element_Type_Image,
+                              Array_Runtime_Instance_Name (Element_Info) & ".Free");
+                        end if;
+
+                        Append_Line (Buffer, "declare", Depth + 2);
+                        Append_Line
+                          (Buffer,
+                           FT.To_String (Item.Loop_Var)
+                           & " : "
+                           & Element_Type_Image
+                           & " := "
+                           & SU.To_String (Loop_Item_Init)
+                           & ";",
+                           Depth + 3);
+                        Append_Line (Buffer, "begin", Depth + 2);
+                        Render_Required_Statement_Suite
+                          (Buffer,
+                           Unit,
+                           Document,
+                           Item.Body_Stmts,
+                           State,
+                           Depth + 3,
+                           Return_Type,
+                           True);
+                        if Statements_Fall_Through (Item.Body_Stmts) then
+                           Render_Current_Cleanup_Frame (Buffer, State, Depth + 3);
+                        end if;
+                        Append_Line (Buffer, "end;", Depth + 2);
+                        Pop_Cleanup_Frame (State);
+                     end;
+
+                     Append_Line (Buffer, "end loop;", Depth + 1);
+                     Render_Current_Cleanup_Frame (Buffer, State, Depth + 1);
+                     Append_Line (Buffer, "end;", Depth);
+                     Pop_Cleanup_Frame (State);
+                  end;
+               else
+                  Append_Line
+                    (Buffer,
+                     "for "
+                     & FT.To_String (Item.Loop_Var)
+                     & " in "
+                     & Render_Discrete_Range (Unit, Document, Item.Loop_Range, State)
+                     & " loop",
+                     Depth);
+                  Render_Required_Statement_Suite
+                    (Buffer, Unit, Document, Item.Body_Stmts, State, Depth + 1, Return_Type, True);
+                  Append_Line (Buffer, "end loop;", Depth);
+               end if;
             when CM.Stmt_Loop =>
                Append_Line (Buffer, "loop", Depth);
                Render_Required_Statement_Suite
@@ -9046,6 +9557,9 @@ package body Safe_Frontend.Ada_Emit is
       end loop;
       if State.Needs_Safe_Runtime then
          Append_Line (Body_Text, "use type Safe_Runtime.Wide_Integer;");
+      end if;
+      if State.Needs_Safe_String_RT then
+         Append_Line (Body_Text, "use type Safe_String_RT.Safe_String;");
       end if;
       if Ada.Strings.Fixed.Index (SU.To_String (Body_Inner), "Interfaces.") > 0 then
          Append_Line (Body_Text, "use type Interfaces.Unsigned_8;");

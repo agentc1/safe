@@ -374,6 +374,36 @@ BUILD_SUCCESS_CASES = [
         "Ada\n5\n",
         False,
     ),
+    (
+        REPO_ROOT / "tests" / "build" / "pr118d_for_of_fixed_build.safe",
+        "60\n",
+        False,
+    ),
+    (
+        REPO_ROOT / "tests" / "build" / "pr118d_for_of_growable_build.safe",
+        "60\n",
+        False,
+    ),
+    (
+        REPO_ROOT / "tests" / "build" / "pr118d_for_of_heap_element_build.safe",
+        "a\nbc\ndef\n",
+        False,
+    ),
+    (
+        REPO_ROOT / "tests" / "build" / "pr118d_fixed_to_growable_build.safe",
+        "25\n",
+        False,
+    ),
+    (
+        REPO_ROOT / "tests" / "build" / "pr118d_growable_to_fixed_literal_build.safe",
+        "40\n",
+        False,
+    ),
+    (
+        REPO_ROOT / "tests" / "build" / "pr118d_growable_to_fixed_slice_build.safe",
+        "16\n",
+        False,
+    ),
 ]
 
 BUILD_REJECT_CASES = [
@@ -411,6 +441,7 @@ RUN_REJECT_CASES = [
 OUTPUT_CONTRACT_CASES = [
     REPO_ROOT / "tests" / "positive" / "pr118c2_package_print.safe",
     REPO_ROOT / "tests" / "positive" / "pr118c2_entry_print.safe",
+    REPO_ROOT / "tests" / "build" / "pr118d_for_of_growable_build.safe",
 ]
 
 REPL_CASES = [

@@ -1810,30 +1810,50 @@ package body Safe_Frontend.Check_Parse is
       Start  : constant FL.Token := Expect (State, "for");
       Result : constant CM.Statement_Access := new CM.Statement;
    begin
+      if Current_Lower (State) = "reverse" then
+         Raise_Diag
+           (CM.Unsupported_Source_Construct
+              (Path    => Path_String (State),
+               Span    => Current (State).Span,
+               Message => "`reverse for` loops are outside the current PR11.8d subset"));
+      end if;
+
       Result.Kind := CM.Stmt_For;
       Result.Loop_Var := Expect_Identifier (State).Lexeme;
-      Require (State, "in");
-      Result.Loop_Range.Span := Current (State).Span;
-      Result.Loop_Range.Name_Expr := Parse_Expression (State);
-      if Current_Lower (State) = "to" or else FT.To_String (Current (State).Lexeme) = ".." then
-         Require_Range_Keyword (State);
-         Result.Loop_Range.Kind := CM.Range_Explicit;
-         Result.Loop_Range.Low_Expr := Result.Loop_Range.Name_Expr;
-         Result.Loop_Range.High_Expr := Parse_Expression (State);
-         Result.Loop_Range.Span :=
-           CM.Join (Result.Loop_Range.Low_Expr.Span, Result.Loop_Range.High_Expr.Span);
+      if Match (State, "of") then
+         Result.Loop_Iterable := Parse_Expression (State);
       else
-         Result.Loop_Range.Kind := CM.Range_Subtype;
+         Require (State, "in");
+         Result.Loop_Range.Span := Current (State).Span;
+         Result.Loop_Range.Name_Expr := Parse_Expression (State);
+         if Current_Lower (State) = "to" or else FT.To_String (Current (State).Lexeme) = ".." then
+            Require_Range_Keyword (State);
+            Result.Loop_Range.Kind := CM.Range_Explicit;
+            Result.Loop_Range.Low_Expr := Result.Loop_Range.Name_Expr;
+            Result.Loop_Range.High_Expr := Parse_Expression (State);
+            Result.Loop_Range.Span :=
+              CM.Join (Result.Loop_Range.Low_Expr.Span, Result.Loop_Range.High_Expr.Span);
+         else
+            Result.Loop_Range.Kind := CM.Range_Subtype;
+         end if;
       end if;
-      Result.Body_Stmts :=
-        Parse_Indented_Statement_Sequence
-          (State,
-           "`for` requires an indented body",
-           Result.Loop_Range.Span);
-      Result.Span :=
-        CM.Join
-          (Start.Span,
-           Suite_End_Span (Result.Body_Stmts, Result.Loop_Range.Span));
+
+      declare
+         Anchor_Span : constant FT.Source_Span :=
+           (if Result.Loop_Iterable /= null
+            then Result.Loop_Iterable.Span
+            else Result.Loop_Range.Span);
+      begin
+         Result.Body_Stmts :=
+           Parse_Indented_Statement_Sequence
+             (State,
+              "`for` requires an indented body",
+              Anchor_Span);
+         Result.Span :=
+           CM.Join
+             (Start.Span,
+              Suite_End_Span (Result.Body_Stmts, Anchor_Span));
+      end;
       return Result;
    end Parse_For_Statement;
 
