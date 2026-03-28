@@ -1821,9 +1821,23 @@ package body Safe_Frontend.Check_Parse is
       Result.Kind := CM.Stmt_For;
       Result.Loop_Var := Expect_Identifier (State).Lexeme;
       if Match (State, "of") then
+         if Current_Lower (State) = "reverse" then
+            Raise_Diag
+              (CM.Unsupported_Source_Construct
+                 (Path    => Path_String (State),
+                  Span    => Current (State).Span,
+                  Message => "`reverse for` loops are outside the current PR11.8d subset"));
+         end if;
          Result.Loop_Iterable := Parse_Expression (State);
       else
          Require (State, "in");
+         if Current_Lower (State) = "reverse" then
+            Raise_Diag
+              (CM.Unsupported_Source_Construct
+                 (Path    => Path_String (State),
+                  Span    => Current (State).Span,
+                  Message => "`reverse for` loops are outside the current PR11.8d subset"));
+         end if;
          Result.Loop_Range.Span := Current (State).Span;
          Result.Loop_Range.Name_Expr := Parse_Expression (State);
          if Current_Lower (State) = "to" or else FT.To_String (Current (State).Lexeme) = ".." then

@@ -395,6 +395,11 @@ BUILD_SUCCESS_CASES = [
         False,
     ),
     (
+        REPO_ROOT / "tests" / "build" / "pr118d_nested_growable_array_literal_build.safe",
+        "4\n",
+        False,
+    ),
+    (
         REPO_ROOT / "tests" / "build" / "pr118d_fixed_to_growable_build.safe",
         "25\n",
         False,

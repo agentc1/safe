@@ -448,6 +448,8 @@ package body Safe_Frontend.Check_Resolve is
         or else
           (FT.Lowercase (UString_Value (Left_Base.Kind)) = "array"
            and then FT.Lowercase (UString_Value (Right_Base.Kind)) = "array"
+           and then Left_Base.Growable
+           and then Right_Base.Growable
            and then Left_Base.Has_Component_Type
            and then Right_Base.Has_Component_Type
            and then Compatible_Type
@@ -3035,13 +3037,35 @@ package body Safe_Frontend.Check_Resolve is
         and then FT.Lowercase (UString_Value (Target_Base.Kind)) = "array"
         and then Source_Base.Has_Component_Type
         and then Target_Base.Has_Component_Type
-        and then Compatible_Type
-          (Resolve_Type (UString_Value (Source_Base.Component_Type), Type_Env, "", FT.Null_Span),
-           Resolve_Type (UString_Value (Target_Base.Component_Type), Type_Env, "", FT.Null_Span),
-           Type_Env)
       then
-         return Source_Base.Growable = Target_Base.Growable
-           or else (Target_Base.Growable and then not Source_Base.Growable);
+         declare
+            Source_Component : constant GM.Type_Descriptor :=
+              Resolve_Type
+                (UString_Value (Source_Base.Component_Type),
+                 Type_Env,
+                 "",
+                 FT.Null_Span);
+            Target_Component : constant GM.Type_Descriptor :=
+              Resolve_Type
+                (UString_Value (Target_Base.Component_Type),
+                 Type_Env,
+                 "",
+                 FT.Null_Span);
+         begin
+            if not Compatible_Type (Source_Component, Target_Component, Type_Env) then
+               return False;
+            end if;
+
+            if not Source_Base.Growable and then not Target_Base.Growable then
+               return Equivalent_Type (Source, Target, Type_Env);
+            elsif (not Source_Base.Growable) and then Target_Base.Growable then
+               return True;
+            elsif Source_Base.Growable and then not Target_Base.Growable then
+               return False;
+            end if;
+
+            return True;
+         end;
       elsif Compatible_Type (Source, Target, Type_Env) then
          return True;
       end if;

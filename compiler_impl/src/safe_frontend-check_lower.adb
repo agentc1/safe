@@ -141,6 +141,35 @@ package body Safe_Frontend.Check_Lower is
       return "Owner";
    end Type_Access_Role;
 
+   function Sanitize_Type_Name_Component (Value : String) return String is
+      Result : FT.UString := FT.To_UString ("");
+   begin
+      for Ch of Value loop
+         if Ch in 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' then
+            Result := Result & FT.To_UString ((1 => Ch));
+         else
+            Result := Result & FT.To_UString ("_");
+         end if;
+      end loop;
+      return UString_Value (Result);
+   end Sanitize_Type_Name_Component;
+
+   function Make_Growable_Array_Type
+     (Component_Type : GM.Type_Descriptor) return GM.Type_Descriptor
+   is
+      Result : GM.Type_Descriptor;
+   begin
+      Result.Name :=
+        FT.To_UString
+          ("__growable_array_"
+           & Sanitize_Type_Name_Component (UString_Value (Component_Type.Name)));
+      Result.Kind := FT.To_UString ("array");
+      Result.Growable := True;
+      Result.Has_Component_Type := True;
+      Result.Component_Type := Component_Type.Name;
+      return Result;
+   end Make_Growable_Array_Type;
+
    function Expr_Type
      (Expr      : CM.Expr_Access;
       Var_Types : Type_Maps.Map;
@@ -156,8 +185,15 @@ package body Safe_Frontend.Check_Lower is
       elsif Expr.Kind = CM.Expr_Array_Literal then
          if Name'Length > 0 and then Type_Env.Contains (Name) then
             return Type_Env.Element (Name);
+         elsif not Expr.Elements.Is_Empty then
+            return
+              Make_Growable_Array_Type
+                (Expr_Type
+                   (Expr.Elements (Expr.Elements.First_Index),
+                    Var_Types,
+                    Type_Env));
          end if;
-         return BT.Integer_Type;
+         return Make_Growable_Array_Type (BT.Integer_Type);
       elsif Expr.Kind = CM.Expr_Real then
          if Name'Length > 0 and then Type_Env.Contains (Name) then
             return Type_Env.Element (Name);

@@ -951,6 +951,22 @@ package body Safe_Frontend.Mir_Analyze is
       return Result;
    end Make_Tuple_Type;
 
+   function Make_Growable_Array_Type
+     (Component_Type : GM.Type_Descriptor) return GM.Type_Descriptor
+   is
+      Result : GM.Type_Descriptor;
+   begin
+      Result.Name :=
+        FT.To_UString
+          ("__growable_array_"
+           & Sanitize_Type_Name_Component (UString_Value (Component_Type.Name)));
+      Result.Kind := FT.To_UString ("array");
+      Result.Growable := True;
+      Result.Has_Component_Type := True;
+      Result.Component_Type := Component_Type.Name;
+      return Result;
+   end Make_Growable_Array_Type;
+
    function Range_Interval
      (Info : GM.Type_Descriptor) return Interval
    is
@@ -986,7 +1002,7 @@ package body Safe_Frontend.Mir_Analyze is
 
    function Is_Integer_Type
      (Info : GM.Type_Descriptor) return Boolean is
-     Kind : constant String := Lower (UString_Value (Info.Kind));
+      Kind : constant String := Lower (UString_Value (Info.Kind));
    begin
       return Kind = "integer" or else Kind = "subtype";
    end Is_Integer_Type;
@@ -1540,6 +1556,21 @@ package body Safe_Frontend.Mir_Analyze is
                end loop;
                return Make_Tuple_Type (Elements);
             end;
+         when GM.Expr_Array_Literal =>
+            if Has_Text (Expr.Type_Name)
+              and then Type_Env.Contains (UString_Value (Expr.Type_Name))
+            then
+               return Resolve_Type (UString_Value (Expr.Type_Name), Var_Types, Type_Env);
+            elsif not Expr.Elements.Is_Empty then
+               return
+                 Make_Growable_Array_Type
+                   (Expr_Type
+                      (Expr.Elements (Expr.Elements.First_Index),
+                       Var_Types,
+                       Type_Env,
+                       Functions));
+            end if;
+            return Make_Growable_Array_Type (Resolve_Type ("integer", Type_Env));
          when GM.Expr_Ident =>
             if Var_Types.Contains (UString_Value (Expr.Name)) then
                return Var_Types.Element (UString_Value (Expr.Name));
