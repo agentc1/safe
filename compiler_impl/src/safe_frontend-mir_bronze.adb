@@ -123,7 +123,9 @@ package body Safe_Frontend.Mir_Bronze is
    function Lower (Value : String) return String renames FT.Lowercase;
    function Starts_With (Text : String; Prefix : String) return Boolean;
    function Ends_With (Text : String; Suffix : String) return Boolean;
-   function Is_Package_Global_Marker (Name : String) return Boolean;
+   function Is_Synthetic_Attribute_Marker
+     (Name         : String;
+      Global_Spans : Span_Maps.Map) return Boolean;
 
    function Flatten_Name (Expr : GM.Expr_Access) return String;
    function Root_Name (Expr : GM.Expr_Access) return String;
@@ -239,12 +241,25 @@ package body Safe_Frontend.Mir_Bronze is
       return Text (Text'Last - Suffix'Length + 1 .. Text'Last) = Suffix;
    end Ends_With;
 
-   function Is_Package_Global_Marker (Name : String) return Boolean is
+   function Is_Synthetic_Attribute_Marker
+     (Name         : String;
+      Global_Spans : Span_Maps.Map) return Boolean
+   is
+      First_Dot : constant Natural := Ada.Strings.Fixed.Index (Name, ".");
+      Last_Dot  : constant Natural :=
+        Ada.Strings.Fixed.Index (Name, ".", Ada.Strings.Backward);
+      Root_Name : constant String :=
+        (if First_Dot > 1 then Name (Name'First .. First_Dot - 1) else "");
+      Is_Attribute_Name : constant Boolean :=
+        Ends_With (Name, ".first")
+        or else Ends_With (Name, ".last")
+        or else Ends_With (Name, ".length");
    begin
-      return not Ends_With (Name, ".first")
-        and then not Ends_With (Name, ".last")
-        and then not Ends_With (Name, ".length");
-   end Is_Package_Global_Marker;
+      return Is_Attribute_Name
+        and then First_Dot = Last_Dot
+        and then Root_Name /= ""
+        and then not Global_Spans.Contains (Root_Name);
+   end Is_Synthetic_Attribute_Marker;
 
    function Signature_For (Graph : GM.Graph_Entry) return Callable_Signature is
       Result : Callable_Signature;
@@ -1554,7 +1569,7 @@ package body Safe_Frontend.Mir_Bronze is
                            declare
                               Global_Name : constant String := String_Sets.Element (Global_Cursor);
                            begin
-                              if Is_Package_Global_Marker (Global_Name) then
+                              if not Is_Synthetic_Attribute_Marker (Global_Name, Global_Spans) then
                                  declare
                                     Use_Span : constant FT.Source_Span := Use_Span_For (Summary, Global_Name);
                                  begin
@@ -1586,7 +1601,7 @@ package body Safe_Frontend.Mir_Bronze is
                               Global_Name : constant String := String_Sets.Element (Global_Cursor);
                               Owners      : String_Sets.Set;
                            begin
-                              if Is_Package_Global_Marker (Global_Name) then
+                              if not Is_Synthetic_Attribute_Marker (Global_Name, Global_Spans) then
                                  if Task_Access.Contains (Global_Name) then
                                     Owners := Task_Access.Element (Global_Name);
                                  end if;

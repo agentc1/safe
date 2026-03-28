@@ -1628,13 +1628,18 @@ package body Safe_Frontend.Check_Resolve is
                  Resolve_Type (UString_Value (Spec.Name), Type_Env, Path, Spec.Span);
             begin
                if Spec.Not_Null then
-                  if FT.Lowercase (UString_Value (Base_Type (Resolved, Type_Env).Kind)) /= "access" then
-                     Raise_Diag
-                       (CM.Source_Frontend_Error
-                          (Path    => Path,
-                           Span    => Spec.Span,
-                           Message => "`not null` applies only to inferred reference types in PR11.8e"));
-                  end if;
+                  declare
+                     Base_Kind : constant String :=
+                       FT.Lowercase (UString_Value (Base_Type (Resolved, Type_Env).Kind));
+                  begin
+                     if Base_Kind /= "access" and then Base_Kind /= "incomplete" then
+                        Raise_Diag
+                          (CM.Source_Frontend_Error
+                             (Path    => Path,
+                              Span    => Spec.Span,
+                              Message => "`not null` applies only to inferred reference types in PR11.8e"));
+                     end if;
+                  end;
                   Resolved.Not_Null := True;
                end if;
                return Resolved;
