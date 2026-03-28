@@ -152,6 +152,58 @@ Wart: you will write more parentheses than in Ada.
 
 See: `spec/02-restrictions.md` (qualified expressions and allocators) and `spec/08-syntax-summary.md` (allocator grammar).
 
+## 5.1 Text and Arrays (PR11.8d Surface)
+
+Safe now has a real value-type text and array surface rather than the older
+provisional PR11.2 text model.
+
+Bounded text uses `string (N)`:
+
+```safe
+name : string (5) = "hello";
+prefix : string (5) = name (1 to 2);
+initial : string (1) = 'h';
+```
+
+This is the stack-backed text form. It supports `.length`, indexing, slicing,
+equality, and ordinary assignment.
+
+Growable arrays use `array of T` and bracket literals:
+
+```safe
+type int_list is array of integer;
+
+values : int_list = [10, 20, 30];
+total : integer = 0;
+
+for item of values
+   total = total + item;
+```
+
+The shipped PR11.8d conversion boundary is:
+
+- fixed -> growable works through normal target typing
+- growable -> fixed works only when the RHS length is syntactically exact at
+  the narrowing site, such as a bracket literal or a static name-based slice
+
+Example:
+
+```safe
+subtype slot is integer (3 to 4);
+subtype item is integer (0 to 10);
+type pair is array (slot) of item;
+
+selected : pair = [7, 9];
+```
+
+Still deferred beyond the current PR11.8d surface:
+
+- string iteration
+- proof-based exact-length growable -> fixed narrowing
+- string `case`
+- string discriminants
+- string and growable-array channel elements
+
 ## 6. "Silver By Construction": D27 In One Page
 
 Safe's Silver level is built around a simple premise:
