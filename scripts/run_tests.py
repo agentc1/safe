@@ -146,6 +146,12 @@ STATIC_INTERFACE_CASES = [
         REPO_ROOT / "tests" / "interfaces" / "client_transitive_channel_receive_only.safe",
         1,
     ),
+    (
+        "bad-return-flag-type",
+        REPO_ROOT / "tests" / "interfaces" / "provider_bad_return_flag.safei.json",
+        REPO_ROOT / "tests" / "interfaces" / "client_bad_return_flag.safe",
+        1,
+    ),
 ]
 
 DIAGNOSTIC_GOLDEN_CASES = [

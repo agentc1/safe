@@ -90,6 +90,13 @@ PR11_8B_CHECKPOINT_FIXTURES = [
     "tests/positive/channel_pipeline.safe",
 ]
 
+PR11_8E_CHECKPOINT_FIXTURES = [
+    "tests/positive/ownership_move.safe",
+    "tests/positive/ownership_early_return.safe",
+    "tests/positive/pr118e_not_null_self_reference.safe",
+    "tests/concurrency/pr118c2_pre_task_init.safe",
+]
+
 EMITTED_PROOF_REGRESSION_FIXTURES = [
     "tests/concurrency/select_with_delay.safe",
     "tests/concurrency/select_with_delay_multiarm.safe",
@@ -105,6 +112,7 @@ EMITTED_PROOF_REGRESSION_FIXTURES = [
 EMITTED_PROOF_FIXTURES = (
     PR11_8A_CHECKPOINT_FIXTURES
     + PR11_8B_CHECKPOINT_FIXTURES
+    + PR11_8E_CHECKPOINT_FIXTURES
     + EMITTED_PROOF_REGRESSION_FIXTURES
 )
 
@@ -180,6 +188,7 @@ def validate_manifest(
 def validate_manifests() -> None:
     validate_manifest("PR11.8a checkpoint manifest", PR11_8A_CHECKPOINT_FIXTURES)
     validate_manifest("PR11.8b checkpoint manifest", PR11_8B_CHECKPOINT_FIXTURES)
+    validate_manifest("PR11.8e checkpoint manifest", PR11_8E_CHECKPOINT_FIXTURES)
     validate_manifest("emitted proof regression manifest", EMITTED_PROOF_REGRESSION_FIXTURES)
     validate_manifest("emitted proof manifest", EMITTED_PROOF_FIXTURES)
 
@@ -458,6 +467,8 @@ def main() -> int:
     checkpoint_a_failures: list[tuple[str, str]] = []
     checkpoint_b_passed = 0
     checkpoint_b_failures: list[tuple[str, str]] = []
+    checkpoint_e_passed = 0
+    checkpoint_e_failures: list[tuple[str, str]] = []
     regression_passed = 0
     regression_failures: list[tuple[str, str]] = []
 
@@ -491,6 +502,13 @@ def main() -> int:
             alr=alr,
             gnatprove=gnatprove,
         )
+        checkpoint_e_passed, checkpoint_e_failures = run_fixture_group(
+            safec=safec,
+            fixtures=PR11_8E_CHECKPOINT_FIXTURES,
+            temp_root=temp_root,
+            alr=alr,
+            gnatprove=gnatprove,
+        )
         regression_passed, regression_failures = run_fixture_group(
             safec=safec,
             fixtures=EMITTED_PROOF_REGRESSION_FIXTURES,
@@ -500,12 +518,17 @@ def main() -> int:
         )
 
     total_passed = (
-        companion_passed + checkpoint_a_passed + checkpoint_b_passed + regression_passed
+        companion_passed
+        + checkpoint_a_passed
+        + checkpoint_b_passed
+        + checkpoint_e_passed
+        + regression_passed
     )
     total_failures = (
         companion_failures
         + checkpoint_a_failures
         + checkpoint_b_failures
+        + checkpoint_e_failures
         + regression_failures
     )
 
@@ -525,6 +548,12 @@ def main() -> int:
         passed=checkpoint_b_passed,
         failures=checkpoint_b_failures,
         title="PR11.8b checkpoint",
+        trailing_blank_line=True,
+    )
+    print_summary(
+        passed=checkpoint_e_passed,
+        failures=checkpoint_e_failures,
+        title="PR11.8e checkpoint",
         trailing_blank_line=True,
     )
     print_summary(

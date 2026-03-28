@@ -993,10 +993,13 @@ package body Safe_Frontend.Interfaces is
                else
                   raise Constraint_Error with File_Path & ": subprograms[].has_return_type must be a boolean";
                end if;
-               if Has_Field (Item, "return_is_access_def")
-                 and then Get (Item, "return_is_access_def").Kind = JSON_Boolean_Type
-               then
-                  Subp.Return_Is_Access_Def := Get (Get (Item, "return_is_access_def"));
+               if Has_Field (Item, "return_is_access_def") then
+                  if Get (Item, "return_is_access_def").Kind = JSON_Boolean_Type then
+                     Subp.Return_Is_Access_Def := Get (Get (Item, "return_is_access_def"));
+                  else
+                     raise Constraint_Error with
+                       File_Path & ": subprograms[].return_is_access_def must be a boolean";
+                  end if;
                end if;
                if Subp.Has_Return_Type then
                   Subp.Return_Type :=
