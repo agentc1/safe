@@ -39,6 +39,19 @@ PROVE_SWITCHES = [
     "--checks-as-errors=on",
 ]
 
+MONITOR_PROVE_SWITCHES = [
+    "--mode=prove",
+    "--level=1",
+    "--prover=cvc5,z3,altergo",
+    "--steps=0",
+    "--timeout=30",
+    "--report=all",
+    "--warnings=error",
+    "--checks-as-errors=on",
+]
+
+MONITOR_COMMAND_TIMEOUT_SECONDS = 90
+
 COMPANION_PROJECTS = [
     ("companion/gen", "companion.gpr"),
     ("companion/templates", "templates.gpr"),
@@ -91,9 +104,8 @@ PR11_8B_CHECKPOINT_FIXTURES = [
 ]
 
 # Accepted/emitted concurrency fixtures that remain outside the current strict
-# warnings-as-errors proof lane. Keep them explicit here so coverage reductions
-# do not become silent manifest drift.
-PR11_8B_DEFERRED_FIXTURES = [
+# PR11.8b checkpoint but must stay under continuous monitoring until PR11.8f.
+PR11_8B_MONITORED_FIXTURES = [
     "tests/concurrency/exclusive_variable.safe",
     "tests/concurrency/fifo_ordering.safe",
     "tests/concurrency/multi_task_channel.safe",
@@ -112,9 +124,21 @@ PR11_8E_CHECKPOINT_FIXTURES = [
     "tests/concurrency/pr118c2_pre_task_init.safe",
 ]
 
-# Accepted/emitted ownership fixtures that remain outside the current PR11.8e
-# checkpoint until they are green again under the same strict proof policy.
-PR11_8E_DEFERRED_FIXTURES = [
+# Previously-proved sequential ownership/recursive-reference fixtures that
+# remain accepted/emitted after PR11.8e but are not part of the blocking
+# checkpoint until PR11.8f.
+SEQUENTIAL_MONITORED_FIXTURES = [
+    "tests/positive/rule4_conditional.safe",
+    "tests/positive/rule4_deref.safe",
+    "tests/positive/rule4_factory.safe",
+    "tests/positive/rule4_linked_list.safe",
+    "tests/positive/rule4_linked_list_sum.safe",
+    "tests/positive/rule4_optional.safe",
+]
+
+# Accepted/emitted ownership/reference fixtures that remain outside the current
+# PR11.8e checkpoint but must stay under continuous monitoring until PR11.8f.
+PR11_8E_MONITORED_FIXTURES = [
     "tests/positive/ownership_borrow.safe",
     "tests/positive/ownership_observe.safe",
     "tests/positive/ownership_observe_access.safe",
@@ -155,15 +179,26 @@ def find_command(name: str, fallback: Path | None = None) -> str:
     raise FileNotFoundError(f"required command not found: {name}")
 
 
-def run_command(argv: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        argv,
-        cwd=cwd,
-        env=os.environ.copy(),
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+def run_command(
+    argv: list[str], *, cwd: Path, timeout: int | None = None
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            argv,
+            cwd=cwd,
+            env=os.environ.copy(),
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        if stderr:
+            stderr += "\n"
+        stderr += f"timed out after {timeout}s"
+        return subprocess.CompletedProcess(argv, 124, stdout, stderr)
 
 
 def first_message(completed: subprocess.CompletedProcess[str]) -> str:
@@ -213,9 +248,10 @@ def validate_manifest(
 def validate_manifests() -> None:
     validate_manifest("PR11.8a checkpoint manifest", PR11_8A_CHECKPOINT_FIXTURES)
     validate_manifest("PR11.8b checkpoint manifest", PR11_8B_CHECKPOINT_FIXTURES)
-    validate_manifest("PR11.8b deferred fixture list", PR11_8B_DEFERRED_FIXTURES)
+    validate_manifest("PR11.8b monitored fixture list", PR11_8B_MONITORED_FIXTURES)
     validate_manifest("PR11.8e checkpoint manifest", PR11_8E_CHECKPOINT_FIXTURES)
-    validate_manifest("PR11.8e deferred fixture list", PR11_8E_DEFERRED_FIXTURES)
+    validate_manifest("sequential monitored fixture list", SEQUENTIAL_MONITORED_FIXTURES)
+    validate_manifest("PR11.8e monitored fixture list", PR11_8E_MONITORED_FIXTURES)
     validate_manifest("emitted proof regression manifest", EMITTED_PROOF_REGRESSION_FIXTURES)
     validate_manifest("emitted proof manifest", EMITTED_PROOF_FIXTURES)
 
@@ -399,6 +435,8 @@ def run_emitted_fixture(
     temp_root: Path,
     alr: str,
     gnatprove: str,
+    prove_switches: list[str] | None = None,
+    command_timeout: int | None = None,
 ) -> tuple[bool, str]:
     fixture_root = temp_root / source.stem
     try:
@@ -414,11 +452,13 @@ def run_emitted_fixture(
     adc_path = ada_dir / "gnat.adc"
     summary_path = ada_dir / "obj" / "gnatprove" / "gnatprove.out"
 
-    for mode, switches in (("flow", FLOW_SWITCHES), ("prove", PROVE_SWITCHES)):
+    prove_args = PROVE_SWITCHES if prove_switches is None else prove_switches
+
+    for mode, switches in (("flow", FLOW_SWITCHES), ("prove", prove_args)):
         argv = [alr, "exec", "--", gnatprove, "-P", str(gpr_path), *switches]
         if adc_path.exists():
             argv.extend(["-cargs", f"-gnatec={adc_path}"])
-        completed = run_command(argv, cwd=COMPILER_ROOT)
+        completed = run_command(argv, cwd=COMPILER_ROOT, timeout=command_timeout)
         if completed.returncode != 0:
             return False, f"{mode} failed: {first_message(completed)}"
         try:
@@ -459,6 +499,8 @@ def run_fixture_group(
     temp_root: Path,
     alr: str,
     gnatprove: str,
+    prove_switches: list[str] | None = None,
+    command_timeout: int | None = None,
 ) -> tuple[int, list[tuple[str, str]]]:
     passed = 0
     failures: list[tuple[str, str]] = []
@@ -471,6 +513,8 @@ def run_fixture_group(
             temp_root=temp_root,
             alr=alr,
             gnatprove=gnatprove,
+            prove_switches=prove_switches,
+            command_timeout=command_timeout,
         )
         if ok:
             passed += 1
@@ -496,6 +540,12 @@ def main() -> int:
     checkpoint_b_failures: list[tuple[str, str]] = []
     checkpoint_e_passed = 0
     checkpoint_e_failures: list[tuple[str, str]] = []
+    monitored_seq_passed = 0
+    monitored_seq_failures: list[tuple[str, str]] = []
+    monitored_b_passed = 0
+    monitored_b_failures: list[tuple[str, str]] = []
+    monitored_e_passed = 0
+    monitored_e_failures: list[tuple[str, str]] = []
     regression_passed = 0
     regression_failures: list[tuple[str, str]] = []
 
@@ -535,6 +585,33 @@ def main() -> int:
             temp_root=temp_root,
             alr=alr,
             gnatprove=gnatprove,
+        )
+        monitored_seq_passed, monitored_seq_failures = run_fixture_group(
+            safec=safec,
+            fixtures=SEQUENTIAL_MONITORED_FIXTURES,
+            temp_root=temp_root,
+            alr=alr,
+            gnatprove=gnatprove,
+            prove_switches=MONITOR_PROVE_SWITCHES,
+            command_timeout=MONITOR_COMMAND_TIMEOUT_SECONDS,
+        )
+        monitored_b_passed, monitored_b_failures = run_fixture_group(
+            safec=safec,
+            fixtures=PR11_8B_MONITORED_FIXTURES,
+            temp_root=temp_root,
+            alr=alr,
+            gnatprove=gnatprove,
+            prove_switches=MONITOR_PROVE_SWITCHES,
+            command_timeout=MONITOR_COMMAND_TIMEOUT_SECONDS,
+        )
+        monitored_e_passed, monitored_e_failures = run_fixture_group(
+            safec=safec,
+            fixtures=PR11_8E_MONITORED_FIXTURES,
+            temp_root=temp_root,
+            alr=alr,
+            gnatprove=gnatprove,
+            prove_switches=MONITOR_PROVE_SWITCHES,
+            command_timeout=MONITOR_COMMAND_TIMEOUT_SECONDS,
         )
         regression_passed, regression_failures = run_fixture_group(
             safec=safec,
@@ -581,6 +658,24 @@ def main() -> int:
         passed=checkpoint_e_passed,
         failures=checkpoint_e_failures,
         title="PR11.8e checkpoint",
+        trailing_blank_line=True,
+    )
+    print_summary(
+        passed=monitored_seq_passed,
+        failures=monitored_seq_failures,
+        title="Sequential carried-forward monitors (non-blocking)",
+        trailing_blank_line=True,
+    )
+    print_summary(
+        passed=monitored_b_passed,
+        failures=monitored_b_failures,
+        title="PR11.8b carried-forward monitors (non-blocking)",
+        trailing_blank_line=True,
+    )
+    print_summary(
+        passed=monitored_e_passed,
+        failures=monitored_e_failures,
+        title="PR11.8e carried-forward monitors (non-blocking)",
         trailing_blank_line=True,
     )
     print_summary(

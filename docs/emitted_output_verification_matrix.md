@@ -87,13 +87,13 @@ obligations still remain outside direct emitted-package GNATprove proof.
 | Rule 4 observer-traversal subset | `tests/positive/rule4_linked_list_sum.safe` | Null-guarded linked-list prefix accumulation with dereference plus bounded count and total arithmetic. | yes | yes | yes | yes | yes | none | no |
 | Rule 5 computed-divisor vector subset | `tests/positive/rule5_vector_normalize.safe` | Three-field floating-point record computation with a branch-computed positive divisor derived from all components and a returned normalized component. | yes | yes | yes | yes | yes | none | no |
 | Sequential ownership move subset | `tests/positive/ownership_move.safe` | Single-owner move with post-move nulling and target-only dereference. GNATprove `prove` here covers emitted runtime checks; the frontend Silver ownership analysis is the mechanism that prevents use-after-free across the accepted ownership subset. | yes | yes | yes | yes | yes | none within the selected `ownership_move` subset; broader cleanup ordering remains deferred as `PS-029` in [`docs/post_pr10_scope.md`](post_pr10_scope.md). | no |
-| Post-PR10 ownership proof-expansion set | `tests/positive/ownership_borrow.safe`, `tests/positive/ownership_observe.safe`, `tests/positive/ownership_observe_access.safe`, `tests/positive/ownership_return.safe`, `tests/positive/ownership_inout.safe`, `tests/positive/ownership_early_return.safe` | Historical PR10.3 expansion set beyond the frozen PR10 `ownership_move` representative. After the PR11.8e source reset, the live strict `scripts/run_proofs.py` lane keeps the smaller inferred-reference checkpoint (`ownership_move.safe`, `ownership_early_return.safe`, `pr118e_not_null_self_reference.safe`, `pr118c2_pre_task_init.safe`) and does not currently claim end-to-end `flow`/`prove` closure for the full older six-fixture ownership set. | yes | yes | yes | no | no | frontend Silver ownership analysis still governs legality for the broader admitted surface; the live emitted proof lane keeps only the named PR11.8e checkpoint while broader cleanup-ordering semantics still remain `PS-029` in [`docs/post_pr10_scope.md`](post_pr10_scope.md). | yes |
+| Post-PR10 ownership proof-expansion set | `tests/positive/ownership_borrow.safe`, `tests/positive/ownership_observe.safe`, `tests/positive/ownership_observe_access.safe`, `tests/positive/ownership_return.safe`, `tests/positive/ownership_inout.safe`, `tests/positive/ownership_early_return.safe` | Historical PR10.3 expansion set beyond the frozen PR10 `ownership_move` representative. After the PR11.8e source reset, the live strict `scripts/run_proofs.py` lane keeps the smaller inferred-reference checkpoint (`ownership_move.safe`, `ownership_early_return.safe`, `pr118e_not_null_self_reference.safe`, `pr118c2_pre_task_init.safe`) as the merge-blocking set, while the remaining migrated ownership fixtures stay under continuous non-blocking monitoring until PR11.8f. | yes | yes | yes | no | no | frontend Silver ownership analysis still governs legality for the broader admitted surface; the live emitted proof lane keeps only the named PR11.8e checkpoint as blocking while the carry-forward monitor set remains visible until PR11.8f. | yes |
 | Concurrency ping-pong subset | `tests/positive/channel_pingpong.safe` | Two priority-bearing tasks exchanging bounded channel messages in both directions. | yes | yes | yes | yes | yes | Jorvik/Ravenscar runtime scheduling remains outside direct GNATprove proof; see `PS-031` in [`docs/post_pr10_scope.md`](post_pr10_scope.md). | no |
 | Concurrency pipeline compute subset | `tests/positive/channel_pipeline_compute.safe` | Three-task channel pipeline with arithmetic in the filter and consumer task bodies. | yes | yes | yes | yes | yes | Jorvik/Ravenscar runtime scheduling remains outside direct GNATprove proof; see `PS-031` in [`docs/post_pr10_scope.md`](post_pr10_scope.md). | no |
 | Select-with-delay emitted polling subset | `tests/concurrency/select_with_delay.safe`, `tests/concurrency/select_with_delay_multiarm.safe` | Frozen PR10 coverage proves one receive arm plus one delay arm, and supplemental hardening additionally proves a two-channel-arm success-path variant. Both are proved through the emitted polling-based lowering, not source-level blocking fairness or timing semantics. | yes | yes | yes | yes | yes | Polling-based lowering is proved, while source-level blocking fairness, latency, and timing semantics remain deferred as `PS-007` in [`docs/post_pr10_scope.md`](post_pr10_scope.md). | no |
 | Access-typed channel elements and composites containing access-type subcomponents | `tests/concurrency/channel_access_type.safe`, `tests/concurrency/try_send_ownership.safe`, `tests/concurrency/select_ownership_binding.safe`, `tests/negative/neg_channel_access_component.safe` | Spec-excluded by channel element legality. The frontend rejects these declarations before emit, flow, or prove. | no | no | no | no | no | n/a | no |
-| Other currently emitted sequential fixtures outside the PR10 corpus | remaining accepted sequential subset beyond the named checkpoints above | No blanket proof claim: accepted/emitted sequential fixtures outside the frozen PR10 representatives and the named PR10.2, PR11.3a, PR11.8a, and PR11.8e checkpoints remain feature-by-feature only. Frontend acceptance and Ada emission do not imply live `flow`/`prove` coverage unless a fixture is in one of the named manifests in `scripts/run_proofs.py`. | yes | yes | yes | no | no | none | yes |
-| Other currently emitted concurrency fixtures outside the PR10 corpus | retained emitted concurrency subset beyond the named concurrency checkpoints and regressions | No blanket proof claim: the live strict suite proves the explicit PR11.8b checkpoint plus the named regression fixtures only. Other accepted/emitted concurrency fixtures remain outside current `flow`/`prove` coverage until they re-enter the manifest green. Source-level select semantics, I/O seam wrappers, and runtime scheduling/timing obligations remain external as `PS-007`, `PS-019`, and `PS-031` in [`docs/post_pr10_scope.md`](post_pr10_scope.md). | yes | yes | yes | no | no | emitted-package proof remains selective, while source/runtime obligations stay external | yes |
+| Other currently emitted sequential fixtures outside the PR10 corpus | remaining accepted sequential subset beyond the named checkpoints above | No blanket proof claim: accepted/emitted sequential fixtures outside the frozen PR10 representatives and the named PR10.2, PR11.3a, PR11.8a, and PR11.8e checkpoints remain feature-by-feature only. Frontend acceptance and Ada emission do not imply live `flow`/`prove` closure unless a fixture is in one of the named blocking manifests in `scripts/run_proofs.py`, though the carried-forward Rule 4 recursive-reference set remains continuously monitored there until PR11.8f. | yes | yes | yes | no | no | none | yes |
+| Other currently emitted concurrency fixtures outside the PR10 corpus | retained emitted concurrency subset beyond the named concurrency checkpoints and regressions | No blanket proof claim: the live strict suite proves the explicit PR11.8b checkpoint plus the named regression fixtures only. Additional accepted/emitted concurrency fixtures are still run as non-blocking carried-forward monitors in `scripts/run_proofs.py` until they re-enter the blocking manifest green. Source-level select semantics, I/O seam wrappers, and runtime scheduling/timing obligations remain external as `PS-007`, `PS-019`, and `PS-031` in [`docs/post_pr10_scope.md`](post_pr10_scope.md). | yes | yes | yes | no | no | emitted-package proof remains selective, while source/runtime obligations stay external | yes |
 | I/O seams outside pure emitted packages | runtime wrapper boundaries | Wrapper integration obligations are tracked separately from pure emitted-package proof and remain `PS-019` in [`docs/post_pr10_scope.md`](post_pr10_scope.md). | n/a | n/a | n/a | no | no | wrapper/runtime mechanisms and interface contracts | yes |
 
 ## PR10.2 Rule 5 Boundary Closure
@@ -239,8 +239,10 @@ checkpoints: emitted Ada compile, GNATprove `flow`, and GNATprove `prove` must
 all succeed with zero justified and zero unproved checks.
 
 Accepted/emitted concurrency fixtures that remain outside the current strict
-PR11.8b checkpoint are kept explicit in `scripts/run_proofs.py` as deferred
-coverage:
+PR11.8b checkpoint stay in `scripts/run_proofs.py` as carried-forward
+non-blocking monitors until they are green again. These monitors run with a
+bounded prove profile so they remain continuously visible without turning
+PR11.8e into an accidental hard proof checkpoint:
 
 - `tests/concurrency/exclusive_variable.safe`
 - `tests/concurrency/fifo_ordering.safe`
@@ -287,13 +289,26 @@ the current live ownership/reference checkpoint under the same all-proved-only
 policy.
 
 Accepted/emitted ownership fixtures that remain outside the current strict
-checkpoint are kept explicit in `scripts/run_proofs.py` as deferred coverage:
+checkpoint stay in `scripts/run_proofs.py` as carried-forward non-blocking
+monitors until they are green again. These monitors use the same bounded
+profile as the carried-forward concurrency set:
 
 - `tests/positive/ownership_borrow.safe`
 - `tests/positive/ownership_observe.safe`
 - `tests/positive/ownership_observe_access.safe`
 - `tests/positive/ownership_return.safe`
 - `tests/positive/ownership_inout.safe`
+
+The older Rule 4 recursive-reference emitted proofs also remain under
+continuous non-blocking monitoring in `scripts/run_proofs.py` until they are
+reclosed under the later proof checkpoint:
+
+- `tests/positive/rule4_conditional.safe`
+- `tests/positive/rule4_deref.safe`
+- `tests/positive/rule4_factory.safe`
+- `tests/positive/rule4_linked_list.safe`
+- `tests/positive/rule4_linked_list_sum.safe`
+- `tests/positive/rule4_optional.safe`
 
 ## PR10 Assurance Policy
 
