@@ -914,6 +914,22 @@ package body Safe_Frontend.Ada_Emit is
      (Unit      : CM.Resolved_Unit;
       Document  : GM.Mir_Document;
       Condition : CM.Expr_Access) return String;
+   function Contains_Recursive_Accumulator_Pattern
+     (Subprogram_Name : String;
+      Local_Names     : FT.UString_Vectors.Vector;
+      Statements      : CM.Statement_Access_Vectors.Vector) return Boolean;
+   procedure Append_Initialization_Warning_Suppression
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural);
+   procedure Append_Initialization_Warning_Restore
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural);
+   procedure Append_Task_Warning_Suppression
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural);
+   procedure Append_Task_Warning_Restore
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural);
 
    function Render_Subprogram_Params
      (Unit       : CM.Resolved_Unit;
@@ -7166,15 +7182,28 @@ package body Safe_Frontend.Ada_Emit is
       is
          Operator : constant String :=
            (if Expr = null then "" else Map_Operator (FT.To_String (Expr.Operator)));
+
+         function Is_Direct_Param_Null_Equality return Boolean is
+         begin
+            return
+              ((Expr.Left /= null
+                and then Expr.Left.Kind = CM.Expr_Ident
+                and then FT.To_String (Expr.Left.Name) = Param_Name
+                and then Expr.Right /= null
+                and then Expr.Right.Kind = CM.Expr_Null)
+               or else
+               (Expr.Right /= null
+                and then Expr.Right.Kind = CM.Expr_Ident
+                and then FT.To_String (Expr.Right.Name) = Param_Name
+                and then Expr.Left /= null
+                and then Expr.Left.Kind = CM.Expr_Null));
+         end Is_Direct_Param_Null_Equality;
       begin
          if Expr = null then
             return False;
          elsif Expr.Kind = CM.Expr_Binary then
-            if Operator in "=" | "/=" then
-               return
-                 ((Root_Name (Expr.Left) = Param_Name and then Expr.Right /= null and then Expr.Right.Kind = CM.Expr_Null)
-                  or else
-                  (Root_Name (Expr.Right) = Param_Name and then Expr.Left /= null and then Expr.Left.Kind = CM.Expr_Null));
+            if Operator = "=" then
+               return Is_Direct_Param_Null_Equality;
             elsif Operator in "or" | "or else" then
                return
                  Expr_Allows_Null (Expr.Left, Param_Name)
@@ -7973,6 +8002,7 @@ package body Safe_Frontend.Ada_Emit is
         Render_Access_Param_Precondition (Unit, Document, Subprogram, State);
       Post_Image : constant String :=
         Render_Access_Param_Postcondition (Unit, Document, Subprogram, State);
+      Local_Names : FT.UString_Vectors.Vector;
       function Recursive_Variant_Image return String;
       Result : SU.Unbounded_String;
       Has_Aspect : Boolean := False;
@@ -8275,6 +8305,14 @@ package body Safe_Frontend.Ada_Emit is
             return "";
          end Variant_From_Statements;
       begin
+         for Decl of Subprogram.Declarations loop
+            for Name of Decl.Names loop
+               if FT.To_String (Name)'Length > 0 then
+                  Local_Names.Append (Name);
+               end if;
+            end loop;
+         end loop;
+
          return Variant_From_Statements (Subprogram.Statements);
       end Recursive_Variant_Image;
    begin
@@ -8288,7 +8326,11 @@ package body Safe_Frontend.Ada_Emit is
          begin
             if Variant_Image'Length > 0 then
                Append_Aspect ("Subprogram_Variant => (" & Variant_Image & ")");
-               if not Subprogram.Declarations.Is_Empty then
+               if Contains_Recursive_Accumulator_Pattern
+                    (FT.Lowercase (FT.To_String (Subprogram.Name)),
+                     Local_Names,
+                     Subprogram.Statements)
+               then
                   Append_Aspect ("Annotate => (GNATprove, Skip_Proof)");
                end if;
             end if;
@@ -8488,6 +8530,197 @@ package body Safe_Frontend.Ada_Emit is
 
       return "";
    end Loop_Variant_Image;
+
+   function Contains_Recursive_Accumulator_Pattern
+     (Subprogram_Name : String;
+      Local_Names     : FT.UString_Vectors.Vector;
+      Statements      : CM.Statement_Access_Vectors.Vector) return Boolean
+   is
+      function Is_Local_Name (Name : String) return Boolean is
+      begin
+         return Name'Length > 0 and then Contains_Name (Local_Names, Name);
+      end Is_Local_Name;
+
+      function Is_Recursive_Call (Expr : CM.Expr_Access) return Boolean is
+      begin
+         return
+           Expr /= null
+           and then Expr.Kind = CM.Expr_Call
+           and then Expr.Callee /= null
+           and then FT.Lowercase (CM.Flatten_Name (Expr.Callee)) = Subprogram_Name;
+      end Is_Recursive_Call;
+
+      function Returns_Local_Name
+        (Statements : CM.Statement_Access_Vectors.Vector;
+         Name       : String) return Boolean;
+
+      function Contains_Pattern
+        (Statements : CM.Statement_Access_Vectors.Vector) return Boolean;
+
+      function Returns_Local_Name
+        (Statements : CM.Statement_Access_Vectors.Vector;
+         Name       : String) return Boolean
+      is
+      begin
+         for Item of Statements loop
+            if Item = null then
+               null;
+            else
+               case Item.Kind is
+                  when CM.Stmt_Return =>
+                     if Root_Name (Item.Value) = Name then
+                        return True;
+                     end if;
+                  when CM.Stmt_If =>
+                     if Returns_Local_Name (Item.Then_Stmts, Name) then
+                        return True;
+                     end if;
+                     for Part of Item.Elsifs loop
+                        if Returns_Local_Name (Part.Statements, Name) then
+                           return True;
+                        end if;
+                     end loop;
+                     if Item.Has_Else
+                       and then Returns_Local_Name (Item.Else_Stmts, Name)
+                     then
+                        return True;
+                     end if;
+                  when CM.Stmt_Case =>
+                     for Arm of Item.Case_Arms loop
+                        if Returns_Local_Name (Arm.Statements, Name) then
+                           return True;
+                        end if;
+                     end loop;
+                  when CM.Stmt_While | CM.Stmt_For | CM.Stmt_Loop =>
+                     if Returns_Local_Name (Item.Body_Stmts, Name) then
+                        return True;
+                     end if;
+                  when CM.Stmt_Select =>
+                     for Arm of Item.Arms loop
+                        case Arm.Kind is
+                           when CM.Select_Arm_Channel =>
+                              if Returns_Local_Name (Arm.Channel_Data.Statements, Name) then
+                                 return True;
+                              end if;
+                           when CM.Select_Arm_Delay =>
+                              if Returns_Local_Name (Arm.Delay_Data.Statements, Name) then
+                                 return True;
+                              end if;
+                           when others =>
+                              null;
+                        end case;
+                     end loop;
+                  when others =>
+                     null;
+               end case;
+            end if;
+         end loop;
+
+         return False;
+      end Returns_Local_Name;
+
+      function Contains_Pattern
+        (Statements : CM.Statement_Access_Vectors.Vector) return Boolean
+      is
+      begin
+         for Item of Statements loop
+            if Item = null then
+               null;
+            else
+               case Item.Kind is
+                  when CM.Stmt_Assign =>
+                     declare
+                        Target_Name : constant String := Root_Name (Item.Target);
+                     begin
+                        if Is_Local_Name (Target_Name)
+                          and then Is_Recursive_Call (Item.Value)
+                          and then Returns_Local_Name (Statements, Target_Name)
+                        then
+                           return True;
+                        end if;
+                     end;
+                  when CM.Stmt_If =>
+                     if Contains_Pattern (Item.Then_Stmts) then
+                        return True;
+                     end if;
+                     for Part of Item.Elsifs loop
+                        if Contains_Pattern (Part.Statements) then
+                           return True;
+                        end if;
+                     end loop;
+                     if Item.Has_Else
+                       and then Contains_Pattern (Item.Else_Stmts)
+                     then
+                        return True;
+                     end if;
+                  when CM.Stmt_Case =>
+                     for Arm of Item.Case_Arms loop
+                        if Contains_Pattern (Arm.Statements) then
+                           return True;
+                        end if;
+                     end loop;
+                  when CM.Stmt_While | CM.Stmt_For | CM.Stmt_Loop =>
+                     if Contains_Pattern (Item.Body_Stmts) then
+                        return True;
+                     end if;
+                  when CM.Stmt_Select =>
+                     for Arm of Item.Arms loop
+                        case Arm.Kind is
+                           when CM.Select_Arm_Channel =>
+                              if Contains_Pattern (Arm.Channel_Data.Statements) then
+                                 return True;
+                              end if;
+                           when CM.Select_Arm_Delay =>
+                              if Contains_Pattern (Arm.Delay_Data.Statements) then
+                                 return True;
+                              end if;
+                           when others =>
+                              null;
+                        end case;
+                     end loop;
+                  when others =>
+                     null;
+               end case;
+            end if;
+         end loop;
+
+         return False;
+      end Contains_Pattern;
+   begin
+      return not Local_Names.Is_Empty and then Contains_Pattern (Statements);
+   end Contains_Recursive_Accumulator_Pattern;
+
+   procedure Append_Initialization_Warning_Suppression
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural)
+   is
+   begin
+      Append_Line (Buffer, "pragma Warnings (Off, ""initialization of"");", Depth);
+   end Append_Initialization_Warning_Suppression;
+
+   procedure Append_Initialization_Warning_Restore
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural)
+   is
+   begin
+      Append_Line (Buffer, "pragma Warnings (On, ""initialization of"");", Depth);
+   end Append_Initialization_Warning_Restore;
+
+   procedure Append_Task_Warning_Suppression
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural)
+   is
+   begin
+      Append_Line (Buffer, "pragma Warnings (Off);", Depth);
+   end Append_Task_Warning_Suppression;
+
+   procedure Append_Task_Warning_Restore
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural)
+   is
+   begin
+      Append_Line (Buffer, "pragma Warnings (On);", Depth);
+   end Append_Task_Warning_Restore;
 
    procedure Append_Narrowing_Assignment
      (Buffer     : in out SU.Unbounded_String;
@@ -10230,7 +10463,7 @@ package body Safe_Frontend.Ada_Emit is
          & " is",
          1);
       if Suppress_Declaration_Warnings then
-         Append_Line (Buffer, "pragma Warnings (Off);", 2);
+         Append_Initialization_Warning_Suppression (Buffer, 2);
       end if;
       for Decl of Outer_Declarations loop
          Append_Line
@@ -10244,7 +10477,7 @@ package body Safe_Frontend.Ada_Emit is
       end loop;
       Render_Free_Declarations (Buffer, Outer_Declarations, 2);
       if Suppress_Declaration_Warnings then
-         Append_Line (Buffer, "pragma Warnings (On);", 2);
+         Append_Initialization_Warning_Restore (Buffer, 2);
       end if;
       Append_Line (Buffer, "begin", 1);
       Render_In_Out_Param_Stabilizers (Buffer, Subprogram, 2);
@@ -10293,6 +10526,10 @@ package body Safe_Frontend.Ada_Emit is
       State     : in out Emit_State)
    is
       Uses_Print : constant Boolean := Statements_Use_Print (Task_Item.Statements);
+      Suppress_Declaration_Warnings : constant Boolean :=
+        not Task_Item.Declarations.Is_Empty;
+      Suppress_Statement_Warnings : constant Boolean :=
+        not Task_Item.Statements.Is_Empty;
       Previous_Wide_Count : constant Ada.Containers.Count_Type :=
         State.Wide_Local_Names.Length;
    begin
@@ -10307,17 +10544,27 @@ package body Safe_Frontend.Ada_Emit is
          & (if Uses_Print then " with SPARK_Mode => Off" else "")
          & " is",
          1);
-      Append_Line (Buffer, "pragma Warnings (Off);", 2);
+      if Suppress_Declaration_Warnings then
+         Append_Task_Warning_Suppression (Buffer, 2);
+      end if;
       Render_Block_Declarations
         (Buffer, Unit, Document, Task_Item.Declarations, State, 2);
       Render_Free_Declarations (Buffer, Task_Item.Declarations, 2);
+      if Suppress_Declaration_Warnings then
+         Append_Task_Warning_Restore (Buffer, 2);
+      end if;
       Append_Line (Buffer, "begin", 1);
+      if Suppress_Statement_Warnings then
+         Append_Task_Warning_Suppression (Buffer, 2);
+      end if;
       Render_Required_Statement_Suite
         (Buffer, Unit, Document, Task_Item.Statements, State, 2, "");
       if Statements_Fall_Through (Task_Item.Statements) then
          Render_Cleanup (Buffer, Task_Item.Declarations, 2);
       end if;
-      Append_Line (Buffer, "pragma Warnings (On);", 2);
+      if Suppress_Statement_Warnings then
+         Append_Task_Warning_Restore (Buffer, 2);
+      end if;
       Append_Line (Buffer, "end " & FT.To_String (Task_Item.Name) & ";", 1);
       Append_Line (Buffer);
       Pop_Type_Binding_Frame (State);
