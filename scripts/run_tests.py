@@ -96,6 +96,12 @@ INTERFACE_CASES = [
         1,
     ),
     (
+        "imported-global-length-attribute-rejected",
+        REPO_ROOT / "tests" / "interfaces" / "provider_string_object.safe",
+        REPO_ROOT / "tests" / "interfaces" / "client_imported_length_attribute_rejected.safe",
+        1,
+    ),
+    (
         "imported-borrow-observe",
         REPO_ROOT / "tests" / "interfaces" / "provider_imported_call_ownership.safe",
         REPO_ROOT / "tests" / "interfaces" / "client_imported_borrow_observe.safe",
