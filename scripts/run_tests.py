@@ -562,6 +562,19 @@ OUTPUT_CONTRACT_REJECT_CASES = [
     ),
 ]
 
+EMITTED_SHAPE_CASES = [
+    (
+        "linked-list-sum-no-skip-proof",
+        REPO_ROOT / "tests" / "positive" / "rule4_linked_list_sum.safe",
+        ["Skip_Proof"],
+    ),
+    (
+        "select-delay-no-blanket-warning-suppression",
+        REPO_ROOT / "tests" / "concurrency" / "select_delay_local_scope.safe",
+        ["pragma Warnings (Off);", "pragma Warnings (On);"],
+    ),
+]
+
 REPL_CASES = [
     (
         "repl-prints",
@@ -1087,6 +1100,50 @@ def run_output_contract_reject_case(
     return True, ""
 
 
+def run_emitted_shape_case(
+    safec: Path,
+    *,
+    label: str,
+    source: Path,
+    forbidden_snippets: list[str],
+    temp_root: Path,
+) -> tuple[bool, str]:
+    case_root = temp_root / f"{source.stem}-{label}"
+    out_dir = case_root / "out"
+    iface_dir = case_root / "iface"
+    ada_dir = case_root / "ada"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    iface_dir.mkdir(parents=True, exist_ok=True)
+    ada_dir.mkdir(parents=True, exist_ok=True)
+
+    emit = run_command(
+        [
+            str(safec),
+            "emit",
+            repo_rel(source),
+            "--out-dir",
+            str(out_dir),
+            "--interface-dir",
+            str(iface_dir),
+            "--ada-out-dir",
+            str(ada_dir),
+        ],
+        cwd=REPO_ROOT,
+    )
+    if emit.returncode != 0:
+        return False, f"emit failed: {first_message(emit)}"
+
+    emitted_text = ""
+    for path in sorted(ada_dir.iterdir()):
+        if path.suffix in {".adb", ".ads"}:
+            emitted_text += path.read_text(encoding="utf-8")
+
+    for snippet in forbidden_snippets:
+        if snippet in emitted_text:
+            return False, f"found forbidden emitted snippet {snippet!r}"
+    return True, ""
+
+
 def run_repl_case(
     *,
     label: str,
@@ -1222,6 +1279,20 @@ def main() -> int:
                 temp_root=temp_root,
             )
             case_label = f"contracts-reject:{label}:{repo_rel(source)}"
+            if ok:
+                passed += 1
+            else:
+                failures.append((case_label, detail))
+
+        for label, source, forbidden_snippets in EMITTED_SHAPE_CASES:
+            ok, detail = run_emitted_shape_case(
+                safec,
+                label=label,
+                source=source,
+                forbidden_snippets=forbidden_snippets,
+                temp_root=temp_root,
+            )
+            case_label = f"emitted-shape:{label}:{repo_rel(source)}"
             if ok:
                 passed += 1
             else:

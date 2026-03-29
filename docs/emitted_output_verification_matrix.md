@@ -84,7 +84,7 @@ obligations still remain outside direct emitted-package GNATprove proof.
 | Rule 1 wide arithmetic subset | `tests/positive/rule1_averaging.safe`, `tests/positive/rule1_parameter.safe` | Loop-carried wide arithmetic with an explicit narrowing return, plus validated narrowing before cross-subprogram parameter passing. | yes | yes | yes | yes | yes | none | no |
 | Rule 2 function-return index-safety subset | `tests/positive/rule2_binary_search_function.safe` | Bounded-array binary search as a record-returning function with midpoint indexing and multiple early returns. | yes | yes | yes | yes | yes | none | no |
 | Rule 3 division-safety subset | `tests/positive/rule3_divide.safe` | Typed nonzero divisor plus guarded variable-divisor division. | yes | yes | yes | yes | yes | none | no |
-| Rule 4 observer-traversal subset | `tests/positive/rule4_linked_list_sum.safe` | Null-guarded linked-list prefix accumulation with dereference plus bounded count and total arithmetic. PR11.8f restores the live checkpoint here with a targeted emitted `Annotate => (GNATprove, Skip_Proof)` on the recursive accumulator body until bounded traversal emission lands in PR11.8f.1. | yes | yes | yes | yes | yes | temporary emitted `Skip_Proof` scaffolding on the recursive accumulator body, to be removed by PR11.8f.1 bounded traversal emission | no |
+| Rule 4 observer-traversal subset | `tests/positive/rule4_linked_list_sum.safe` | Null-guarded linked-list prefix accumulation with dereference plus bounded count and total arithmetic. PR11.8f.1 lowers the admitted self-recursive traversal subset to structural cursor loops with proof-visible accumulator bounds, so the linked-list accumulator representative now proves without emitted `Skip_Proof` scaffolding. | yes | yes | yes | yes | yes | none | no |
 | Rule 5 computed-divisor vector subset | `tests/positive/rule5_vector_normalize.safe` | Three-field floating-point record computation with a branch-computed positive divisor derived from all components and a returned normalized component. | yes | yes | yes | yes | yes | none | no |
 | Sequential ownership move subset | `tests/positive/ownership_move.safe` | Single-owner move with post-move nulling and target-only dereference. GNATprove `prove` here covers emitted runtime checks; the frontend Silver ownership analysis is the mechanism that prevents use-after-free across the accepted ownership subset. | yes | yes | yes | yes | yes | none within the selected `ownership_move` subset; broader cleanup ordering remains deferred as `PS-029` in [`docs/post_pr10_scope.md`](post_pr10_scope.md). | no |
 | Post-PR10 ownership proof-expansion set | `tests/positive/ownership_borrow.safe`, `tests/positive/ownership_observe.safe`, `tests/positive/ownership_observe_access.safe`, `tests/positive/ownership_return.safe`, `tests/positive/ownership_inout.safe`, `tests/positive/ownership_early_return.safe` | Historical PR10.3 expansion set beyond the frozen PR10 `ownership_move` representative. After the PR11.8e source reset, the migrated ownership/reference fixtures are now reclosed under the live PR11.8e plus PR11.8f blocking manifests in `scripts/run_proofs.py`. | yes | yes | yes | yes | yes | frontend Silver ownership analysis still governs legality for the broader admitted surface, but the emitted proof lane is now live and blocking for the named PR11.8e / PR11.8f ownership fixtures. | no |
@@ -304,11 +304,10 @@ That live checkpoint corpus is exactly:
 - `tests/positive/ownership_inout.safe`
 
 This exact manifest is mirrored in `scripts/run_proofs.py` and is treated as
-the live PR11.8f checkpoint. Most of the set is fully reclosed under the same
-all-proved-only policy as the earlier checkpoints. The current recursive
-accumulator traversal representative (`rule4_linked_list_sum.safe`) uses a
-targeted emitted `Annotate => (GNATprove, Skip_Proof)` on the recursive body as
-temporary scaffolding pending bounded traversal emission in PR11.8f.1.
+the live PR11.8f checkpoint. The set is fully reclosed under the same
+all-proved-only policy as the earlier checkpoints, including the linked-list
+observer and accumulator traversal representatives after PR11.8f.1's
+structural cursor-loop lowering.
 
 ## PR10 Assurance Policy
 
