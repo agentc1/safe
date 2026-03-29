@@ -1134,9 +1134,14 @@ def run_emitted_shape_case(
         return False, f"emit failed: {first_message(emit)}"
 
     emitted_text = ""
+    ada_file_found = False
     for path in sorted(ada_dir.iterdir()):
         if path.suffix in {".adb", ".ads"}:
+            ada_file_found = True
             emitted_text += path.read_text(encoding="utf-8")
+
+    if not ada_file_found:
+        return False, f"emit produced no Ada sources in {ada_dir}"
 
     for snippet in forbidden_snippets:
         if snippet in emitted_text:

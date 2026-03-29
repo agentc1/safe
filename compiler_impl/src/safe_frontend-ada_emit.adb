@@ -11549,6 +11549,9 @@ package body Safe_Frontend.Ada_Emit is
            (Buffer,
             Render_Object_Decl_Text (Unit, Document, State, Decl, Local_Context => True),
             2);
+         if Is_Owner_Access (Decl.Type_Info) then
+            State.Needs_Unchecked_Deallocation := True;
+         end if;
       end loop;
       Render_Free_Declarations (Buffer, Task_Item.Declarations, 2);
       if not Task_Item.Declarations.Is_Empty then
