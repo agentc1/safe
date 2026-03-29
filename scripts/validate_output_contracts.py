@@ -481,6 +481,8 @@ def validate_safei_subprograms(items: Any, path: str) -> list[dict[str, Any]]:
             validate_type_descriptor(entry.get("return_type"), f"{path}[{index}].return_type")
         elif entry.get("return_type") is not None:
             fail(f"{path}[{index}].return_type must be null when has_return_type is false")
+        if "return_is_access_def" in entry:
+            require_boolean(entry.get("return_is_access_def"), f"{path}[{index}].return_is_access_def")
         validate_span(entry.get("span"), f"{path}[{index}].span")
         result.append(entry)
     return result

@@ -826,10 +826,11 @@ package body Safe_Frontend.Interfaces is
    is
       use GNATCOLL.JSON;
 
-      Parsed : constant Read_Result := Read_File (File_Path);
-      Root   : JSON_Value;
-      Result : Loaded_Interface;
-      Types  : JSON_Array;
+      Parsed      : constant Read_Result := Read_File (File_Path);
+      Root        : JSON_Value;
+      Result      : Loaded_Interface;
+      Types       : JSON_Array;
+      Is_Safei_V2 : Boolean := False;
    begin
       if not Parsed.Success then
          raise Constraint_Error with
@@ -846,7 +847,12 @@ package body Safe_Frontend.Interfaces is
          if Format /= "safei-v1" and then Format /= "safei-v2" then
             raise Constraint_Error with File_Path & ": format must be safei-v1 or safei-v2";
          end if;
+         Is_Safei_V2 := Format = "safei-v2";
       end;
+
+      if Is_Safei_V2 and then not Has_Field (Root, "unit_kind") then
+         raise Constraint_Error with File_Path & ": unit_kind is required for safei-v2";
+      end if;
 
       if Has_Field (Root, "unit_kind") then
          declare
