@@ -478,6 +478,7 @@ package body Safe_Frontend.Ada_Emit is
       Unsupported_Span   : FT.Source_Span := FT.Null_Span;
       Unsupported_Message : FT.UString := FT.To_UString ("");
       Cleanup_Stack      : Cleanup_Frame_Vectors.Vector;
+      Task_Body_Depth    : Natural := 0;
    end record;
 
    procedure Raise_Internal (Message : String);
@@ -918,18 +919,52 @@ package body Safe_Frontend.Ada_Emit is
      (Subprogram_Name : String;
       Local_Names     : FT.UString_Vectors.Vector;
       Statements      : CM.Statement_Access_Vectors.Vector) return Boolean;
+   function Uses_Structural_Traversal_Lowering
+     (Subprogram : CM.Resolved_Subprogram) return Boolean;
+   function Replace_Identifier_Token
+     (Text        : String;
+      Name        : String;
+      Replacement : String) return String;
+   procedure Append_Gnatprove_Warning_Suppression
+     (Buffer  : in out SU.Unbounded_String;
+      Pattern : String;
+      Reason  : String;
+      Depth   : Natural);
+   procedure Append_Gnatprove_Warning_Restore
+     (Buffer  : in out SU.Unbounded_String;
+      Pattern : String;
+      Depth   : Natural);
    procedure Append_Initialization_Warning_Suppression
      (Buffer : in out SU.Unbounded_String;
       Depth  : Natural);
    procedure Append_Initialization_Warning_Restore
      (Buffer : in out SU.Unbounded_String;
       Depth  : Natural);
-   procedure Append_Task_Warning_Suppression
+   procedure Append_Task_Assignment_Warning_Suppression
      (Buffer : in out SU.Unbounded_String;
       Depth  : Natural);
-   procedure Append_Task_Warning_Restore
+   procedure Append_Task_Assignment_Warning_Restore
      (Buffer : in out SU.Unbounded_String;
       Depth  : Natural);
+   procedure Append_Task_If_Warning_Suppression
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural);
+   procedure Append_Task_If_Warning_Restore
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural);
+   procedure Append_Task_Channel_Call_Warning_Suppression
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural);
+   procedure Append_Task_Channel_Call_Warning_Restore
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural);
+   function Structural_Accumulator_Count_Total_Bound
+     (Unit       : CM.Resolved_Unit;
+      Document   : GM.Mir_Document;
+      Subprogram : CM.Resolved_Subprogram;
+      Count_Name : String;
+      Total_Name : String;
+      State      : in out Emit_State) return String;
 
    function Render_Subprogram_Params
      (Unit       : CM.Resolved_Unit;
@@ -7995,6 +8030,8 @@ package body Safe_Frontend.Ada_Emit is
       Summary : constant MB.Graph_Summary :=
         Find_Graph_Summary (Bronze, FT.To_String (Subprogram.Name));
       Uses_Print : constant Boolean := Statements_Use_Print (Subprogram.Statements);
+      Uses_Structural_Traversal : constant Boolean :=
+        Uses_Structural_Traversal_Lowering (Subprogram);
       Global_Image  : constant String := Render_Global_Aspect (Unit, Summary);
       Depends_Image : constant String :=
         Render_Depends_Aspect (Unit, Subprogram, Summary);
@@ -8002,6 +8039,21 @@ package body Safe_Frontend.Ada_Emit is
         Render_Access_Param_Precondition (Unit, Document, Subprogram, State);
       Post_Image : constant String :=
         Render_Access_Param_Postcondition (Unit, Document, Subprogram, State);
+      Structural_Pre_Image : constant String :=
+        (if Uses_Structural_Traversal and then Subprogram.Params.Length >= 3
+         then
+           Structural_Accumulator_Count_Total_Bound
+             (Unit,
+              Document,
+              Subprogram,
+              Ada_Safe_Name
+                (FT.To_String
+                   (Subprogram.Params (Subprogram.Params.First_Index + 1).Name)),
+              Ada_Safe_Name
+                (FT.To_String
+                   (Subprogram.Params (Subprogram.Params.First_Index + 2).Name)),
+              State)
+         else "");
       Local_Names : FT.UString_Vectors.Vector;
       function Recursive_Variant_Image return String;
       Result : SU.Unbounded_String;
@@ -8321,28 +8373,36 @@ package body Safe_Frontend.Ada_Emit is
       end if;
 
       if Has_Text (Summary.Name) then
-         declare
-            Variant_Image : constant String := Recursive_Variant_Image;
-         begin
-            if Variant_Image'Length > 0 then
-               Append_Aspect ("Subprogram_Variant => (" & Variant_Image & ")");
-               if Contains_Recursive_Accumulator_Pattern
-                    (FT.Lowercase (FT.To_String (Subprogram.Name)),
-                     Local_Names,
-                     Subprogram.Statements)
-               then
-                  Append_Aspect ("Annotate => (GNATprove, Skip_Proof)");
+         if not Uses_Structural_Traversal then
+            declare
+               Variant_Image : constant String := Recursive_Variant_Image;
+            begin
+               if Variant_Image'Length > 0 then
+                  Append_Aspect ("Subprogram_Variant => (" & Variant_Image & ")");
+                  if Contains_Recursive_Accumulator_Pattern
+                       (FT.Lowercase (FT.To_String (Subprogram.Name)),
+                        Local_Names,
+                        Subprogram.Statements)
+                  then
+                     Append_Aspect ("Annotate => (GNATprove, Skip_Proof)");
+                  end if;
                end if;
-            end if;
-         end;
+            end;
+         end if;
 
          Append_Aspect ("Global => " & Global_Image);
 
          if Depends_Image'Length > 0 then
             Append_Aspect ("Depends => (" & Depends_Image & ")");
          end if;
-         if Pre_Image'Length > 0 then
-            Append_Aspect ("Pre => " & Pre_Image);
+         if Pre_Image'Length > 0 or else Structural_Pre_Image'Length > 0 then
+            Append_Aspect
+              ("Pre => "
+               & (if Pre_Image'Length > 0 and then Structural_Pre_Image'Length > 0
+                  then Pre_Image & " and then " & Structural_Pre_Image
+                  elsif Pre_Image'Length > 0
+                  then Pre_Image
+                  else Structural_Pre_Image));
          end if;
          if Post_Image'Length > 0 then
             Append_Aspect ("Post => " & Post_Image);
@@ -8690,12 +8750,246 @@ package body Safe_Frontend.Ada_Emit is
       return not Local_Names.Is_Empty and then Contains_Pattern (Statements);
    end Contains_Recursive_Accumulator_Pattern;
 
+   function Uses_Structural_Traversal_Lowering
+     (Subprogram : CM.Resolved_Subprogram) return Boolean
+   is
+      Subprogram_Name : constant String :=
+        FT.Lowercase (FT.To_String (Subprogram.Name));
+
+      function Is_Direct_Null_Check
+        (Expr : CM.Expr_Access;
+         Name : String) return Boolean;
+
+      function Is_Single_Return_Block
+        (Statements : CM.Statement_Access_Vectors.Vector) return Boolean;
+
+      function Is_Recursive_Tail_Return
+        (Statements : CM.Statement_Access_Vectors.Vector;
+         Expected_Param_Name : String) return Boolean;
+
+      function Is_Direct_Null_Check
+        (Expr : CM.Expr_Access;
+         Name : String) return Boolean
+      is
+         Operator : constant String :=
+           (if Expr = null then "" else Map_Operator (FT.To_String (Expr.Operator)));
+      begin
+         return
+           Expr /= null
+           and then Expr.Kind = CM.Expr_Binary
+           and then Operator = "="
+           and then
+             ((Expr.Left /= null
+               and then Expr.Left.Kind = CM.Expr_Ident
+               and then FT.To_String (Expr.Left.Name) = Name
+               and then Expr.Right /= null
+               and then Expr.Right.Kind = CM.Expr_Null)
+              or else
+              (Expr.Right /= null
+               and then Expr.Right.Kind = CM.Expr_Ident
+               and then FT.To_String (Expr.Right.Name) = Name
+               and then Expr.Left /= null
+               and then Expr.Left.Kind = CM.Expr_Null));
+      end Is_Direct_Null_Check;
+
+      function Is_Single_Return_Block
+        (Statements : CM.Statement_Access_Vectors.Vector) return Boolean
+      is
+      begin
+         return
+           Statements.Length = 1
+           and then Statements (Statements.First_Index) /= null
+           and then Statements (Statements.First_Index).Kind = CM.Stmt_Return
+           and then Statements (Statements.First_Index).Value /= null;
+      end Is_Single_Return_Block;
+
+      function Is_Recursive_Tail_Return
+        (Statements : CM.Statement_Access_Vectors.Vector;
+         Expected_Param_Name : String) return Boolean
+      is
+         Return_Stmt : CM.Statement_Access := null;
+         Call_Expr   : CM.Expr_Access := null;
+      begin
+         if Statements.Length /= 1 then
+            return False;
+         end if;
+
+         Return_Stmt := Statements (Statements.First_Index);
+         if Return_Stmt = null
+           or else Return_Stmt.Kind /= CM.Stmt_Return
+           or else Return_Stmt.Value = null
+           or else Return_Stmt.Value.Kind /= CM.Expr_Call
+         then
+            return False;
+         end if;
+
+         Call_Expr := Return_Stmt.Value;
+         return
+           Call_Expr.Callee /= null
+           and then FT.Lowercase (CM.Flatten_Name (Call_Expr.Callee)) = Subprogram_Name
+           and then Call_Expr.Args.Length = Subprogram.Params.Length
+           and then not Call_Expr.Args.Is_Empty
+           and then Root_Name (Call_Expr.Args (Call_Expr.Args.First_Index)) = Expected_Param_Name;
+      end Is_Recursive_Tail_Return;
+   begin
+      if Subprogram.Params.Is_Empty or else Subprogram.Statements.Is_Empty then
+         return False;
+      end if;
+
+      declare
+         First_Param_Name : constant String :=
+           FT.To_String (Subprogram.Params (Subprogram.Params.First_Index).Name);
+      begin
+         if First_Param_Name'Length = 0
+           or else not Is_Owner_Access
+             (Subprogram.Params (Subprogram.Params.First_Index).Type_Info)
+         then
+            return False;
+         end if;
+
+         if Subprogram.Declarations.Is_Empty
+           and then Subprogram.Params.Length = 1
+           and then Subprogram.Statements.Length = 1
+           and then Subprogram.Statements (Subprogram.Statements.First_Index) /= null
+           and then Subprogram.Statements (Subprogram.Statements.First_Index).Kind = CM.Stmt_If
+         then
+            declare
+               If_Stmt : constant CM.Statement_Access :=
+                 Subprogram.Statements (Subprogram.Statements.First_Index);
+            begin
+               if Is_Direct_Null_Check (If_Stmt.Condition, First_Param_Name)
+                 and then Is_Single_Return_Block (If_Stmt.Then_Stmts)
+                 and then If_Stmt.Has_Else
+                 and then Is_Recursive_Tail_Return (If_Stmt.Else_Stmts, First_Param_Name)
+               then
+                  for Part of If_Stmt.Elsifs loop
+                     if not Is_Single_Return_Block (Part.Statements) then
+                        return False;
+                     end if;
+                  end loop;
+                  return True;
+               end if;
+            end;
+         end if;
+
+         if not Subprogram.Declarations.Is_Empty
+           and then Subprogram.Params.Length >= 2
+           and then Subprogram.Statements.Length >= 4
+         then
+            declare
+               First_Stmt       : constant CM.Statement_Access :=
+                 Subprogram.Statements (Subprogram.Statements.First_Index);
+               Recursive_Assign : constant CM.Statement_Access :=
+                 Subprogram.Statements (Subprogram.Statements.Last_Index - 1);
+               Final_Return     : constant CM.Statement_Access :=
+                 Subprogram.Statements (Subprogram.Statements.Last_Index);
+            begin
+               if First_Stmt /= null
+                 and then First_Stmt.Kind = CM.Stmt_If
+                 and then Is_Single_Return_Block (First_Stmt.Then_Stmts)
+                 and then not First_Stmt.Has_Else
+                 and then First_Stmt.Elsifs.Is_Empty
+                 and then Recursive_Assign /= null
+                 and then Recursive_Assign.Kind = CM.Stmt_Assign
+                 and then Recursive_Assign.Value /= null
+                 and then Recursive_Assign.Value.Kind = CM.Expr_Call
+                 and then Recursive_Assign.Value.Callee /= null
+                 and then FT.Lowercase (CM.Flatten_Name (Recursive_Assign.Value.Callee)) = Subprogram_Name
+                 and then Recursive_Assign.Value.Args.Length = Subprogram.Params.Length
+                 and then Root_Name (Recursive_Assign.Value.Args (Recursive_Assign.Value.Args.First_Index)) = First_Param_Name
+                 and then Final_Return /= null
+                 and then Final_Return.Kind = CM.Stmt_Return
+                 and then Root_Name (Final_Return.Value) = Root_Name (Recursive_Assign.Target)
+               then
+                  return True;
+               end if;
+            end;
+         end if;
+      end;
+
+      return False;
+   end Uses_Structural_Traversal_Lowering;
+
+   function Replace_Identifier_Token
+     (Text        : String;
+      Name        : String;
+      Replacement : String) return String
+   is
+      function Is_Identifier_Char (Item : Character) return Boolean is
+      begin
+         return
+           (Item in 'a' .. 'z')
+           or else (Item in 'A' .. 'Z')
+           or else (Item in '0' .. '9')
+           or else Item = '_';
+      end Is_Identifier_Char;
+
+      Result : SU.Unbounded_String;
+      Index  : Positive := Text'First;
+   begin
+      if Text'Length = 0 or else Name'Length = 0 or else Name = Replacement then
+         return Text;
+      end if;
+
+      while Index <= Text'Last loop
+         if Index + Name'Length - 1 <= Text'Last
+           and then Text (Index .. Index + Name'Length - 1) = Name
+           and then
+             (Index = Text'First or else not Is_Identifier_Char (Text (Index - 1)))
+           and then
+             (Index + Name'Length - 1 = Text'Last
+              or else not Is_Identifier_Char (Text (Index + Name'Length)))
+         then
+            Result := Result & SU.To_Unbounded_String (Replacement);
+            Index := Index + Name'Length;
+         else
+            Result := Result & SU.To_Unbounded_String (String'(1 => Text (Index)));
+            Index := Index + 1;
+         end if;
+      end loop;
+
+      return SU.To_String (Result);
+   end Replace_Identifier_Token;
+
+   procedure Append_Gnatprove_Warning_Suppression
+     (Buffer  : in out SU.Unbounded_String;
+      Pattern : String;
+      Reason  : String;
+      Depth   : Natural)
+   is
+   begin
+      Append_Line
+        (Buffer,
+         "pragma Warnings (GNATprove, Off, """
+         & Pattern
+         & """, Reason => """
+         & Reason
+         & """);",
+         Depth);
+   end Append_Gnatprove_Warning_Suppression;
+
+   procedure Append_Gnatprove_Warning_Restore
+     (Buffer  : in out SU.Unbounded_String;
+      Pattern : String;
+      Depth   : Natural)
+   is
+   begin
+      Append_Line
+        (Buffer,
+         "pragma Warnings (GNATprove, On, """ & Pattern & """);",
+         Depth);
+   end Append_Gnatprove_Warning_Restore;
+
    procedure Append_Initialization_Warning_Suppression
      (Buffer : in out SU.Unbounded_String;
       Depth  : Natural)
    is
    begin
-      Append_Line (Buffer, "pragma Warnings (Off, ""initialization of"");", Depth);
+      Append_Gnatprove_Warning_Suppression
+        (Buffer,
+         "initialization of",
+         "generated local initialization is intentional",
+         Depth);
    end Append_Initialization_Warning_Suppression;
 
    procedure Append_Initialization_Warning_Restore
@@ -8703,24 +8997,128 @@ package body Safe_Frontend.Ada_Emit is
       Depth  : Natural)
    is
    begin
-      Append_Line (Buffer, "pragma Warnings (On, ""initialization of"");", Depth);
+      Append_Gnatprove_Warning_Restore
+        (Buffer,
+         "initialization of",
+         Depth);
    end Append_Initialization_Warning_Restore;
 
-   procedure Append_Task_Warning_Suppression
+   procedure Append_Task_Assignment_Warning_Suppression
      (Buffer : in out SU.Unbounded_String;
       Depth  : Natural)
    is
    begin
-      Append_Line (Buffer, "pragma Warnings (Off);", Depth);
-   end Append_Task_Warning_Suppression;
+      Append_Gnatprove_Warning_Suppression
+        (Buffer,
+         "statement has no effect",
+         "task-local state updates are intentionally isolated",
+         Depth);
+      Append_Gnatprove_Warning_Suppression
+        (Buffer,
+         "unused assignment",
+         "task-local state updates are intentionally isolated",
+         Depth);
+   end Append_Task_Assignment_Warning_Suppression;
 
-   procedure Append_Task_Warning_Restore
+   procedure Append_Task_Assignment_Warning_Restore
      (Buffer : in out SU.Unbounded_String;
       Depth  : Natural)
    is
    begin
-      Append_Line (Buffer, "pragma Warnings (On);", Depth);
-   end Append_Task_Warning_Restore;
+      Append_Gnatprove_Warning_Restore (Buffer, "unused assignment", Depth);
+      Append_Gnatprove_Warning_Restore (Buffer, "statement has no effect", Depth);
+   end Append_Task_Assignment_Warning_Restore;
+
+   procedure Append_Task_If_Warning_Suppression
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural)
+   is
+   begin
+      Append_Gnatprove_Warning_Suppression
+        (Buffer,
+         "statement has no effect",
+         "task-local branching is intentionally isolated",
+         Depth);
+   end Append_Task_If_Warning_Suppression;
+
+   procedure Append_Task_If_Warning_Restore
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural)
+   is
+   begin
+      Append_Gnatprove_Warning_Restore (Buffer, "statement has no effect", Depth);
+   end Append_Task_If_Warning_Restore;
+
+   procedure Append_Task_Channel_Call_Warning_Suppression
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural)
+   is
+   begin
+      Append_Gnatprove_Warning_Suppression
+        (Buffer,
+         "is set by",
+         "channel results are consumed on the success path only",
+         Depth);
+   end Append_Task_Channel_Call_Warning_Suppression;
+
+   procedure Append_Task_Channel_Call_Warning_Restore
+     (Buffer : in out SU.Unbounded_String;
+      Depth  : Natural)
+   is
+   begin
+      Append_Gnatprove_Warning_Restore (Buffer, "is set by", Depth);
+   end Append_Task_Channel_Call_Warning_Restore;
+
+   function Structural_Accumulator_Count_Total_Bound
+     (Unit       : CM.Resolved_Unit;
+      Document   : GM.Mir_Document;
+      Subprogram : CM.Resolved_Subprogram;
+      Count_Name : String;
+      Total_Name : String;
+      State      : in out Emit_State) return String
+   is
+      Count_Param  : constant CM.Symbol :=
+        Subprogram.Params (Subprogram.Params.First_Index + 1);
+      Total_Param  : constant CM.Symbol :=
+        Subprogram.Params (Subprogram.Params.First_Index + 2);
+      Count_Base   : constant GM.Type_Descriptor :=
+        Base_Type (Unit, Document, Count_Param.Type_Info);
+      Total_Base   : constant GM.Type_Descriptor :=
+        Base_Type (Unit, Document, Total_Param.Type_Info);
+      Count_High   : CM.Wide_Integer;
+      Total_High   : CM.Wide_Integer;
+      Step_Limit   : CM.Wide_Integer;
+   begin
+      if Subprogram.Params.Length < 3
+        or else not Is_Integer_Type (Unit, Document, Count_Param.Type_Info)
+        or else not Is_Integer_Type (Unit, Document, Total_Param.Type_Info)
+        or else not Count_Base.Has_Low
+        or else not Count_Base.Has_High
+        or else not Total_Base.Has_Low
+        or else not Total_Base.Has_High
+        or else Count_Base.Low /= 0
+        or else Total_Base.Low /= 0
+        or else Count_Base.High <= 0
+      then
+         return "";
+      end if;
+
+      Count_High := CM.Wide_Integer (Count_Base.High);
+      Total_High := CM.Wide_Integer (Total_Base.High);
+      if Total_High < 0 or else Total_High mod Count_High /= 0 then
+         return "";
+      end if;
+
+      Step_Limit := Total_High / Count_High;
+      State.Needs_Safe_Runtime := True;
+      return
+        "Safe_Runtime.Wide_Integer ("
+        & Total_Name
+        & ") <= Safe_Runtime.Wide_Integer ("
+        & Count_Name
+        & ") * "
+        & Trim_Wide_Image (Step_Limit);
+   end Structural_Accumulator_Count_Total_Bound;
 
    procedure Append_Narrowing_Assignment
      (Buffer     : in out SU.Unbounded_String;
@@ -9472,10 +9870,18 @@ package body Safe_Frontend.Ada_Emit is
                   Push_Cleanup_Frame (State);
                   Register_Cleanup_Items (State, Block_Declarations);
                   Append_Line (Buffer, "declare", Depth);
+                  if State.Task_Body_Depth > 0 then
+                     Append_Initialization_Warning_Suppression
+                       (Buffer, Depth + 1);
+                  end if;
                   Append_Line
                     (Buffer,
                      Render_Object_Decl_Text (Unit, Document, State, Item.Decl, Local_Context => True),
                      Depth + 1);
+                  if State.Task_Body_Depth > 0 then
+                     Append_Initialization_Warning_Restore
+                       (Buffer, Depth + 1);
+                  end if;
                   Render_Free_Declarations (Buffer, Block_Declarations, Depth + 1);
                   Append_Line (Buffer, "begin", Depth);
                   Render_Required_Statement_Suite
@@ -9579,12 +9985,18 @@ package body Safe_Frontend.Ada_Emit is
                end;
                return;
             when CM.Stmt_Assign =>
+               if State.Task_Body_Depth > 0 then
+                  Append_Task_Assignment_Warning_Suppression (Buffer, Depth);
+               end if;
                Append_Assignment (Buffer, Unit, Document, State, Item.all, Depth);
                if In_Loop then
                   Append_Integer_Loop_Invariant
                     (Buffer, Unit, Document, State, Item.Target, Depth);
                   Append_Float_Loop_Invariant
                     (Buffer, Unit, Document, State, Item.Target, Depth);
+               end if;
+               if State.Task_Body_Depth > 0 then
+                  Append_Task_Assignment_Warning_Restore (Buffer, Depth);
                end if;
             when CM.Stmt_Call =>
                if Is_Print_Call (Item.Call) then
@@ -9628,6 +10040,9 @@ package body Safe_Frontend.Ada_Emit is
                      Depth);
                end if;
             when CM.Stmt_If =>
+               if State.Task_Body_Depth > 0 then
+                  Append_Task_If_Warning_Suppression (Buffer, Depth);
+               end if;
                Append_Line
                  (Buffer,
                   "if " & Render_Expr (Unit, Document, Item.Condition, State) & " then",
@@ -9648,6 +10063,9 @@ package body Safe_Frontend.Ada_Emit is
                     (Buffer, Unit, Document, Item.Else_Stmts, State, Depth + 1, Return_Type, In_Loop);
                end if;
                Append_Line (Buffer, "end if;", Depth);
+               if State.Task_Body_Depth > 0 then
+                  Append_Task_If_Warning_Restore (Buffer, Depth);
+               end if;
             when CM.Stmt_Case =>
                Append_Line
                  (Buffer,
@@ -9881,6 +10299,9 @@ package body Safe_Frontend.Ada_Emit is
                   Depth);
             when CM.Stmt_Receive =>
                State.Needs_Gnat_Adc := True;
+               if State.Task_Body_Depth > 0 then
+                  Append_Task_Channel_Call_Warning_Suppression (Buffer, Depth);
+               end if;
                Append_Line
                  (Buffer,
                   Render_Expr (Unit, Document, Item.Channel_Name, State)
@@ -9888,6 +10309,9 @@ package body Safe_Frontend.Ada_Emit is
                   & Render_Expr (Unit, Document, Item.Target, State)
                   & ");",
                   Depth);
+               if State.Task_Body_Depth > 0 then
+                  Append_Task_Channel_Call_Warning_Restore (Buffer, Depth);
+               end if;
             when CM.Stmt_Try_Send =>
                State.Needs_Gnat_Adc := True;
                Append_Line
@@ -9902,6 +10326,9 @@ package body Safe_Frontend.Ada_Emit is
                   Depth);
             when CM.Stmt_Try_Receive =>
                State.Needs_Gnat_Adc := True;
+               if State.Task_Body_Depth > 0 then
+                  Append_Task_Channel_Call_Warning_Suppression (Buffer, Depth);
+               end if;
                Append_Line
                  (Buffer,
                   Render_Expr (Unit, Document, Item.Channel_Name, State)
@@ -9911,6 +10338,9 @@ package body Safe_Frontend.Ada_Emit is
                   & Render_Expr (Unit, Document, Item.Success_Var, State)
                   & ");",
                   Depth);
+               if State.Task_Body_Depth > 0 then
+                  Append_Task_Channel_Call_Warning_Restore (Buffer, Depth);
+               end if;
             when CM.Stmt_Select =>
                State.Needs_Gnat_Adc := True;
                declare
@@ -9975,6 +10405,10 @@ package body Safe_Frontend.Ada_Emit is
                         if Arm.Kind = CM.Select_Arm_Channel then
                            Append_Line (Buffer, "if not Select_Done then", Depth + 2);
                            Append_Line (Buffer, "declare", Depth + 3);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Initialization_Warning_Suppression
+                                (Buffer, Depth + 4);
+                           end if;
                            Append_Line
                              (Buffer,
                               FT.To_String (Arm.Channel_Data.Variable_Name)
@@ -9984,8 +10418,16 @@ package body Safe_Frontend.Ada_Emit is
                               & Default_Value_Expr (Arm.Channel_Data.Type_Info)
                               & ";",
                               Depth + 4);
-                           Append_Line (Buffer, "Arm_Success : Boolean;", Depth + 4);
+                           Append_Line (Buffer, "Arm_Success : Boolean := False;", Depth + 4);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Initialization_Warning_Restore
+                                (Buffer, Depth + 4);
+                           end if;
                            Append_Line (Buffer, "begin", Depth + 3);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Task_Channel_Call_Warning_Suppression
+                                (Buffer, Depth + 4);
+                           end if;
                            Append_Line
                              (Buffer,
                               Render_Expr (Unit, Document, Arm.Channel_Data.Channel_Name, State)
@@ -9993,6 +10435,11 @@ package body Safe_Frontend.Ada_Emit is
                               & FT.To_String (Arm.Channel_Data.Variable_Name)
                               & ", Arm_Success);",
                               Depth + 4);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Task_Channel_Call_Warning_Restore
+                                (Buffer, Depth + 4);
+                              Append_Task_If_Warning_Suppression (Buffer, Depth + 4);
+                           end if;
                            Append_Line (Buffer, "if Arm_Success then", Depth + 4);
                            Append_Line (Buffer, "Select_Done := True;", Depth + 5);
                            Render_Required_Statement_Suite
@@ -10004,6 +10451,9 @@ package body Safe_Frontend.Ada_Emit is
                               Depth + 5,
                               Return_Type);
                            Append_Line (Buffer, "end if;", Depth + 4);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Task_If_Warning_Restore (Buffer, Depth + 4);
+                           end if;
                            Append_Line (Buffer, "end;", Depth + 3);
                            Append_Line (Buffer, "end if;", Depth + 2);
                         elsif Arm.Kind /= CM.Select_Arm_Delay then
@@ -10017,6 +10467,9 @@ package body Safe_Frontend.Ada_Emit is
                      Append_Line (Buffer, "end loop;", Depth + 1);
                      for Arm of Item.Arms loop
                         if Arm.Kind = CM.Select_Arm_Delay then
+                           if State.Task_Body_Depth > 0 then
+                              Append_Task_If_Warning_Suppression (Buffer, Depth + 1);
+                           end if;
                            Append_Line (Buffer, "if not Select_Done then", Depth + 1);
                            Render_Required_Statement_Suite
                              (Buffer,
@@ -10027,6 +10480,9 @@ package body Safe_Frontend.Ada_Emit is
                               Depth + 2,
                               Return_Type);
                            Append_Line (Buffer, "end if;", Depth + 1);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Task_If_Warning_Restore (Buffer, Depth + 1);
+                           end if;
                            exit;
                         end if;
                      end loop;
@@ -10041,6 +10497,10 @@ package body Safe_Frontend.Ada_Emit is
                         if Arm.Kind = CM.Select_Arm_Channel then
                            Append_Line (Buffer, "if not Select_Done then", Depth + 2);
                            Append_Line (Buffer, "declare", Depth + 3);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Initialization_Warning_Suppression
+                                (Buffer, Depth + 4);
+                           end if;
                            Append_Line
                              (Buffer,
                               FT.To_String (Arm.Channel_Data.Variable_Name)
@@ -10050,8 +10510,16 @@ package body Safe_Frontend.Ada_Emit is
                               & Default_Value_Expr (Arm.Channel_Data.Type_Info)
                               & ";",
                               Depth + 4);
-                           Append_Line (Buffer, "Arm_Success : Boolean;", Depth + 4);
+                           Append_Line (Buffer, "Arm_Success : Boolean := False;", Depth + 4);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Initialization_Warning_Restore
+                                (Buffer, Depth + 4);
+                           end if;
                            Append_Line (Buffer, "begin", Depth + 3);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Task_Channel_Call_Warning_Suppression
+                                (Buffer, Depth + 4);
+                           end if;
                            Append_Line
                              (Buffer,
                               Render_Expr (Unit, Document, Arm.Channel_Data.Channel_Name, State)
@@ -10059,6 +10527,11 @@ package body Safe_Frontend.Ada_Emit is
                               & FT.To_String (Arm.Channel_Data.Variable_Name)
                               & ", Arm_Success);",
                               Depth + 4);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Task_Channel_Call_Warning_Restore
+                                (Buffer, Depth + 4);
+                              Append_Task_If_Warning_Suppression (Buffer, Depth + 4);
+                           end if;
                            Append_Line (Buffer, "if Arm_Success then", Depth + 4);
                            Append_Line (Buffer, "Select_Done := True;", Depth + 5);
                            Render_Required_Statement_Suite
@@ -10070,6 +10543,9 @@ package body Safe_Frontend.Ada_Emit is
                               Depth + 5,
                               Return_Type);
                            Append_Line (Buffer, "end if;", Depth + 4);
+                           if State.Task_Body_Depth > 0 then
+                              Append_Task_If_Warning_Restore (Buffer, Depth + 4);
+                           end if;
                            Append_Line (Buffer, "end;", Depth + 3);
                            Append_Line (Buffer, "end if;", Depth + 2);
                         elsif Arm.Kind /= CM.Select_Arm_Delay then
@@ -10374,6 +10850,8 @@ package body Safe_Frontend.Ada_Emit is
         Non_Alias_Declarations (Subprogram.Declarations);
       Inner_Alias_Declarations : constant CM.Resolved_Object_Decl_Vectors.Vector :=
         Alias_Declarations (Subprogram.Declarations);
+      Structural_Traversal_Lowering : constant Boolean :=
+        Uses_Structural_Traversal_Lowering (Subprogram);
       Uses_Print : constant Boolean := Statements_Use_Print (Subprogram.Statements);
       Previous_Wide_Count : constant Ada.Containers.Count_Type :=
         State.Wide_Local_Names.Length;
@@ -10442,8 +10920,518 @@ package body Safe_Frontend.Ada_Emit is
 
       Outer_Declarations : constant CM.Resolved_Object_Decl_Vectors.Vector :=
         Effective_Outer_Declarations;
+      Return_Type_Image : constant String :=
+        (if Subprogram.Has_Return_Type then Render_Type_Name (Subprogram.Return_Type) else "");
       Suppress_Declaration_Warnings : constant Boolean :=
-        not Outer_Declarations.Is_Empty;
+        not Structural_Traversal_Lowering and then not Outer_Declarations.Is_Empty;
+
+      function Apply_Replacements
+        (Text       : String;
+         From_Names : FT.UString_Vectors.Vector;
+         To_Names   : FT.UString_Vectors.Vector) return String
+      is
+         Result : SU.Unbounded_String := SU.To_Unbounded_String (Text);
+      begin
+         if From_Names.Length /= To_Names.Length then
+            Raise_Internal
+              ("structural traversal replacement table length mismatch during Ada emission");
+         end if;
+
+         if From_Names.Is_Empty then
+            return Text;
+         end if;
+
+         for Index in From_Names.First_Index .. From_Names.Last_Index loop
+            Result :=
+              SU.To_Unbounded_String
+                (Replace_Identifier_Token
+                   (SU.To_String (Result),
+                    FT.To_String (From_Names (Index)),
+                    FT.To_String (To_Names (Index))));
+         end loop;
+         return SU.To_String (Result);
+      end Apply_Replacements;
+
+      function Render_Structural_Traversal_Body return Boolean is
+         Subprogram_Name : constant String :=
+           FT.Lowercase (FT.To_String (Subprogram.Name));
+
+         function Is_Direct_Null_Check
+           (Expr : CM.Expr_Access;
+            Name : String) return Boolean;
+
+         function Single_Return_Expr
+           (Statements : CM.Statement_Access_Vectors.Vector) return CM.Expr_Access;
+
+         function Recursive_Call_From_Return
+           (Statements : CM.Statement_Access_Vectors.Vector) return CM.Expr_Access;
+
+         function Is_Direct_Null_Check
+           (Expr : CM.Expr_Access;
+            Name : String) return Boolean
+         is
+            Operator : constant String :=
+              (if Expr = null then "" else Map_Operator (FT.To_String (Expr.Operator)));
+         begin
+            return
+              Expr /= null
+              and then Expr.Kind = CM.Expr_Binary
+              and then Operator = "="
+              and then
+                ((Expr.Left /= null
+                  and then Expr.Left.Kind = CM.Expr_Ident
+                  and then FT.To_String (Expr.Left.Name) = Name
+                  and then Expr.Right /= null
+                  and then Expr.Right.Kind = CM.Expr_Null)
+                 or else
+                 (Expr.Right /= null
+                  and then Expr.Right.Kind = CM.Expr_Ident
+                  and then FT.To_String (Expr.Right.Name) = Name
+                  and then Expr.Left /= null
+                  and then Expr.Left.Kind = CM.Expr_Null));
+         end Is_Direct_Null_Check;
+
+         function Single_Return_Expr
+           (Statements : CM.Statement_Access_Vectors.Vector) return CM.Expr_Access
+         is
+         begin
+            if Statements.Length /= 1
+              or else Statements (Statements.First_Index) = null
+              or else Statements (Statements.First_Index).Kind /= CM.Stmt_Return
+            then
+               return null;
+            end if;
+
+            return Statements (Statements.First_Index).Value;
+         end Single_Return_Expr;
+
+         function Recursive_Call_From_Return
+           (Statements : CM.Statement_Access_Vectors.Vector) return CM.Expr_Access
+         is
+            Return_Expr : constant CM.Expr_Access := Single_Return_Expr (Statements);
+         begin
+            if Return_Expr /= null
+              and then Return_Expr.Kind = CM.Expr_Call
+              and then Return_Expr.Callee /= null
+              and then FT.Lowercase (CM.Flatten_Name (Return_Expr.Callee)) = Subprogram_Name
+            then
+               return Return_Expr;
+            end if;
+            return null;
+         end Recursive_Call_From_Return;
+
+         function Render_Structural_Observer return Boolean is
+            Param              : constant CM.Symbol :=
+              Subprogram.Params (Subprogram.Params.First_Index);
+            Param_Name         : constant String := FT.To_String (Param.Name);
+            Param_Image        : constant String := Ada_Safe_Name (Param_Name);
+            Cursor_Name        : constant String := "Cursor";
+            Cursor_Type_Image  : constant String :=
+              (if Has_Text (Param.Type_Info.Target)
+               then "access constant " & FT.To_String (Param.Type_Info.Target)
+               else "");
+            If_Stmt            : CM.Statement_Access := null;
+            Recursive_Call     : CM.Expr_Access := null;
+            Default_Return_Expr : CM.Expr_Access := null;
+            From_Names         : FT.UString_Vectors.Vector;
+            To_Names           : FT.UString_Vectors.Vector;
+         begin
+            if not Subprogram.Declarations.Is_Empty
+              or else Subprogram.Params.Length /= 1
+              or else Subprogram.Statements.Length /= 1
+              or else not Is_Owner_Access (Param.Type_Info)
+              or else Cursor_Type_Image'Length = 0
+            then
+               return False;
+            end if;
+
+            If_Stmt := Subprogram.Statements (Subprogram.Statements.First_Index);
+            if If_Stmt = null
+              or else If_Stmt.Kind /= CM.Stmt_If
+              or else not Is_Direct_Null_Check (If_Stmt.Condition, Param_Name)
+              or else not If_Stmt.Has_Else
+            then
+               return False;
+            end if;
+
+            Default_Return_Expr := Single_Return_Expr (If_Stmt.Then_Stmts);
+            Recursive_Call := Recursive_Call_From_Return (If_Stmt.Else_Stmts);
+            if Default_Return_Expr = null
+              or else Recursive_Call = null
+              or else Recursive_Call.Args.Length /= 1
+              or else Root_Name (Recursive_Call.Args (Recursive_Call.Args.First_Index)) /= Param_Name
+            then
+               return False;
+            end if;
+
+            for Part of If_Stmt.Elsifs loop
+               if Single_Return_Expr (Part.Statements) = null then
+                  return False;
+               end if;
+            end loop;
+
+            From_Names.Append (FT.To_UString (Param_Image));
+            To_Names.Append (FT.To_UString (Cursor_Name));
+
+            Append_Line
+              (Buffer,
+               Cursor_Name & " : " & Cursor_Type_Image & " := " & Param_Image & ";",
+               2);
+            Append_Line (Buffer, "begin", 1);
+            Append_Line (Buffer, "while " & Cursor_Name & " /= null loop", 2);
+            Append_Line (Buffer, "pragma Loop_Variant (Structural => " & Cursor_Name & ");", 3);
+
+            for Part of If_Stmt.Elsifs loop
+               declare
+                  Branch_Return : constant CM.Expr_Access := Single_Return_Expr (Part.Statements);
+               begin
+                  Append_Line
+                    (Buffer,
+                     "if "
+                     & Apply_Replacements
+                         (Render_Expr (Unit, Document, Part.Condition, State),
+                          From_Names,
+                          To_Names)
+                     & " then",
+                     3);
+                  Append_Line
+                    (Buffer,
+                     "return "
+                     & Apply_Replacements
+                         (Render_Expr (Unit, Document, Branch_Return, State),
+                          From_Names,
+                          To_Names)
+                     & ";",
+                     4);
+                  Append_Line (Buffer, "end if;", 3);
+               end;
+            end loop;
+
+            Append_Line
+              (Buffer,
+               Cursor_Name
+               & " := "
+               & Apply_Replacements
+                   (Render_Expr
+                      (Unit,
+                       Document,
+                       Recursive_Call.Args (Recursive_Call.Args.First_Index),
+                       State),
+                    From_Names,
+                    To_Names)
+               & ";",
+               3);
+            Append_Line (Buffer, "end loop;", 2);
+            Append_Line
+              (Buffer,
+               "return "
+               & Apply_Replacements
+                   (Render_Expr (Unit, Document, Default_Return_Expr, State),
+                    From_Names,
+                    To_Names)
+               & ";",
+               2);
+            return True;
+         end Render_Structural_Observer;
+
+         function Render_Structural_Accumulator return Boolean is
+            First_Param       : constant CM.Symbol :=
+              Subprogram.Params (Subprogram.Params.First_Index);
+            First_Param_Name  : constant String := FT.To_String (First_Param.Name);
+            First_Param_Image : constant String := Ada_Safe_Name (First_Param_Name);
+            Cursor_Name       : constant String := "Cursor";
+            Cursor_Type_Image : constant String :=
+              (if Has_Text (First_Param.Type_Info.Target)
+               then "access constant " & FT.To_String (First_Param.Type_Info.Target)
+               else "");
+            First_Stmt        : CM.Statement_Access := null;
+            Recursive_Assign  : CM.Statement_Access := null;
+            Final_Return      : CM.Statement_Access := null;
+            Recursive_Call    : CM.Expr_Access := null;
+            Entry_Exit_Image  : SU.Unbounded_String := SU.Null_Unbounded_String;
+            Final_Return_Image : SU.Unbounded_String := SU.Null_Unbounded_String;
+            Bound_Image       : SU.Unbounded_String := SU.Null_Unbounded_String;
+            From_Names        : FT.UString_Vectors.Vector;
+            To_Names          : FT.UString_Vectors.Vector;
+            State_Names       : FT.UString_Vectors.Vector;
+         begin
+            if Subprogram.Declarations.Is_Empty
+              or else Subprogram.Params.Length < 2
+              or else Subprogram.Statements.Length < 4
+              or else not Is_Owner_Access (First_Param.Type_Info)
+              or else Cursor_Type_Image'Length = 0
+            then
+               return False;
+            end if;
+
+            First_Stmt := Subprogram.Statements (Subprogram.Statements.First_Index);
+            Recursive_Assign := Subprogram.Statements (Subprogram.Statements.Last_Index - 1);
+            Final_Return := Subprogram.Statements (Subprogram.Statements.Last_Index);
+            if First_Stmt = null
+              or else First_Stmt.Kind /= CM.Stmt_If
+              or else Single_Return_Expr (First_Stmt.Then_Stmts) = null
+              or else First_Stmt.Has_Else
+              or else not First_Stmt.Elsifs.Is_Empty
+              or else Recursive_Assign = null
+              or else Recursive_Assign.Kind /= CM.Stmt_Assign
+              or else Recursive_Assign.Value = null
+              or else Recursive_Assign.Value.Kind /= CM.Expr_Call
+              or else Recursive_Assign.Value.Callee = null
+              or else FT.Lowercase (CM.Flatten_Name (Recursive_Assign.Value.Callee)) /= Subprogram_Name
+              or else Final_Return = null
+              or else Final_Return.Kind /= CM.Stmt_Return
+              or else Root_Name (Final_Return.Value) /= Root_Name (Recursive_Assign.Target)
+            then
+               return False;
+            end if;
+
+            Recursive_Call := Recursive_Assign.Value;
+            if Recursive_Call.Args.Length /= Subprogram.Params.Length
+              or else Root_Name (Recursive_Call.Args (Recursive_Call.Args.First_Index)) /= First_Param_Name
+            then
+               return False;
+            end if;
+
+            From_Names.Append (FT.To_UString (First_Param_Image));
+            To_Names.Append (FT.To_UString (Cursor_Name));
+
+            for Param_Index in Subprogram.Params.First_Index + 1 .. Subprogram.Params.Last_Index loop
+               declare
+                  Param      : constant CM.Symbol := Subprogram.Params (Param_Index);
+                  Param_Name : constant String := Ada_Safe_Name (FT.To_String (Param.Name));
+                  State_Name : constant String := Param_Name & "_State";
+               begin
+                  State_Names.Append (FT.To_UString (State_Name));
+                  From_Names.Append (FT.To_UString (Param_Name));
+                  To_Names.Append (FT.To_UString (State_Name));
+               end;
+            end loop;
+
+            for Arg_Index in Recursive_Call.Args.First_Index + 1 .. Recursive_Call.Args.Last_Index loop
+               declare
+                  Root : constant String := Ada_Safe_Name (Root_Name (Recursive_Call.Args (Arg_Index)));
+               begin
+                  if Root'Length > 0 then
+                     From_Names.Append (FT.To_UString (Root));
+                     To_Names.Append
+                       (State_Names
+                          (State_Names.First_Index
+                           + (Arg_Index - (Recursive_Call.Args.First_Index + 1))));
+                  end if;
+               end;
+            end loop;
+
+            declare
+               Leading_Condition : constant CM.Expr_Access := First_Stmt.Condition;
+               Operator          : constant String :=
+                 (if Leading_Condition = null then "" else Map_Operator (FT.To_String (Leading_Condition.Operator)));
+               Leading_Return    : constant CM.Expr_Access :=
+                 Single_Return_Expr (First_Stmt.Then_Stmts);
+            begin
+               if Is_Direct_Null_Check (Leading_Condition, First_Param_Name) then
+                  null;
+               elsif Leading_Condition /= null
+                 and then Leading_Condition.Kind = CM.Expr_Binary
+                 and then Operator = "or else"
+               then
+                  if Is_Direct_Null_Check (Leading_Condition.Left, First_Param_Name) then
+                     Entry_Exit_Image :=
+                       SU.To_Unbounded_String
+                         (Apply_Replacements
+                            (Render_Expr (Unit, Document, Leading_Condition.Right, State),
+                             From_Names,
+                             To_Names));
+                  elsif Is_Direct_Null_Check (Leading_Condition.Right, First_Param_Name) then
+                     Entry_Exit_Image :=
+                       SU.To_Unbounded_String
+                         (Apply_Replacements
+                            (Render_Expr (Unit, Document, Leading_Condition.Left, State),
+                             From_Names,
+                             To_Names));
+                  else
+                     return False;
+                  end if;
+               else
+                  return False;
+               end if;
+
+               Final_Return_Image :=
+                 SU.To_Unbounded_String
+                   (Apply_Replacements
+                      (Render_Expr (Unit, Document, Leading_Return, State),
+                       From_Names,
+                       To_Names));
+            end;
+
+            Append_Line
+              (Buffer,
+               Cursor_Name & " : " & Cursor_Type_Image & " := " & First_Param_Image & ";",
+               2);
+            for Param_Index in Subprogram.Params.First_Index + 1 .. Subprogram.Params.Last_Index loop
+               declare
+                  Param      : constant CM.Symbol := Subprogram.Params (Param_Index);
+                  State_Name : constant String :=
+                    FT.To_String
+                      (State_Names
+                         (State_Names.First_Index
+                          + (Param_Index - (Subprogram.Params.First_Index + 1))));
+               begin
+                  Append_Line
+                    (Buffer,
+                     State_Name
+                     & " : "
+                     & Render_Type_Name (Param.Type_Info)
+                     & " := "
+                     & Ada_Safe_Name (FT.To_String (Param.Name))
+                     & ";",
+                     2);
+               end;
+            end loop;
+
+            Append_Line (Buffer, "begin", 1);
+            Append_Line (Buffer, "while " & Cursor_Name & " /= null loop", 2);
+            Append_Line (Buffer, "pragma Loop_Variant (Structural => " & Cursor_Name & ");", 3);
+            for Param_Index in Subprogram.Params.First_Index + 1 .. Subprogram.Params.Last_Index loop
+               declare
+                  Param      : constant CM.Symbol := Subprogram.Params (Param_Index);
+                  State_Name : constant String :=
+                    FT.To_String
+                      (State_Names
+                         (State_Names.First_Index
+                          + (Param_Index - (Subprogram.Params.First_Index + 1))));
+               begin
+                  if not Is_Access_Type (Param.Type_Info) then
+                     Append_Line
+                       (Buffer,
+                        "pragma Loop_Invariant ("
+                        & State_Name
+                        & " in "
+                        & Render_Type_Name (Param.Type_Info)
+                        & ");",
+                        3);
+                  end if;
+               end;
+            end loop;
+            if State_Names.Length >= 2 then
+               Bound_Image :=
+                 SU.To_Unbounded_String
+                   (Structural_Accumulator_Count_Total_Bound
+                      (Unit,
+                       Document,
+                       Subprogram,
+                       FT.To_String (State_Names (State_Names.First_Index)),
+                       FT.To_String (State_Names (State_Names.First_Index + 1)),
+                       State));
+               if SU.Length (Bound_Image) > 0 then
+                  Append_Line
+                    (Buffer,
+                     "pragma Loop_Invariant (" & SU.To_String (Bound_Image) & ");",
+                     3);
+               end if;
+            end if;
+
+            if SU.Length (Entry_Exit_Image) > 0 then
+               Append_Line (Buffer, "exit when " & SU.To_String (Entry_Exit_Image) & ";", 3);
+            end if;
+
+            for Statement_Index in Subprogram.Statements.First_Index + 1 .. Subprogram.Statements.Last_Index - 2 loop
+               declare
+                  Item : constant CM.Statement_Access := Subprogram.Statements (Statement_Index);
+               begin
+                  if Item = null then
+                     return False;
+                  end if;
+
+                  case Item.Kind is
+                     when CM.Stmt_Assign =>
+                        declare
+                           Target_Name : constant String :=
+                             Apply_Replacements
+                               (Ada_Safe_Name (Root_Name (Item.Target)),
+                                From_Names,
+                                To_Names);
+                        begin
+                           if Target_Name'Length = 0 then
+                              return False;
+                           end if;
+
+                           Append_Line
+                             (Buffer,
+                              Target_Name
+                              & " := "
+                              & Apply_Replacements
+                                  (Render_Expr (Unit, Document, Item.Value, State),
+                                   From_Names,
+                                   To_Names)
+                              & ";",
+                              3);
+                        end;
+                     when CM.Stmt_If =>
+                        declare
+                           Branch_Return : constant CM.Expr_Access :=
+                             Single_Return_Expr (Item.Then_Stmts);
+                           Branch_Return_Image : constant String :=
+                             (if Branch_Return = null
+                              then ""
+                              else
+                                Apply_Replacements
+                                  (Render_Expr
+                                     (Unit,
+                                      Document,
+                                      Branch_Return,
+                                      State),
+                                   From_Names,
+                                   To_Names));
+                        begin
+                           if Branch_Return = null
+                             or else Item.Has_Else
+                             or else not Item.Elsifs.Is_Empty
+                             or else Branch_Return_Image /= SU.To_String (Final_Return_Image)
+                           then
+                              return False;
+                           end if;
+
+                           Append_Line
+                             (Buffer,
+                              "exit when "
+                              & Apply_Replacements
+                                  (Render_Expr (Unit, Document, Item.Condition, State),
+                                   From_Names,
+                                   To_Names)
+                              & ";",
+                              3);
+                        end;
+                     when others =>
+                        return False;
+                  end case;
+               end;
+            end loop;
+
+            Append_Line
+              (Buffer,
+               Cursor_Name
+               & " := "
+               & Apply_Replacements
+                   (Render_Expr
+                      (Unit,
+                       Document,
+                       Recursive_Call.Args (Recursive_Call.Args.First_Index),
+                       State),
+                    From_Names,
+                    To_Names)
+               & ";",
+               3);
+            Append_Line (Buffer, "end loop;", 2);
+            Append_Line (Buffer, "return " & SU.To_String (Final_Return_Image) & ";", 2);
+            return True;
+         end Render_Structural_Accumulator;
+      begin
+         if Render_Structural_Observer then
+            return True;
+         end if;
+
+         return Render_Structural_Accumulator;
+      end Render_Structural_Traversal_Body;
    begin
       Collect_Wide_Locals
         (Unit, Document, State, Subprogram.Declarations, Subprogram.Statements);
@@ -10462,6 +11450,18 @@ package body Safe_Frontend.Ada_Emit is
          & (if Uses_Print then " with SPARK_Mode => Off" else "")
          & " is",
          1);
+      if Structural_Traversal_Lowering then
+         if not Render_Structural_Traversal_Body then
+            Raise_Internal
+              ("structural traversal lowering matched a subprogram that could not be rendered");
+         end if;
+         Append_Line (Buffer, "end " & FT.To_String (Subprogram.Name) & ";", 1);
+         Append_Line (Buffer);
+         Pop_Cleanup_Frame (State);
+         Pop_Type_Binding_Frame (State);
+         Restore_Wide_Names (State, Previous_Wide_Count);
+         return;
+      end if;
       if Suppress_Declaration_Warnings then
          Append_Initialization_Warning_Suppression (Buffer, 2);
       end if;
@@ -10495,7 +11495,7 @@ package body Safe_Frontend.Ada_Emit is
             Subprogram.Statements,
             State,
             3,
-            (if Subprogram.Has_Return_Type then Render_Type_Name (Subprogram.Return_Type) else ""));
+            Return_Type_Image);
          Append_Line (Buffer, "end;", 2);
          Pop_Type_Binding_Frame (State);
       else
@@ -10506,7 +11506,7 @@ package body Safe_Frontend.Ada_Emit is
             Subprogram.Statements,
             State,
             2,
-            (if Subprogram.Has_Return_Type then Render_Type_Name (Subprogram.Return_Type) else ""));
+            Return_Type_Image);
       end if;
       if Statements_Fall_Through (Subprogram.Statements) then
          Render_Cleanup (Buffer, Outer_Declarations, 2);
@@ -10526,12 +11526,9 @@ package body Safe_Frontend.Ada_Emit is
       State     : in out Emit_State)
    is
       Uses_Print : constant Boolean := Statements_Use_Print (Task_Item.Statements);
-      Suppress_Declaration_Warnings : constant Boolean :=
-        not Task_Item.Declarations.Is_Empty;
-      Suppress_Statement_Warnings : constant Boolean :=
-        not Task_Item.Statements.Is_Empty;
       Previous_Wide_Count : constant Ada.Containers.Count_Type :=
         State.Wide_Local_Names.Length;
+      Previous_Task_Body_Depth : constant Natural := State.Task_Body_Depth;
    begin
       Collect_Wide_Locals
         (Unit, Document, State, Task_Item.Declarations, Task_Item.Statements);
@@ -10544,30 +11541,34 @@ package body Safe_Frontend.Ada_Emit is
          & (if Uses_Print then " with SPARK_Mode => Off" else "")
          & " is",
          1);
-      if Suppress_Declaration_Warnings then
-         Append_Task_Warning_Suppression (Buffer, 2);
+      if not Task_Item.Declarations.Is_Empty then
+         Append_Initialization_Warning_Suppression (Buffer, 2);
       end if;
-      Render_Block_Declarations
-        (Buffer, Unit, Document, Task_Item.Declarations, State, 2);
+      for Decl of Task_Item.Declarations loop
+         Append_Line
+           (Buffer,
+            Render_Object_Decl_Text (Unit, Document, State, Decl, Local_Context => True),
+            2);
+         if Is_Owner_Access (Decl.Type_Info) then
+            State.Needs_Unchecked_Deallocation := True;
+         end if;
+      end loop;
       Render_Free_Declarations (Buffer, Task_Item.Declarations, 2);
-      if Suppress_Declaration_Warnings then
-         Append_Task_Warning_Restore (Buffer, 2);
+      if not Task_Item.Declarations.Is_Empty then
+         Append_Initialization_Warning_Restore (Buffer, 2);
       end if;
       Append_Line (Buffer, "begin", 1);
-      if Suppress_Statement_Warnings then
-         Append_Task_Warning_Suppression (Buffer, 2);
-      end if;
+      State.Task_Body_Depth := Previous_Task_Body_Depth + 1;
       Render_Required_Statement_Suite
         (Buffer, Unit, Document, Task_Item.Statements, State, 2, "");
+      State.Task_Body_Depth := Previous_Task_Body_Depth;
       if Statements_Fall_Through (Task_Item.Statements) then
          Render_Cleanup (Buffer, Task_Item.Declarations, 2);
-      end if;
-      if Suppress_Statement_Warnings then
-         Append_Task_Warning_Restore (Buffer, 2);
       end if;
       Append_Line (Buffer, "end " & FT.To_String (Task_Item.Name) & ";", 1);
       Append_Line (Buffer);
       Pop_Type_Binding_Frame (State);
+      State.Task_Body_Depth := Previous_Task_Body_Depth;
       Restore_Wide_Names (State, Previous_Wide_Count);
    end Render_Task_Body;
 
